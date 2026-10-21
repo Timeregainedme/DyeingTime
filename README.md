@@ -289,6 +289,18 @@ Nginx ──按路径切流──┬──> Go 控制面   (:8001)  鉴权 / 用
 编排文件位于 `deploy/compose/`，包含
 **MySQL + Redis + RustFS + Backend + Celery Worker + Front** 六个服务，另有两个一次性初始化容器。
 
+### 预构建镜像
+
+CI 每次推送到 `main` 会构建并推送镜像到 GitHub Container Registry：
+
+```bash
+docker pull ghcr.io/timeregainedme/dyeingtime/backend:latest
+docker pull ghcr.io/timeregainedme/dyeingtime/front:latest
+```
+
+镜像基于仓库根目录的 `deploy/docker/*.Dockerfile` 构建；compose 里的 `backend` /
+`front` 服务默认走本地构建，加 `--build` 即可改为从源码重建。
+
 ### 端口
 
 | 服务 | 地址 |
