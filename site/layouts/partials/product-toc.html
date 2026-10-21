@@ -1,0 +1,10 @@
+{{ $tocHTML := .TableOfContents }}
+{{ if and $tocHTML (ne (trim $tocHTML " \n\r\t") "") }}
+  <nav class="jf-static-toc" aria-label="Table of contents">
+    <div class="jf-static-toc-inner">
+      <p class="jf-static-toc-title">此页上</p>
+      {{ $tocHTML | safeHTML }}
+    </div>
+  </nav>
+{{ end }}
+

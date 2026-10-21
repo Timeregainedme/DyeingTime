@@ -1,0 +1,12 @@
+{{ define "main" }}
+  {{ partial "content-layout.html" (dict
+    "context" .
+    "sidebar" (dict "context" .)
+    "tocPartial" "product-toc.html"
+    "breadcrumbEnabled" false
+    "showContextMenu" false
+    "showLastUpdated" true
+    "showPagination" false
+    "showComments" true
+  ) }}
+{{ end }}

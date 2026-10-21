@@ -1,0 +1,150 @@
+from __future__ import annotations
+
+"""Studio 图片任务的数据层能力。"""
+
+from fastapi import HTTPException, status
+from langchain_core.prompts import PromptTemplate as LcPromptTemplate
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.contracts.provider import ProviderConfig
+from app.models.llm import Model, ModelCategoryKey
+from app.models.studio import AssetViewAngle, PromptCategory, PromptTemplate, ShotFrameType
+from app.services.llm import get_model_by_category
+from app.services.llm.provider_resolver import resolve_provider_config
+
+
+async def resolve_image_model(db: AsyncSession, model_id: str | None) -> Model:
+    """根据显式 model_id 或默认图片模型解析 Model。"""
+    try:
+        return await get_model_by_category(
+            db,
+            ModelCategoryKey.image,
+            model_or_id=model_id,
+            allow_default_fallback=False,
+        )
+    except HTTPException as e:
+        if e.status_code == status.HTTP_404_NOT_FOUND and model_id:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Configured model_id not found in DB: {model_id}",
+            ) from e
+        if e.status_code == status.HTTP_503_SERVICE_UNAVAILABLE and not model_id:
+            # 保持既有行为：未传 model_id 时，仅允许读取 ModelSettings.default_image_model_id。
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="No image model configured in DB (missing explicit model_id and ModelSettings.default_image_model_id)",
+            ) from e
+        if e.status_code == status.HTTP_503_SERVICE_UNAVAILABLE and model_id:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Configured model is not an image model: {model_id}",
+            ) from e
+        raise
+
+
+async def load_provider_config(db: AsyncSession, provider_id: str) -> ProviderConfig:
+    """根据 provider_id 从 DB 解析 ProviderConfig。"""
+    resolved = await resolve_provider_config(
+        db,
+        provider_id=provider_id,
+        category=ModelCategoryKey.image,
+    )
+    return ProviderConfig(
+        provider=resolved.provider_key,  # type: ignore[arg-type]
+        api_key=resolved.api_key,
+        base_url=resolved.base_url,
+    )
+
+
+def prompt_from_description(description: str, *, not_found_msg: str) -> str:
+    prompt = (description or "").strip()
+    if not prompt:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=not_found_msg)
+    return prompt
+
+
+def is_front_view(view_angle: AssetViewAngle | str | None) -> bool:
+    if view_angle is None:
+        return False
+    value = view_angle.value if isinstance(view_angle, AssetViewAngle) else str(view_angle)
+    return value == AssetViewAngle.front.value
+
+
+def map_view_angle_for_prompt(view_angle: AssetViewAngle | str | None) -> str:
+    if view_angle is None:
+        return ""
+    raw = view_angle.value if isinstance(view_angle, AssetViewAngle) else str(view_angle)
+    view_angle_map = {
+        "RIGH": "纯右側面,严格右侧面，90度纯侧面轮廓，耳朵清晰可见",
+        "RIGHT": "纯右側面,严格右侧面，90度纯侧面轮廓，耳朵清晰可见",
+        "LEFT": "纯左侧面,严格左侧面，90度纯侧面轮廓，耳朵清晰可见",
+        "BACK": "正后方,正后方视角，完全背对镜头，只能看到后脑勺和后背",
+    }
+    return view_angle_map.get(raw, raw)
+
+
+async def resolve_prompt_template(
+    db: AsyncSession,
+    *,
+    category: PromptCategory,
+) -> PromptTemplate | None:
+    stmt = (
+        select(PromptTemplate)
+        .where(PromptTemplate.category == category)
+        .order_by(PromptTemplate.is_default.desc(), PromptTemplate.updated_at.desc())
+        .limit(1)
+    )
+    result = await db.execute(stmt)
+    return result.scalars().first()
+
+
+def render_prompt_template_content(
+    content: str,
+    *,
+    variables: dict[str, object],
+) -> str:
+    tmpl = LcPromptTemplate.from_template(template=content,template_format="jinja2")
+    render_vars = {k: str(variables.get(k, "")) for k in tmpl.input_variables}
+    return tmpl.format(**render_vars).strip()
+
+
+async def build_prompt_with_template(
+    db: AsyncSession,
+    *,
+    category: PromptCategory,
+    variables: dict[str, object],
+    fallback_prompt: str,
+    not_found_msg: str,
+) -> str:
+    template = await resolve_prompt_template(db, category=category)
+    if template is not None and template.content:
+        rendered = render_prompt_template_content(template.content, variables=variables)
+        if rendered:
+            return rendered
+    return prompt_from_description(fallback_prompt, not_found_msg=not_found_msg)
+
+
+
+def asset_prompt_category(
+    *,
+    relation_type: str,
+    is_front_view: bool,
+) -> PromptCategory:
+    mapping = {
+        "actor_image": (PromptCategory.actor_image_front, PromptCategory.actor_image_other),
+        "prop_image": (PromptCategory.prop_image_front, PromptCategory.prop_image_other),
+        "scene_image": (PromptCategory.scene_image_front, PromptCategory.scene_image_other),
+        "costume_image": (PromptCategory.costume_image_front, PromptCategory.costume_image_other),
+    }
+    front_category, other_category = mapping[relation_type]
+    return front_category if is_front_view else other_category
+
+
+def shot_frame_prompt_category(frame_type: ShotFrameType | str) -> PromptCategory:
+    value = frame_type.value if isinstance(frame_type, ShotFrameType) else str(frame_type)
+    if value == ShotFrameType.first.value:
+        return PromptCategory.frame_head_image
+    if value == ShotFrameType.last.value:
+        return PromptCategory.frame_tail_image
+    return PromptCategory.frame_key_image

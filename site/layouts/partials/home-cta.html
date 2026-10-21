@@ -1,0 +1,25 @@
+{{ $cta := site.Data.homepage.cta }}
+{{ $quickstart := site.Data.homepage.quickstart }}
+<section class="jf-section jf-card" style="padding: 32px;">
+  <div>
+    <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:end;justify-content:space-between;">
+      <div style="max-width:720px;">
+        <h2 style="font-size:clamp(30px,4vw,40px);line-height:1.1;font-weight:800;letter-spacing:-0.02em;">{{ $cta.title }}</h2>
+        <p class="jf-lead" style="margin-top:12px;">{{ $cta.description }}</p>
+      </div>
+      <div class="jf-actions" style="margin-top:0;">
+        <a class="jf-btn jf-btn-primary" href="{{ $cta.primary.link }}">
+          {{ $cta.primary.text }}
+        </a>
+        <a class="jf-btn jf-btn-secondary" href="{{ $cta.secondary.link }}">
+          {{ $cta.secondary.text }}
+        </a>
+      </div>
+    </div>
+    <div class="jf-command">
+      <div style="font-size:14px;font-weight:700;">{{ $quickstart.title }}</div>
+      <pre><code>{{ $quickstart.command }}</code></pre>
+      <p>{{ $quickstart.note }}</p>
+    </div>
+  </div>
+</section>

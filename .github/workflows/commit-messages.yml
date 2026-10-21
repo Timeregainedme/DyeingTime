@@ -1,0 +1,66 @@
+# 提交标题规则须与 .githooks/commit-msg 中的 PATTERN 保持一致
+name: Commit messages
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify first line of each commit
+        env:
+          # PR 用 base/head；直推 main 用 before/after
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.after }}
+        run: |
+          set -euo pipefail
+          PATTERN='^\[(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)\] .+'
+
+          if git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null \
+             && git merge-base --is-ancestor "$BASE_SHA" "$HEAD_SHA" 2>/dev/null; then
+            commits="$(git log --format=%H%x09%s "${BASE_SHA}..${HEAD_SHA}")"
+          else
+            # 新分支 / 首次推送 / 强推：基线不可用，退化为只校验 head 提交本身
+            echo "::notice title=Fallback::完整范围不可用（BASE_SHA=${BASE_SHA:-<empty>}），仅校验 head 提交"
+            commits="$(git log --format=%H%x09%s -n 1 "$HEAD_SHA")"
+          fi
+
+          bad=0
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            sha="${line%%$'\t'*}"
+            subject="${line#*$'\t'}"
+            case "$subject" in
+              Merge*) continue ;;
+              Revert*) continue ;;
+            esac
+            if ! printf '%s\n' "$subject" | grep -qE "$PATTERN"; then
+              echo "::error title=Invalid commit message::${sha:0:7} ${subject}"
+              bad=1
+            fi
+          done <<< "$commits"
+
+          if [ "$bad" -ne 0 ]; then
+            echo ""
+            echo "提交说明：首行须为 \"[类型] 摘要\"，类型只能是以下枚举之一（小写）："
+            echo "  feat 新功能 | fix 缺陷修复 | docs 文档 | style 格式 | refactor 重构 | perf 性能"
+            echo "  test 测试 | chore 杂项/工具 | ci CI 配置 | build 构建/依赖 | revert 回滚"
+            echo "示例：[feat] 新功能 / [fix] 修复登录 / [docs] 更新 README"
+            echo ""
+            echo "Commit subject: first line must be \"[type] summary\" with type one of (lowercase only):"
+            echo "  feat, fix, docs, style, refactor, perf, test, chore, ci, build, revert"
+            echo "Examples: [feat] add feature, [fix] repair login, [docs] update README"
+            echo "Subjects starting with Merge / Revert are skipped."
+            exit 1
+          fi

@@ -1,0 +1,59 @@
+{
+  "title": "DyeingTime",
+  "subtitle": "AI Short-form Studio",
+  "welcome": "Welcome to DyeingTime",
+  "menu": {
+    "settings": "Settings"
+  },
+  "nav": {
+    "projects": "Projects",
+    "assets": "Assets",
+    "files": "Files",
+    "prompts": "Prompt Templates",
+    "styles": "Styles",
+    "models": "Models",
+    "voices": "Voices",
+    "settings": "Settings",
+    "settingsGroup": "Configuration"
+  },
+  "breadcrumb": {
+    "projects": "Projects",
+    "project": "Project",
+    "assets": "Assets",
+    "files": "Files",
+    "actors": "Actors",
+    "scenes": "Scenes",
+    "props": "Props",
+    "costumes": "Costumes",
+    "prompts": "Prompt Templates",
+    "styles": "Styles",
+    "models": "Models",
+    "voices": "Voices",
+    "settings": "Settings",
+    "chapters": "Chapters",
+    "chapter": "Chapter",
+    "studio": "Storyboard Studio",
+    "shots": "Shots",
+    "shot": "Shot",
+    "review": "Chapter Review",
+    "edit": "Edit",
+    "editor": "Video Editor",
+    "prep": "Chapter Editor",
+    "roles": "Roles"
+  },
+  "shell": {
+    "toggleSidebar": "Collapse / expand sidebar",
+    "switchToDark": "Switch to dark theme",
+    "switchToLight": "Switch to light theme",
+    "language": "Language",
+    "openTaskCenter": "Task center"
+  },
+  "user": {
+    "profile": "Profile",
+    "logout": "Logout"
+  },
+  "lang": {
+    "zh": "简体中文",
+    "en": "English"
+  }
+}

@@ -1,0 +1,33 @@
+name: Stale Issues
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mark stale issues and close inactive ones
+        uses: actions/stale@v10
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          days-before-issue-stale: 15
+          days-before-issue-close: 3
+          stale-issue-label: stale
+          stale-issue-message: |
+            这个 Issue 在过去 15 天内没有新的活动，已被自动标记为 `stale`。
+
+            如果这个问题仍需继续跟进，请直接回复或补充进展，系统会自动移除 `stale` 标记。
+          close-issue-message: |
+            这个 Issue 在被标记为 `stale` 后 3 天内仍无新的活动，现已自动关闭。
+
+            如果问题仍然存在，可以补充上下文后重新打开，或新建一个 Issue。
+          days-before-pr-stale: -1
+          days-before-pr-close: -1
+          operations-per-run: 200

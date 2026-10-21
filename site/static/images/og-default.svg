@@ -1,0 +1,33 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#07111F"/>
+  <rect x="40" y="40" width="1120" height="550" rx="36" fill="url(#panel)"/>
+  <circle cx="1010" cy="120" r="180" fill="url(#orb)" fill-opacity="0.32"/>
+  <circle cx="945" cy="520" r="220" fill="url(#orb2)" fill-opacity="0.24"/>
+  <text x="88" y="178" fill="#67E8F9" font-size="28" font-family="Arial, sans-serif" letter-spacing="8">AI SHORT DRAMA STUDIO</text>
+  <text x="88" y="286" fill="#F8FAFC" font-size="76" font-weight="700" font-family="Arial, sans-serif">Jellyfish</text>
+  <text x="88" y="360" fill="#E2E8F0" font-size="40" font-family="Arial, sans-serif">AI 短剧工厂</text>
+  <text x="88" y="444" fill="#CBD5E1" font-size="28" font-family="Arial, sans-serif">从剧本到分镜、资产、生成与剪辑的一站式 AI 工作台</text>
+  <g opacity="0.95">
+    <rect x="88" y="500" width="286" height="56" rx="16" fill="#0F172A" stroke="#164E63"/>
+    <text x="118" y="536" fill="#E2E8F0" font-size="22" font-family="Arial, sans-serif">Project → Chapter → Shot</text>
+  </g>
+  <g opacity="0.95">
+    <rect x="398" y="500" width="304" height="56" rx="16" fill="#0F172A" stroke="#164E63"/>
+    <text x="428" y="536" fill="#E2E8F0" font-size="22" font-family="Arial, sans-serif">FastAPI + OpenAPI + Hextra</text>
+  </g>
+  <defs>
+    <linearGradient id="panel" x1="104" y1="76" x2="1104" y2="560" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B1324"/>
+      <stop offset="1" stop-color="#101A31"/>
+    </linearGradient>
+    <radialGradient id="orb" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1010 120) rotate(90) scale(180)">
+      <stop stop-color="#67E8F9"/>
+      <stop offset="1" stop-color="#67E8F9" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="orb2" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(945 520) rotate(90) scale(220)">
+      <stop stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#2563EB" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+</svg>
+

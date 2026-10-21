@@ -1,0 +1,55 @@
+name: 改进 / 建议
+description: 对现有功能的体验优化、文案、性能、文档等小步改进
+title: "[Improvement] "
+labels:
+  - improvement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        适用于**非全新功能**的优化：例如交互更顺手、默认值更合理、文档补全、错误提示更清晰等。若是较大新能力，请改用「功能建议」模板。
+
+  - type: textarea
+    id: area
+    attributes:
+      label: 涉及范围
+      description: 哪个页面、模块或流程？（可附路径或截图说明位置）
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: 当前情况
+      description: 现在哪里不够好？具体现象是什么？
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: 改进建议
+      description: 你希望改成什么样？如有参考产品可简述（不必长文）。
+    validations:
+      required: true
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 改进类型（选最接近的一项）
+      options:
+        - 用户体验 / 交互
+        - 文案与提示
+        - 性能与稳定性
+        - 文档与 README
+        - 开发与工程化
+        - 其他
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: pr
+    attributes:
+      label: 贡献意愿
+      options:
+        - label: 我愿意在确认方向后提交小范围 PR

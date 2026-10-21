@@ -1,0 +1,78 @@
+hero:
+  title: "DyeingTime AI 短剧工厂"
+  subtitle: "面向短剧生产的 AI 工作台，从剧本拆解到分镜、资产、生成与剪辑，一站完成。"
+  primary:
+    text: "查看文档"
+    link: "/docs/"
+  secondary:
+    text: "访问 GitHub"
+    link: "https://github.com/Timeregainedme/DyeingTime"
+
+features:
+  - title: "一致性资产管理"
+    description: "统一角色、场景、道具与服装，减少 AI 生成中的风格漂移。"
+  - title: "工业化创作流程"
+    description: "从脚本处理、分镜编辑到任务生成与剪辑，形成完整工作流。"
+  - title: "分镜级精细控制"
+    description: "支持镜头语言、对白、帧图、提示词与关联资产的细粒度编辑。"
+  - title: "多模型与 Agent 协同"
+    description: "统一管理不同供应商模型，并用 Agent 工作流承接 AI 能力。"
+
+scenarios:
+  - eyebrow: "Studio"
+    title: "AI 影视工作室"
+    description: "适合把角色、场景、镜头和生成流程做成团队可复用的生产资产。"
+  - eyebrow: "Creator"
+    title: "短剧内容创作者"
+    description: "适合需要把脚本、分镜和素材组织起来，而不是只靠零散提示词创作的人。"
+  - eyebrow: "Team"
+    title: "品牌与内容团队"
+    description: "适合把剧情化视频生产流程工具化，减少多人协作时的信息断层。"
+  - eyebrow: "Lab"
+    title: "AI 产品验证"
+    description: "适合希望快速验证短剧工作流、Agent 编排和模型接入能力的团队。"
+
+highlights:
+  - label: "工作台主轴"
+    value: "项目 → 章节 → 分镜"
+  - label: "后端能力"
+    value: "FastAPI + LangChain / LangGraph"
+  - label: "前端协作"
+    value: "React + Vite + OpenAPI 生成"
+  - label: "本地部署"
+    value: "Compose 拉起前后端、MySQL、RustFS"
+
+workflow:
+  title: "一条龙的短剧生产流程"
+  steps:
+    - "剧本输入"
+    - "脚本优化与拆分"
+    - "角色、场景、道具提取"
+    - "分镜生成与编辑"
+    - "图片 / 视频任务生成"
+    - "时间线剪辑与导出"
+
+screenshots:
+  title: "核心界面预览"
+  items:
+    - title: "项目概览"
+      image: "/images/screenshots/project.png"
+      alt: "DyeingTime 项目概览"
+    - title: "资产管理"
+      image: "/images/screenshots/assets.png"
+      alt: "DyeingTime 资产管理"
+
+cta:
+  title: "从源码到文档，一次搭好"
+  description: "查看快速开始、部署说明和项目结构文档，快速进入 DyeingTime 的开发与使用流程。"
+  primary:
+    text: "开始阅读"
+    link: "/docs/getting-started/local-dev/"
+  secondary:
+    text: "Docker 部署"
+    link: "/docs/getting-started/docker/"
+
+quickstart:
+  title: "快速开始"
+  command: "cp deploy/compose/.env.example deploy/compose/.env && docker compose --env-file deploy/compose/.env -f deploy/compose/docker-compose.yml up --build"
+  note: "如果你偏向本地联调，也可以分别启动 `backend/` 和 `front/`。"

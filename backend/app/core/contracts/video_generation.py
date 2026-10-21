@@ -1,0 +1,113 @@
+"""视频生成共享输入输出契约。"""
+
+from __future__ import annotations
+
+from typing import Literal, Optional
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from app.core.contracts.provider import ProviderKey
+
+
+def _strip_optional_b64(value: str | None) -> str | None:
+    if value is None:
+        return None
+    s = value.strip()
+    return s if s else None
+
+
+VideoRatio = Literal["16:9", "4:3", "1:1", "3:4", "9:16", "21:9"]
+
+
+class VideoGenerationInput(BaseModel):
+    """视频生成输入：支持文本提示词 + 可选的三种帧参考图（纯 base64 或 data URL）。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    prompt: Optional[str] = Field(None, description="文本提示词；可与参考图二选一或同时存在")
+
+    first_frame_base64: Optional[str] = Field(None, description="首帧图：纯 base64 或 data:image/...;base64,...")
+    last_frame_base64: Optional[str] = Field(None, description="尾帧图：纯 base64 或 data URL")
+    key_frame_base64: Optional[str] = Field(None, description="关键帧图：纯 base64 或 data URL")
+
+    reference_images: Optional[list[str]] = Field(
+        None,
+        description=(
+            "参考图列表（纯 base64 或 data URL），顺序即提示词里 <Picture N> 的编号顺序；"
+            "参考图模式与首尾帧模式互斥"
+        ),
+    )
+
+    reference_audios: Optional[list[str]] = Field(
+        None,
+        description=(
+            "参考音频列表（**必须是公网 HTTP(S) URL**，供应商不接受 data URL/base64）；"
+            "顺序即提示词里 <Audio N> 的编号顺序。约束：≤3 个、WAV/MP3、单条 2-15 秒，"
+            "且**不能单独使用**——必须同时提供至少一张参考图或一个参考视频。"
+        ),
+    )
+
+    model: Optional[str] = Field(None, description="视频模型名称（可选，供应商透传）")
+    ratio: VideoRatio = Field(..., description="视频宽高比，业务层唯一主参数")
+    resolution: Optional[str] = Field(
+        None,
+        description=(
+            "分辨率档位（如 768p / 2k）；不传时由适配层使用供应商默认值。"
+            "取值受供应商能力约束，服务端会先校验再下发。"
+        ),
+    )
+    seconds: Optional[int] = Field(None, description="时长（秒）（可选，供应商透传）")
+    seed: Optional[int] = Field(
+        None,
+        ge=-1,
+        le=4294967295,
+        description="随机种子，-1 或 [0, 2^32-1]，供应商/模型可能有差异",
+    )
+    watermark: Optional[bool] = Field(None, description="是否包含水印，供应商/模型可能有差异")
+    # 平台自带的提示词优化（可选开关，默认关闭：由 DyeingTime 自己控制提示词内容）。
+    use_context_ir: Optional[bool] = Field(
+        None, description="是否使用供应商平台自带的提示词优化，默认关闭"
+    )
+    skill_id: Optional[str] = Field(
+        None, description="平台提示词优化所用的 skill 标识，仅在 use_context_ir 开启时生效"
+    )
+
+    @model_validator(mode="after")
+    def require_prompt_or_any_reference(self) -> "VideoGenerationInput":
+        has_prompt = bool((self.prompt or "").strip())
+        has_ref = any(
+            [
+                _strip_optional_b64(self.first_frame_base64),
+                _strip_optional_b64(self.last_frame_base64),
+                _strip_optional_b64(self.key_frame_base64),
+                any(_strip_optional_b64(item) for item in (self.reference_images or [])),
+            ]
+        )
+        if not has_prompt and not has_ref:
+            raise ValueError("Require prompt or at least one reference frame (base64)")
+
+        # 官方 H3 约束：参考音频不能单独使用，必须同时提供至少一张参考图或一个参考视频。
+        audios = [item for item in (self.reference_audios or []) if _strip_optional_b64(item)]
+        if audios and not has_ref:
+            raise ValueError(
+                "参考音频不能单独使用：必须同时提供至少一张参考图或一个参考视频"
+            )
+        return self
+
+
+class VideoGenerationResult(BaseModel):
+    """视频生成结果：返回视频 URL 和/或 file_id。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    url: Optional[str] = Field(None, description="生成视频可下载 URL")
+    file_id: Optional[str] = Field(None, description="落库后的 FileItem.id（type=video）")
+    provider_task_id: Optional[str] = Field(None, description="供应商侧任务/视频 ID（用于调试/追踪）")
+    provider: Optional[ProviderKey] = Field(None, description="供应商标识")
+    status: Optional[str] = Field(None, description="供应商任务状态")
+
+    @model_validator(mode="after")
+    def require_url_or_file_id(self) -> "VideoGenerationResult":
+        if not self.url and not self.file_id:
+            raise ValueError("Either url or file_id must be set")
+        return self

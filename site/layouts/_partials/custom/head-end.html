@@ -1,0 +1,43 @@
+{{ $title := cond .IsHome site.Title (printf "%s - %s" .Title site.Title) }}
+{{ $description := partial "utils/page-description.html" . }}
+{{ $keywords := site.Params.keywords | default (slice) }}
+<meta name="theme-color" content="#0b1220">
+<meta name="apple-mobile-web-app-title" content="{{ site.Title }}">
+{{ with $keywords }}
+  <meta name="keywords" content="{{ delimit . ", " }}">
+{{ end }}
+{{ with site.Params.social.github }}
+  <meta property="og:see_also" content="{{ . }}">
+{{ end }}
+<script type="application/ld+json">
+  {{- $schema := dict
+    "@context" "https://schema.org"
+    "@type" "WebSite"
+    "name" site.Title
+    "url" site.BaseURL
+    "description" $description
+    "inLanguage" site.Language.Lang
+  -}}
+  {{- $sameAs := slice -}}
+  {{- with site.Params.social.github }}{{ $sameAs = $sameAs | append . }}{{ end -}}
+  {{- with site.Params.social.x }}
+    {{- $xUrl := . -}}
+    {{- if hasPrefix $xUrl "@" }}{{ $xUrl = printf "https://x.com/%s" (strings.TrimPrefix "@" $xUrl) }}{{ end -}}
+    {{- $sameAs = $sameAs | append $xUrl -}}
+  {{- end -}}
+  {{- if gt (len $sameAs) 0 }}{{ $schema = merge $schema (dict "sameAs" $sameAs) }}{{ end -}}
+  {{- if not .IsHome }}
+    {{- $pageSchema := dict
+      "@context" "https://schema.org"
+      "@type" "WebPage"
+      "name" $title
+      "url" .Permalink
+      "description" $description
+      "isPartOf" (dict "@type" "WebSite" "name" site.Title "url" site.BaseURL)
+    -}}
+    {{- jsonify (slice $schema $pageSchema) -}}
+  {{- else -}}
+    {{- jsonify $schema -}}
+  {{- end }}
+</script>
+

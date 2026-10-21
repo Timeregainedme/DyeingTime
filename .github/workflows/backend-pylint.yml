@@ -1,0 +1,45 @@
+# Backend Pylint：在 PR 与 Merge queue 上运行，与本地 `cd backend && uv run pylint app` 一致。
+#
+# 合并前置（GitHub 需在仓库设置中启用）：
+#   Settings → Rules / Branch protection → Require status checks to pass
+#   勾选首次运行后出现的检查名，一般为「Backend Pylint / pylint」（以 Actions 界面为准）。
+#
+# 本 workflow 仅在后端相关文件变更的 PR 上运行（paths）；纯前端/文档 PR 不会产生该检查。
+# 若希望任意 PR 都必须通过 Pylint，可去掉 pull_request.paths。
+name: Backend Pylint
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-pylint.yml"
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-pylint-${{ github.workflow }}-${{ github.event.pull_request.number || github.event.merge_group.head_sha || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  pylint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version-file: backend/.python-version
+
+      - name: Sync dependencies (dev)
+        run: uv sync --group dev
+
+      - name: Run Pylint
+        run: uv run pylint app

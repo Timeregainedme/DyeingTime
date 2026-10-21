@@ -1,0 +1,249 @@
+"""Project CRUD。"""
+
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.scoping import apply_workspace_filter, get_project_in_workspace
+from app.api.utils import apply_keyword_filter, apply_order, paginate
+from app.dependencies import (
+    WorkspaceContext,
+    get_db,
+    require_editor,
+    require_viewer,
+)
+from app.models.studio import Project
+from app.models.types import ProjectStyle, ProjectVisualStyle
+from app.schemas.common import ApiResponse, PaginatedData, created_response, empty_response, paginated_response, success_response
+from app.services.common import (
+    create_and_refresh,
+    entity_already_exists,
+    entity_not_found,
+    ensure_not_exists,
+    flush_and_refresh,
+    patch_model,
+)
+from app.schemas.studio.projects import (
+    ProjectCharacterRecurrenceRead,
+    ProjectCreate,
+    ProjectProductionReadinessRead,
+    ProjectRead,
+    ProjectStyleOptionsRead,
+    ProjectUpdate,
+    StyleOption,
+)
+from app.services.studio.character_recurrence import get_project_character_recurrence
+from app.services.studio.style_catalog import group_style_options, list_style_options
+from app.services.studio.project_production_readiness import get_project_production_readiness
+
+router = APIRouter()
+
+PROJECT_ORDER_FIELDS = {"name", "created_at", "updated_at", "progress"}
+
+
+async def _load_style_catalog(
+    db: AsyncSession,
+) -> tuple[list[str], dict[str, list[str]], dict[str, str]]:
+    """读取风格目录：表现形式列表、每组风格名、每组默认风格。
+
+    目录来自 `project_styles` 表（可增删改），首次访问会用内置枚举做种子，
+    因此升级后行为与「枚举时代」一致；用户新增的风格也会出现在这里。
+    """
+    rows = await list_style_options(db)
+    grouped = group_style_options(rows)
+
+    visuals = list(grouped.keys())
+    if not visuals:
+        visuals = [ProjectVisualStyle.live_action.value, ProjectVisualStyle.anime.value]
+
+    styles_by_visual = {visual: [row.name for row in items] for visual, items in grouped.items()}
+    defaults = {visual: items[0].name for visual, items in grouped.items() if items}
+    return visuals, styles_by_visual, defaults
+
+
+async def _validate_project_style_combo(
+    db: AsyncSession, *, visual_style: str, style: str
+) -> None:
+    """校验「表现形式 + 风格」是目录里的合法组合。"""
+    _visuals, styles_by_visual, _defaults = await _load_style_catalog(db)
+    allowed = styles_by_visual.get(visual_style, [])
+    if style not in allowed:
+        raise ValueError(
+            f"style is not allowed for visual_style: visual_style={visual_style}, "
+            f"style={style}, allowed={allowed}"
+        )
+
+
+@router.get(
+    "/style-options",
+    response_model=ApiResponse[ProjectStyleOptionsRead],
+    summary="获取项目风格候选项",
+)
+async def get_project_style_options(
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[ProjectStyleOptionsRead]:
+    visuals, styles_by_visual, defaults = await _load_style_catalog(db)
+    await db.commit()
+    data = ProjectStyleOptionsRead(
+        visual_styles=[StyleOption(value=value, label=value) for value in visuals],
+        styles_by_visual_style={
+            visual: [StyleOption(value=name, label=name) for name in names]
+            for visual, names in styles_by_visual.items()
+        },
+        default_style_by_visual_style=defaults,
+    )
+    return success_response(data)
+
+
+@router.get(
+    "",
+    response_model=ApiResponse[PaginatedData[ProjectRead]],
+    summary="项目列表（分页）",
+)
+async def list_projects(
+    db: AsyncSession = Depends(get_db),
+    ctx: WorkspaceContext = Depends(require_viewer),
+    q: str | None = Query(None, description="关键字，过滤 name/description"),
+    order: str | None = Query(None, description="排序字段"),
+    is_desc: bool = Query(False, description="是否倒序"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+) -> ApiResponse[PaginatedData[ProjectRead]]:
+    stmt = select(Project)
+    stmt = apply_workspace_filter(stmt, ctx)
+    stmt = apply_keyword_filter(stmt, q=q, fields=[Project.name, Project.description])
+    stmt = apply_order(stmt, model=Project, order=order, is_desc=is_desc, allow_fields=PROJECT_ORDER_FIELDS, default="created_at")
+    items, total = await paginate(db, stmt=stmt, page=page, page_size=page_size)
+    return paginated_response([ProjectRead.model_validate(x) for x in items], page=page, page_size=page_size, total=total)
+
+
+@router.post(
+    "",
+    response_model=ApiResponse[ProjectRead],
+    status_code=status.HTTP_201_CREATED,
+    summary="创建项目",
+)
+async def create_project(
+    body: ProjectCreate,
+    db: AsyncSession = Depends(get_db),
+    ctx: WorkspaceContext = Depends(require_editor),
+) -> ApiResponse[ProjectRead]:
+    await ensure_not_exists(
+        db,
+        Project,
+        body.id,
+        detail=entity_already_exists("Project"),
+    )
+    try:
+        await _validate_project_style_combo(db, visual_style=body.visual_style, style=body.style)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    # workspace_id 与 created_by 一律由服务端注入，不接受客户端指定：
+    # 否则调用方可以把项目直接建进别人的工作区。
+    obj = await create_and_refresh(
+        db,
+        Project(
+            **body.model_dump(),
+            workspace_id=ctx.workspace_id,
+            created_by=ctx.user_id,
+        ),
+    )
+    return created_response(ProjectRead.model_validate(obj))
+
+
+@router.get(
+    "/{project_id}",
+    response_model=ApiResponse[ProjectRead],
+    summary="获取项目",
+)
+async def get_project(
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
+    ctx: WorkspaceContext = Depends(require_viewer),
+) -> ApiResponse[ProjectRead]:
+    obj = await get_project_in_workspace(db, project_id, ctx)
+    return success_response(ProjectRead.model_validate(obj))
+
+
+@router.get(
+    "/{project_id}/production-readiness",
+    response_model=ApiResponse[ProjectProductionReadinessRead],
+    summary="项目开工预检",
+)
+async def get_project_production_readiness_api(
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
+    ctx: WorkspaceContext = Depends(require_viewer),
+) -> ApiResponse[ProjectProductionReadinessRead]:
+    """开工前一次性检查：默认模型与 API Key、比例、每角色音色、分镜参考图、提取确认。
+
+    只读聚合，不修改任何状态；返回 `ready=false` 时逐项给出缺失原因。
+    """
+    await get_project_in_workspace(db, project_id, ctx)
+    data = await get_project_production_readiness(db, project_id=project_id)
+    return success_response(data)
+
+
+@router.get(
+    "/{project_id}/character-recurrence",
+    response_model=ApiResponse[ProjectCharacterRecurrenceRead],
+    summary="角色跨集出现情况",
+)
+async def get_project_character_recurrence_api(
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
+    ctx: WorkspaceContext = Depends(require_viewer),
+) -> ApiResponse[ProjectCharacterRecurrenceRead]:
+    """回答「这个项目里哪些角色是主角级、需要绑定演员」。
+
+    为什么单独一个端点而不是塞进角色列表：要不要绑演员取决于角色出现在几集里，
+    而章节数必须经 `shot_character_links ⋈ shots` 才能算出来。做成一次项目级只读查询，
+    前端在新建/编辑角色时就能把「仅 1 集，可不绑」与「跨 N 集，建议绑」直接标在卡片上。
+    """
+    await get_project_in_workspace(db, project_id, ctx)
+    data = await get_project_character_recurrence(db, project_id=project_id)
+    return success_response(data)
+
+
+@router.patch(
+    "/{project_id}",
+    response_model=ApiResponse[ProjectRead],
+    summary="更新项目",
+)
+async def update_project(
+    project_id: str,
+    body: ProjectUpdate,
+    db: AsyncSession = Depends(get_db),
+    ctx: WorkspaceContext = Depends(require_editor),
+) -> ApiResponse[ProjectRead]:
+    obj = await get_project_in_workspace(db, project_id, ctx)
+    update_data = body.model_dump(exclude_unset=True)
+    visual_style = update_data.get("visual_style", obj.visual_style)
+    style = update_data.get("style", obj.style)
+    if visual_style is not None and style is not None:
+        try:
+            await _validate_project_style_combo(db, visual_style=visual_style, style=style)
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    patch_model(obj, update_data)
+    await flush_and_refresh(db, obj)
+    return success_response(ProjectRead.model_validate(obj))
+
+
+@router.delete(
+    "/{project_id}",
+    response_model=ApiResponse[None],
+    summary="删除项目",
+)
+async def delete_project(
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
+    ctx: WorkspaceContext = Depends(require_editor),
+) -> ApiResponse[None]:
+    # 先校验归属再删；直接 delete_by_id 会跨租户删掉别家项目。
+    obj = await get_project_in_workspace(db, project_id, ctx)
+    await db.delete(obj)
+    await db.flush()
+    return empty_response()

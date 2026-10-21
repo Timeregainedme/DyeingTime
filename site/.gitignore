@@ -1,0 +1,5 @@
+.cache/
+.hugo_build.lock
+public/
+resources/
+

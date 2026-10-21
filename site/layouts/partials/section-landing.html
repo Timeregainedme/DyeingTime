@@ -1,0 +1,48 @@
+{{ $current := . }}
+<div class="jf-home jf-section-landing">
+  <section class="jf-landing-hero">
+    <div class="jf-badge">{{ .Section | title }}</div>
+    <h1>{{ .Title }}</h1>
+    {{ with .Content }}
+      <div class="jf-lead jf-landing-copy">{{ . }}</div>
+    {{ end }}
+  </section>
+
+  {{ if gt (len .Sections) 0 }}
+    <section class="jf-section">
+      <div class="jf-heading">
+        <div class="jf-kicker">Sections</div>
+        <h2>内容分组</h2>
+        <p class="jf-lead">按主题继续深入阅读。</p>
+      </div>
+      <div class="jf-landing-grid">
+        {{ range .Sections.ByWeight }}
+          <a class="jf-landing-card jf-card" href="{{ .RelPermalink }}">
+            <div class="jf-panel-kicker">Section</div>
+            <h3>{{ .Title }}</h3>
+            <p class="jf-card-copy">{{ with .Description }}{{ . }}{{ else }}{{ .Summary | plainify }}{{ end }}</p>
+          </a>
+        {{ end }}
+      </div>
+    </section>
+  {{ end }}
+
+  {{ if gt (len .RegularPages) 0 }}
+    <section class="jf-section">
+      <div class="jf-heading">
+        <div class="jf-kicker">Pages</div>
+        <h2>{{ if eq $current.Section "docs" }}推荐页面{{ else }}产品页面{{ end }}</h2>
+        <p class="jf-lead">{{ if eq $current.Section "docs" }}优先从这些页面开始阅读。{{ else }}这些页面帮助你快速理解 Jellyfish 的产品结构。{{ end }}</p>
+      </div>
+      <div class="jf-landing-grid">
+        {{ range .RegularPages.ByWeight }}
+          <a class="jf-landing-card jf-card" href="{{ .RelPermalink }}">
+            <div class="jf-panel-kicker">Page</div>
+            <h3>{{ .Title }}</h3>
+            <p class="jf-card-copy">{{ with .Description }}{{ . }}{{ else }}{{ .Summary | plainify }}{{ end }}</p>
+          </a>
+        {{ end }}
+      </div>
+    </section>
+  {{ end }}
+</div>

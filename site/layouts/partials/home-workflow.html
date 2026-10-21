@@ -1,0 +1,17 @@
+{{ $workflow := site.Data.homepage.workflow }}
+<section class="jf-section">
+  <div class="jf-heading">
+    <div class="jf-kicker">Workflow</div>
+    <h2>{{ $workflow.title }}</h2>
+    <p class="jf-lead">把离散的脚本、资产、生成和剪辑操作收束到统一工作台中。</p>
+  </div>
+  <div class="jf-step-grid">
+      {{ range $index, $step := $workflow.steps }}
+        <div class="jf-step">
+          <span class="jf-step-index">{{ add $index 1 }}</span>
+          <strong>{{ $step }}</strong>
+          <p class="jf-card-copy">围绕当前阶段沉淀上下文，减少信息在流程中的断裂。</p>
+        </div>
+      {{ end }}
+  </div>
+</section>

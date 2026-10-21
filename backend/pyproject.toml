@@ -1,0 +1,138 @@
+[project]
+name = "dyeingtime-backend"
+version = "0.1.0"
+description = "DyeingTime AI 短剧工厂 - 后端 API"
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "celery[redis]>=5.4.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "langchain>=0.3.0",
+    "langchain-core>=0.3.0",
+    "langgraph>=0.2.0",
+    "httpx>=0.27.0",
+    "sqlalchemy[asyncio]>=2.0.0",
+    "aiosqlite>=0.20.0",
+    "aiomysql>=0.3.0",
+    "cryptography>=42.0.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "boto3",
+    "python-multipart>=0.0.5",
+    "jinja2",
+    # 认证：JWT 签发/校验 + 密码哈希
+    # 选 pyjwt 而非 python-jose：依赖更少、无 cryptography 版本耦合
+    # 选 bcrypt 而非 passlib：passlib 1.7 与 bcrypt 4.x 存在兼容告警，直接用 bcrypt 更稳
+    "pyjwt>=2.8.0",
+    "bcrypt>=4.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.27.0",
+    "langchain-openai>=0.2.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.27.0",
+    "langchain-openai>=0.2.0",
+    "pylint>=4.0.5",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# 默认排除 integration：这些用例会访问真实外部服务（真实 LLM），CI 与本地默认跑不到。
+# 需要时显式指定：cd backend && uv run pytest tests -m integration -q
+addopts = "-m 'not integration'"
+markers = [
+    "integration: 会访问真实外部服务（如真实 LLM）；默认被 addopts 排除，用 -m integration 显式运行",
+]
+
+[tool.basedpyright]
+venvPath = "."
+venv = ".venv"
+executionEnvironments = [{ root = "." }]
+
+# Pylint：与常见开源 Python 项目一致（行宽、Python 版本、关闭噪声规则），便于本地与 CI 统一执行 `uv run pylint app`
+# 参考：https://pylint.readthedocs.io/en/stable/user_guide/configuration/all-options.html
+[tool.pylint.main]
+py-version = "3.11"
+jobs = 1
+source-roots = ["."]
+
+[tool.pylint.format]
+max-line-length = 100
+
+[tool.pylint.messages_control]
+# SQLAlchemy func.* 在静态分析下常被误报为 not-callable
+disable = [
+    "not-callable",
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "line-too-long",
+    "invalid-name",
+    "trailing-newlines",
+    "wrong-import-order",
+    "wrong-import-position",
+    "ungrouped-imports",
+    "import-outside-toplevel",
+    "duplicate-code",
+    "cyclic-import",
+    "too-few-public-methods",
+    "too-many-arguments",
+    "too-many-locals",
+    "too-many-positional-arguments",
+    "too-many-branches",
+    "too-many-statements",
+    "too-many-lines",
+    # 校验函数普遍采用「卫语句 + 提前返回」风格，默认阈值 6 过严
+    "too-many-return-statements",
+    "broad-exception-caught",
+    "logging-fstring-interpolation",
+    "raise-missing-from",
+    "redefined-outer-name",
+    "unused-argument",
+    "pointless-string-statement",
+    "unnecessary-pass",
+    "no-else-return",
+    "consider-using-in",
+    "too-many-nested-blocks",
+    "reimported",
+    "protected-access",
+    "fixme",
+    "broad-exception-raised",
+    "too-many-instance-attributes",
+    "too-many-public-methods",
+    "abstract-method",
+    "arguments-differ",
+    "superfluous-parens",
+    "consider-using-f-string",
+    "use-implicit-booleaness-not-comparison",
+    "use-dict-literal",
+    "unnecessary-lambda-assignment",
+    "dangerous-default-value",
+    "global-statement",
+]
+
+[tool.pylint.similarities]
+# 长提示词/模板字符串易触发跨文件相似度误报
+min-similarity-lines = 12
+ignore-comments = true
+ignore-docstrings = true
+ignore-imports = true

@@ -1,0 +1,40 @@
+{{ $context := .context }}
+{{ $sidebar := .sidebar | default (dict "context" $context) }}
+{{ $breadcrumbEnabled := .breadcrumbEnabled | default false }}
+{{ $title := .title | default $context.Title }}
+{{ $showContextMenu := .showContextMenu | default false }}
+{{ $showLastUpdated := .showLastUpdated | default false }}
+{{ $showPagination := .showPagination | default false }}
+{{ $showComments := .showComments | default true }}
+{{ $tocPartial := .tocPartial | default "toc.html" }}
+
+<div class='hx:mx-auto hx:flex hextra-max-page-width'>
+  {{ partial "sidebar.html" $sidebar }}
+  {{ partial $tocPartial $context }}
+  <article class="hx:w-full hx:break-words hx:flex hx:min-h-[calc(100vh-var(--navbar-height))] hx:min-w-0 hx:justify-center hx:pb-8 hx:pr-[calc(env(safe-area-inset-right)-1.5rem)]">
+    <main id="content" class="hx:w-full hx:min-w-0 hextra-max-content-width hx:px-6 hx:pt-4 hx:md:px-12">
+      {{ partial "breadcrumb.html" (dict "page" $context "enable" $breadcrumbEnabled) }}
+      <div class="content">
+        {{ if $title }}
+          <div class="hx:flex hx:flex-col hx:sm:flex-row hx:items-start hx:sm:items-center hx:sm:justify-between hx:gap-4 hx:mb-4">
+            <h1 class="hx:mb-0">{{ $title }}</h1>
+            {{ if $showContextMenu }}
+              {{ partial "components/page-context-menu" $context }}
+            {{ end }}
+          </div>
+        {{ end }}
+        {{ $context.Content }}
+      </div>
+      {{ if $showLastUpdated }}
+        {{ partial "components/last-updated.html" $context }}
+      {{ end }}
+      {{ if $showPagination }}
+        {{ partial "components/pager.html" $context }}
+      {{ end }}
+      {{ if $showComments }}
+        {{ partial "components/comments.html" $context }}
+      {{ end }}
+    </main>
+  </article>
+</div>
+

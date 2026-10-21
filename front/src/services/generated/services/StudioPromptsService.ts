@@ -1,0 +1,218 @@
+/* generated using openapi-typescript-codegen -- do not edit */
+/* istanbul ignore file */
+/* tslint:disable */
+/* eslint-disable */
+import type { ApiResponse_list_PromptCategoryOptionRead__ } from '../models/ApiResponse_list_PromptCategoryOptionRead__';
+import type { ApiResponse_NoneType_ } from '../models/ApiResponse_NoneType_';
+import type { ApiResponse_PaginatedData_PromptTemplateRead__ } from '../models/ApiResponse_PaginatedData_PromptTemplateRead__';
+import type { ApiResponse_PromptTemplateRead_ } from '../models/ApiResponse_PromptTemplateRead_';
+import type { PromptCategory } from '../models/PromptCategory';
+import type { PromptTemplateCreate } from '../models/PromptTemplateCreate';
+import type { PromptTemplateUpdate } from '../models/PromptTemplateUpdate';
+import type { CancelablePromise } from '../core/CancelablePromise';
+import { OpenAPI } from '../core/OpenAPI';
+import { request as __request } from '../core/request';
+export class StudioPromptsService {
+    /**
+     * 提示词模板列表（分页）
+     * @returns ApiResponse_PaginatedData_PromptTemplateRead__ Successful Response
+     * @throws ApiError
+     */
+    public static listPromptTemplatesApiV1StudioPromptsGet({
+        category,
+        q,
+        isDefault,
+        isSystem,
+        order,
+        isDesc = false,
+        page = 1,
+        pageSize = 10,
+    }: {
+        /**
+         * 按类别过滤
+         */
+        category?: (PromptCategory | null),
+        /**
+         * 关键字，过滤 name
+         */
+        q?: (string | null),
+        /**
+         * 过滤是否为默认
+         */
+        isDefault?: (boolean | null),
+        /**
+         * 过滤是否为系统预置
+         */
+        isSystem?: (boolean | null),
+        order?: (string | null),
+        isDesc?: boolean,
+        page?: number,
+        pageSize?: number,
+    }): CancelablePromise<ApiResponse_PaginatedData_PromptTemplateRead__> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/studio/prompts',
+            query: {
+                'category': category,
+                'q': q,
+                'is_default': isDefault,
+                'is_system': isSystem,
+                'order': order,
+                'is_desc': isDesc,
+                'page': page,
+                'page_size': pageSize,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * 创建提示词模板
+     * @returns ApiResponse_PromptTemplateRead_ Successful Response
+     * @throws ApiError
+     */
+    public static createPromptTemplateApiV1StudioPromptsPost({
+        requestBody,
+    }: {
+        requestBody: PromptTemplateCreate,
+    }): CancelablePromise<ApiResponse_PromptTemplateRead_> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/studio/prompts',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * 获取提示词类别枚举（含中文映射）
+     * @returns ApiResponse_list_PromptCategoryOptionRead__ Successful Response
+     * @throws ApiError
+     */
+    public static listPromptCategoriesApiV1StudioPromptsCategoriesGet(): CancelablePromise<ApiResponse_list_PromptCategoryOptionRead__> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/studio/prompts/categories',
+        });
+    }
+    /**
+     * 获取提示词模板详情
+     * @returns ApiResponse_PromptTemplateRead_ Successful Response
+     * @throws ApiError
+     */
+    public static getPromptTemplateApiV1StudioPromptsTemplateIdGet({
+        templateId,
+    }: {
+        templateId: string,
+    }): CancelablePromise<ApiResponse_PromptTemplateRead_> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/studio/prompts/{template_id}',
+            path: {
+                'template_id': templateId,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * 局部更新提示词模板
+     * 局部更新提示词模板。
+     *
+     * 额外业务规则（「发布才生效」链路，评审 B-3）：
+     * - content 拒绝空 / 纯空白：空系统提示词会让 agent 静默降级为「无 system prompt」；
+     * - agent_* 模板改内容即失效：已发布模板的 content 一旦变更就把 published_at 置空，
+     * 必须重新点「发布生效」才会进入运行时（否则 worker 下个 TTL 就会吃上未发布的改动）。
+     * @returns ApiResponse_PromptTemplateRead_ Successful Response
+     * @throws ApiError
+     */
+    public static updatePromptTemplateApiV1StudioPromptsTemplateIdPatch({
+        templateId,
+        requestBody,
+    }: {
+        templateId: string,
+        requestBody: PromptTemplateUpdate,
+    }): CancelablePromise<ApiResponse_PromptTemplateRead_> {
+        return __request(OpenAPI, {
+            method: 'PATCH',
+            url: '/api/v1/studio/prompts/{template_id}',
+            path: {
+                'template_id': templateId,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * 删除提示词模板
+     * @returns ApiResponse_NoneType_ Successful Response
+     * @throws ApiError
+     */
+    public static deletePromptTemplateApiV1StudioPromptsTemplateIdDelete({
+        templateId,
+    }: {
+        templateId: string,
+    }): CancelablePromise<ApiResponse_NoneType_> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/api/v1/studio/prompts/{template_id}',
+            path: {
+                'template_id': templateId,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * 发布 Agent 提示词：覆盖运行时代码默认，下一次任务生效
+     * 发布 agent 模板：写 published_at 并更新本进程缓存（跨进程由 worker 任务前刷新）。
+     * @returns ApiResponse_PromptTemplateRead_ Successful Response
+     * @throws ApiError
+     */
+    public static publishPromptTemplateApiV1StudioPromptsTemplateIdPublishPost({
+        templateId,
+    }: {
+        templateId: string,
+    }): CancelablePromise<ApiResponse_PromptTemplateRead_> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/studio/prompts/{template_id}/publish',
+            path: {
+                'template_id': templateId,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * 恢复 Agent 提示词为代码内置默认
+     * 恢复默认：清 published_at 并移除缓存，运行时回落代码内置提示词。
+     * @returns ApiResponse_PromptTemplateRead_ Successful Response
+     * @throws ApiError
+     */
+    public static resetPromptTemplateApiV1StudioPromptsTemplateIdResetPost({
+        templateId,
+    }: {
+        templateId: string,
+    }): CancelablePromise<ApiResponse_PromptTemplateRead_> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/studio/prompts/{template_id}/reset',
+            path: {
+                'template_id': templateId,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+}

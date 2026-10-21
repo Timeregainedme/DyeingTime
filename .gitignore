@@ -1,0 +1,51 @@
+node_modules/
+dist/
+.env
+.env.local
+# 任何 .env 派生文件（含部署时的 .env.bak-* / .env.pre-* / .env.corrupt-*）一律不入库
+.env.*
+# 但示例文件必须保留，供其他人参照
+!.env.example
+# 本地 SQLite 与临时脚本不入库（生产用 MySQL，本地跑脚本时会自动生成空库文件）
+*.db
+*.sqlite
+*.sqlite3
+.tmp-*
+.DS_Store
+*.log
+.pnpm-store/
+.vscode/
+.idea/
+
+# AI 工具本地产物（会话日志 / 本地配置），不入库
+.claude/logs/
+.cursor/logs/
+.opencode/
+
+# 前端测试产物（Playwright 报告与失败快照），不入库
+front/test-results/
+front/playwright-report/
+front/blob-report/
+
+# Python / Backend
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+.eggs/
+.pytest_cache/
+.coverage
+htmlcov/
+.jellyfish.db
+jellyfish.db
+.env
+
+# 本机 Docker 环境（匿名凭据助手 / buildx 缓存 / 含绝对路径的脚本），仅本机使用
+.docker/
+bin/
+scripts/dockerenv.sh
+
+# Nginx 部署备份（服务器上 dist.old-* 反复累积，每个约 2.5 MB）
+front/dist.old-*

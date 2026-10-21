@@ -1,0 +1,82 @@
+baseURL: "/"
+languageCode: "zh-cn"
+title: "DyeingTime AI 短剧工厂"
+defaultContentLanguage: "zh"
+hasCJKLanguage: true
+enableRobotsTXT: true
+
+module:
+  imports:
+    - path: github.com/imfing/hextra
+
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+  highlight:
+    noClasses: false
+
+outputs:
+  home:
+    - HTML
+    - RSS
+  page:
+    - HTML
+  section:
+    - HTML
+    - RSS
+
+menu:
+  main:
+    - name: 首页
+      pageRef: /
+      weight: 1
+    - name: 产品
+      pageRef: /product
+      weight: 2
+    - name: 文档
+      pageRef: /docs
+      weight: 3
+    - name: 博客
+      pageRef: /blog
+      weight: 4
+    - name: GitHub
+      url: "https://github.com/Timeregainedme/DyeingTime"
+      weight: 5
+      params:
+        icon: github
+
+params:
+  description: "从剧本到分镜、资产、视频生成与剪辑的一站式 AI 短剧生产平台。"
+  keywords:
+    - AI短剧
+    - AI短剧工厂
+    - 短剧生产
+    - 分镜编辑
+    - AI视频生成
+    - DyeingTime
+  images:
+    - /images/og-default.svg
+  search:
+    enable: false
+  navbar:
+    displayTitle: true
+    displayLogo: true
+    logo:
+      path: images/logo.svg
+      link: /
+      width: 40
+      height: 40
+    width: wide
+  page:
+    width: wide
+  footer:
+    displayCopyright: true
+    displayPoweredBy: false
+    width: wide
+  theme:
+    default: system
+    displayToggle: true
+  social:
+    github: "https://github.com/Timeregainedme/DyeingTime"
+    x: "@ForgetCTeam"

@@ -1,0 +1,29 @@
+DyeingTime
+Copyright (c) 2026 Timeregainedme
+
+本项目由 Timeregainedme 所有，以 MIT 协议发布。
+
+项目沿革
+--------
+
+本项目自最初的 Apache License 2.0 版本演化而来，期间经历了三次更名：
+
+    ChangeAT  ->  Jellyfish  ->  DyeingTime
+
+原作者保留原 Apache-2.0 版本下已对外发布副本所享有的权利；本仓库采用 MIT
+协议发布自 2026-10-21 起的版本。
+
+第三方组件
+----------
+
+本项目使用了大量第三方开源组件，它们各自遵循其原有许可协议，包括但不限于：
+
+    FastAPI / Starlette / Pydantic / SQLAlchemy  - MIT / BSD
+    Celery / Redis                                  - BSD
+    React / React Router / Vite / Vitest             - MIT
+    Ant Design / Radix UI / shadcn/ui               - MIT
+    Tailwind CSS / class-variance-authority          - MIT / ISC
+    go-chi / go-sql-driver/mysql / golang-jwt        - MIT / BSD
+    oapi-codegen                                    - MIT
+
+各组件的完整许可文本随其分发包一并提供。

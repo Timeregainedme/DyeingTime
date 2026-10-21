@@ -1,0 +1,41 @@
+name: 功能建议
+description: 提出新功能或较大范围的能力需求
+title: "[Feature] "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        描述你希望增加的能力。若涉及多模块，可拆成多条 Issue 分别跟踪。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 背景 / 要解决什么问题
+      description: 当前缺少什么能力？在什么场景下感到不便？
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 期望的功能描述
+      description: 你希望产品如何表现？可包含用户流程、界面设想等。
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 已考虑的替代方案（可选）
+      description: 你是否用过其他工具或变通方式？有什么取舍？
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: pr
+    attributes:
+      label: 贡献意愿
+      options:
+        - label: 我愿意在讨论确定方案后尝试提交 PR
