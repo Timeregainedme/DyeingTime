@@ -40,7 +40,10 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/dyeingtime-backend
+          # 镜像名必须是 ghcr.io/<owner>/<repo>/<image> 的嵌套形式：
+          # GITHUB_TOKEN 只能发布与本仓库关联的包，包名不落在仓库名下会报
+          # permission_denied: write_package。
+          images: ghcr.io/${{ github.repository }}/backend
           tags: |
             type=raw,value=latest
             type=sha,format=short,prefix=sha-
@@ -79,7 +82,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/dyeingtime-front
+          images: ghcr.io/${{ github.repository }}/front
           tags: |
             type=raw,value=latest
             type=sha,format=short,prefix=sha-
