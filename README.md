@@ -14,15 +14,45 @@
   <a href="https://img.shields.io/badge/%E5%90%8E%E7%AB%AF-FastAPI-009688">
     <img src="https://img.shields.io/badge/%E5%90%8E%E7%AB%AF-FastAPI-009688" alt="Backend" />
   </a>
+  <a href="https://img.shields.io/badge/%E6%8E%A7%E5%88%B6%E9%9D%A2-Go%20%2B%20chi-00ADD8">
+    <img src="https://img.shields.io/badge/%E6%8E%A7%E5%88%B6%E9%9D%A2-Go%20%2B%20chi-00ADD8" alt="Control Plane" />
+  </a>
   <a href="https://img.shields.io/badge/%E4%BB%BB%E5%8A%A1-Celery%20%2B%20Redis-37814A">
     <img src="https://img.shields.io/badge/%E4%BB%BB%E5%8A%A1-Celery%20%2B%20Redis-37814A" alt="Celery" />
+  </a>
+  <a href="https://github.com/Timeregainedme/dyeingtime/actions/workflows/quality-gates.yml/badge.svg">
+    <img src="https://github.com/Timeregainedme/dyeingtime/actions/workflows/quality-gates.yml/badge.svg" alt="Quality Gates" />
   </a>
 </p>
 
 面向 AI 生成短剧（竖屏短剧 / 微短剧）的一站式生产工作台。
 从剧本输入 → 智能分镜 → 角色/场景/道具一致性管理 → 分镜准备 → 图片/视频/配音生成 → 任务追踪 → 导出成片。
 
-> 上线步骤、运维命令与排障记录见 **[docs/部署说明.md](./docs/部署说明.md)**。
+> 上线步骤、运维命令与排障记录见 **[docs/部署说明.md](./docs/部署说明.md)**；
+> 完整开发文档见 **[文档站](https://timeregainedme.github.io/dyeingtime/)**。
+
+### 🚀 快速开始
+
+```bash
+git clone https://github.com/Timeregainedme/dyeingtime.git
+cd dyeingtime
+
+# 方式一：Docker 一键起全套（MySQL + Redis + 对象存储 + 后端 + Celery + 前端）
+cp deploy/compose/.env.example deploy/compose/.env
+docker compose --env-file deploy/compose/.env -f deploy/compose/docker-compose.yml up -d --build
+
+# 方式二：本地开发
+cd backend && cp .env.example .env && uv sync && uv run uvicorn app.main:app --reload --port 8000
+cd front   && pnpm install && pnpm dev
+```
+
+启动后：
+
+| 入口 | 地址 |
+| --- | --- |
+| 前端 | `http://localhost:7788` |
+| 后端 API 文档 | `http://127.0.0.1:8000/docs` |
+| OpenAPI 契约 | `http://127.0.0.1:8000/openapi.json` |
 
 ---
 
@@ -121,6 +151,35 @@ DyeingTime 不是单点的「AI 出图 / AI 出视频」工具，而是一套面
 - 文件与生成素材管理
 - OpenAPI 驱动的前后端接口协作
 
+### 7. 工作区多租户与角色权限
+
+`/api/v1` 下所有业务数据都归属于某个**工作区（租户）**：
+
+- 四级角色矩阵 `viewer / editor / admin / owner`，`viewer` 只读、不可发起生成
+- 跨工作区访问一律返回 **404**（而非 403），避免把资源 ID 变成可枚举面
+- 写操作强制走 `editor` 及以上，防止只读账号消耗供应商额度
+- 供应商密钥**落库即密文**（Fernet + `enc:v1:` 前缀），密钥不落明文
+- 所有 `/api/v1` 写操作留审计日志（成功与失败都记，不记请求体）
+
+> 详见 [多租户与工作区隔离](https://timeregainedme.github.io/dyeingtime/docs/architecture/workspace-multitenancy/) 与
+> [密钥加密与操作审计](https://timeregainedme.github.io/dyeingtime/docs/architecture/secrets-and-audit/)。
+
+### 8. Go 控制面 + Python 执行面的混合架构
+
+后端拆成两层：
+
+```text
+Nginx ──按路径切流──┬──> Go 控制面   (:8001)  鉴权 / 用户 / 工作区 / 项目·章节·镜头元数据
+                    │                 文件列表与下载 / 任务状态与结果查询
+                    └──> Python 执行面 (:8000)  剧本处理 / 资产合并 / 生成编排 / 视频准备度
+```
+
+- Go 侧只接管「薄资源」（只读、低逻辑密度、高频），写方法**自动回落 Python**，前端无感
+- 两端共享同一份 MySQL 与 `JWT_SECRET`，Go 只校验 JWT 不签发
+- 响应信封、时间序列化、分页 422 语义逐字节对齐，可用**影子对比**验证切流
+
+> 详见 [Go 控制面](https://timeregainedme.github.io/dyeingtime/docs/architecture/go-control-plane/)。
+
 ---
 
 ## 🚀 主要功能一览
@@ -197,24 +256,31 @@ DyeingTime 不是单点的「AI 出图 / AI 出视频」工具，而是一套面
 **前端**
 
 - React 18 + TypeScript 5 + Vite 5
-- Ant Design 5 + Tailwind CSS 3
+- Tailwind CSS 3 + shadcn/ui（Radix UI）—— 新页面使用；Ant Design 5 —— 存量页面仍在迁移中
 - Zustand（状态管理）+ React Router 6
 - i18next（多语言）+ axios
+- Vitest（单元测试）+ Playwright（端到端测试）
 - OpenAPI 生成式客户端（`openapi-typescript-codegen`）
 
-**后端**
+**后端（执行面）**
 
 - FastAPI + Uvicorn（Pydantic v2 / pydantic-settings）
 - SQLAlchemy 2.0（async，`aiomysql`）
-- Celery + Redis（异步任务队列）
+- Celery + Redis（异步任务队列，图片 / 视频 / 默认三条独立队列）
 - LangChain / LangGraph（剧本处理与 LLM 编排）
 - boto3 + httpx（对象存储与第三方 API 调用）
+
+**控制面**
+
+- Go 1.27 + chi（HTTP 路由）
+- oapi-codegen（由 `front/openapi.json` 生成类型，前后端与 Go 三方共享同一份契约）
+- `golang-jwt`（只校验，不签发）
 
 **基础设施**
 
 - MySQL 8（业务数据）
 - Redis 7（Celery Broker）
-- RustFS（S3 兼容对象存储，承载上传与生成素材）
+- S3 兼容对象存储（承载上传与生成素材；生产用 Cloudflare R2，本地 compose 用 RustFS）
 
 ---
 
@@ -245,7 +311,7 @@ docker compose --env-file deploy/compose/.env -f deploy/compose/docker-compose.y
 
 1. **S3 必须用 path 寻址**：`S3_ADDRESSING_STYLE=path`。容器内置 DNS 无法解析
    `<bucket>.<service>` 形式的虚拟主机名，用 `virtual` 会直接连接失败。
-2. **素材直链必须浏览器可达**：`S3_PUBLIC_BASE_URL=http://localhost:9000/jellyfish-assets`。
+2. **素材直链必须浏览器可达**：`S3_PUBLIC_BASE_URL=http://localhost:9000/dyeingtime-assets`。
    不设置时后端返回容器内地址，前端图片无法显示。
 3. **bucket 需要公共读策略**：初始化容器已内置 `init_storage_public.py`，会创建 bucket 并
    幂等写入仅含 `s3:GetObject` 的公共读策略，否则素材直链返回 403。
@@ -318,24 +384,18 @@ pnpm dev
 迁移是 `backend/sql/` 下的纯 SQL 文件，由 compose 的一次性服务 `mysql-init-sql` 按文件名顺序执行：
 
 ```text
-001-init-prompt-template.sql
-002-add-shot-extracted-candidates.sql
-003-normalize-shot-status-remove-generating.sql
-004-add-generation-task-cancel-fields.sql
-005-add-provider-category-base-urls.sql
-006-migrate-model-defaults-to-model-settings-and-drop-is-default.sql
-007-add-video-size-ratio-defaults-and-overrides.sql
-008-add-shot-action-beats.sql
-009-add-audio-category-and-base-urls.sql
-010-add-character-voice-and-audio-attachments.sql
-（011 未使用，序号已跳过）
-012-rewrite-prompt-templates.sql
-013-add-dialog-line-emotion.sql
-014-add-project-image-output-settings.sql
-015-add-agent-prompt-templates.sql
+backend/sql/001-init-prompt-template.sql
+backend/sql/002-add-shot-extracted-candidates.sql
+...
+backend/sql/027-add-style-prompt-pack.sql
 ```
 
-**新增迁移请追加为 `016-*.sql` 等新文件，不要修改已应用的编号文件。**
+**新增迁移请追加为下一个未占用序号的新文件（如 `028-*.sql`），不要修改已应用的编号文件。**
+所有迁移脚本都写成幂等形式（`CREATE TABLE IF NOT EXISTS` / `information_schema` 判定），
+重复执行不会报错。
+
+> 涉及表结构变更时，除新增 SQL 文件外还要同步更新 SQLAlchemy 模型
+> （`backend/app/models/`）与 `backend/app/core/db.py` 的建表注册。
 
 ### OpenAPI 契约同步
 
@@ -348,6 +408,46 @@ pnpm run openapi:update
 ```
 
 生成产物位于 `front/src/services/generated/`，契约缓存为 `front/openapi.json`。
+后端侧有契约比对脚本，会校验「后端当前产出的规格」与「前端冻结的基线」是否漂移：
+
+```bash
+cd backend
+uv run python scripts/check_openapi_contract.py
+```
+
+---
+
+## ✅ 质量门禁
+
+CI（`.github/workflows/quality-gates.yml`）在 PR 与 Merge queue 上跑三道门禁：
+
+| 门禁 | 命令 | 说明 |
+| --- | --- | --- |
+| 后端测试 | `uv run pytest tests -q` | 565 个用例，覆盖 API 信封、多租户隔离、密钥加密、审计、生成链路 |
+| 前端类型 | `pnpm run typecheck` | `tsc --noEmit` |
+| OpenAPI 契约 | `uv run python scripts/check_openapi_contract.py` | 发现契约漂移即失败 |
+
+本地复现：
+
+```bash
+# 后端
+cd backend && uv sync --group dev && uv run pytest -q
+
+# 前端
+cd front && pnpm install && pnpm exec tsc --noEmit
+
+# 前端测试
+cd front && pnpm test        # Vitest 单元测试
+cd front && pnpm test:e2e    # Playwright 端到端（需 Playwright 浏览器）
+```
+
+Go 控制面另有一套测试：
+
+```bash
+cd backend/go && go test ./...
+```
+
+> ⚠️ Go 侧目前**不在 CI 门禁内**，需要人工保证 `go build` / `go vet` / `go test` 通过。
 
 ---
 
@@ -355,7 +455,7 @@ pnpm run openapi:update
 
 ```text
 dyeingtime/
-├── backend/                  # FastAPI 后端
+├── backend/                  # Python 执行面
 │   ├── app/
 │   │   ├── api/v1/routes/    # 路由层（收参、鉴权、响应组织）
 │   │   ├── services/         # 业务逻辑层（状态流转、数据编排）
@@ -365,20 +465,84 @@ dyeingtime/
 │   │   │   └── tasks/        # 任务封装与执行编排
 │   │   ├── models/           # SQLAlchemy 模型
 │   │   └── schemas/          # Pydantic 入参/出参
+│   ├── go/                   # Go 控制面（只读接口 + 写方法回落 Python）
 │   ├── sql/                  # 数据库迁移（纯 SQL，按序号执行）
+│   ├── scripts/              # 契约校验、密钥加密、供应商探测等工具
 │   └── tests/
 ├── front/                    # React 前端
+│   ├── src/app/              # 应用外壳（导航、面包屑、主题）
+│   ├── src/features/         # 新页面（项目卡片、镜头看板、风格管理…）
+│   ├── src/components/ui/    # shadcn/ui 基础组件
+│   ├── src/pages/aiStudio/   # 存量业务页面（迁移中）
+│   ├── e2e/                  # Playwright 端到端测试
 │   └── src/services/generated/   # OpenAPI 生成的请求与类型
-├── deploy/compose/           # Docker 编排与 .env 模板
-├── deploy/nginx/             # 生产 Nginx 站点与 Go 控制面切流配置
-├── backend/go/               # Go 控制面（只读接口 + 写方法回落 Python）
+├── deploy/
+│   ├── compose/              # Docker 编排与 .env 模板
+│   ├── nginx/                # 生产 Nginx 站点与 Go 控制面切流配置
+│   └── scripts/              # 生产巡检脚本
 ├── docs/                     # 部署说明、SOP、供应商配置、归档评审
 │   ├── archive/              # 历史评审与方案（仅供追溯，不作为现行依据）
 │   └── img/                  # README 截图资源
-├── site/                     # Hugo 站点（发布说明与开发文档）
+├── site/                     # Hugo 文档站（发布说明与开发文档）
+├── scripts/                  # Docker 封装与全链路冒烟脚本
 ├── AGENTS.md                 # 项目开发规范（分层、注释、文档归属）
-└── LICENSE                   # MIT 协议
+├── CONTRIBUTING.md           # 贡献指南
+├── LICENSE                   # MIT 协议
+└── NOTICE                    # 许可沿革与第三方组件许可
 ```
+
+---
+
+## 📚 文档
+
+完整文档在 **[文档站](https://timeregainedme.github.io/dyeingtime/)**，按栏目严格区分职责：
+
+| 栏目 | 回答什么问题 | 位置 |
+| --- | --- | --- |
+| `architecture` | 现在是什么（已生效的实现与边界） | `site/content/docs/architecture/` |
+| `plans` | 接下来做什么（正在推进的改造） | `site/content/docs/plans/` |
+| `guide` | 怎么做（操作说明、开发流程） | `site/content/docs/guide/` |
+| `reference` | 查什么（稳定参考资料） | `site/content/docs/reference/` |
+| `blog` | 每个版本改了什么 | `site/content/blog/` |
+
+几个常用入口：
+
+- [多租户与工作区隔离](https://timeregainedme.github.io/dyeingtime/docs/architecture/workspace-multitenancy/)
+- [Go 控制面](https://timeregainedme.github.io/dyeingtime/docs/architecture/go-control-plane/)
+- [密钥加密与操作审计](https://timeregainedme.github.io/dyeingtime/docs/architecture/secrets-and-audit/)
+- [分镜状态流转](https://timeregainedme.github.io/dyeingtime/docs/architecture/shot-status-flow/)
+- [分镜主流程与页面职责边界](https://timeregainedme.github.io/dyeingtime/docs/architecture/shot-page-boundary/)
+- [生产环境状态快照](https://timeregainedme.github.io/dyeingtime/docs/architecture/production-state/)
+
+本地预览文档站：
+
+```bash
+cd site && hugo server
+```
+
+---
+
+## 🤝 参与贡献
+
+欢迎提交 Issue 与 Pull Request。开始前请先阅读：
+
+- **[AGENTS.md](./AGENTS.md)** —— 项目开发规范：后端分层职责、注释要求、状态语义、文档归属、提交前自检清单
+- **[CONTRIBUTING.md](./CONTRIBUTING.md)** —— 贡献流程、提交信息规范与门禁要求
+
+提交信息首行须为 `[类型] 摘要`，类型取自：
+
+```text
+feat  fix  docs  style  refactor  perf  test  chore  ci  build  revert
+```
+
+本地校验钩子（一次性启用）：
+
+```bash
+git config core.hooksPath .githooks
+```
+
+> 涉及后端接口、类型或状态模型变更时，请同步更新后端实现、OpenAPI 契约、
+> 前端 generated types 与对应开发文档。
 
 ---
 
@@ -392,11 +556,24 @@ dyeingtime/
 
 > 第三方依赖（FastAPI、React、Ant Design 等）仍遵循各自的许可协议。
 
+---
+
+## ⚠️ 使用须知
+
+- **仓库内不含任何 API Key**，供应商密钥需要你在「模型管理」里自行填写。
+  密钥落库时会自动加密（Fernet），但**配额与费用由你使用的供应商承担**。
+- 图片 / 视频 / 音频生成会**真实调用第三方接口并产生费用**，批量生成前请确认额度。
+- 部署到公网前请至少完成：更换默认管理员密码、配置 `GOOGLE_ALLOWED_EMAILS` 白名单、
+  设置 `SECRETS_KEY` 与 `JWT_SECRET`、为对象存储配置私有读与签名访问。
+- 本项目生成的内容涉及 AI 产出，商用前请自行确认目标平台的合规要求。
+
+---
+
 ## 🙏 致谢
 
 - [LINUX DO](https://linux.do) —— 真诚、友善、团结、专业的技术社区，感谢佬友们的交流与支持。
 
-
 ## 💬 交流与反馈
 
 - 问题反馈、功能建议与使用讨论：请在本仓库提交 Issue
+- 开发文档与版本说明：<https://timeregainedme.github.io/dyeingtime/>

@@ -35,12 +35,14 @@ scenarios:
 highlights:
   - label: "工作台主轴"
     value: "项目 → 章节 → 分镜"
-  - label: "后端能力"
-    value: "FastAPI + LangChain / LangGraph"
+  - label: "后端架构"
+    value: "Go 控制面 + Python 执行面"
+  - label: "多租户"
+    value: "工作区隔离 + 四级角色权限"
   - label: "前端协作"
     value: "React + Vite + OpenAPI 生成"
   - label: "本地部署"
-    value: "Compose 拉起前后端、MySQL、RustFS"
+    value: "Compose 拉起前后端、MySQL、对象存储"
 
 workflow:
   title: "一条龙的短剧生产流程"
