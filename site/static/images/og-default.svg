@@ -4,7 +4,7 @@
   <circle cx="1010" cy="120" r="180" fill="url(#orb)" fill-opacity="0.32"/>
   <circle cx="945" cy="520" r="220" fill="url(#orb2)" fill-opacity="0.24"/>
   <text x="88" y="178" fill="#67E8F9" font-size="28" font-family="Arial, sans-serif" letter-spacing="8">AI SHORT DRAMA STUDIO</text>
-  <text x="88" y="286" fill="#F8FAFC" font-size="76" font-weight="700" font-family="Arial, sans-serif">Jellyfish</text>
+  <text x="88" y="286" fill="#F8FAFC" font-size="76" font-weight="700" font-family="Arial, sans-serif">DyeingTime</text>
   <text x="88" y="360" fill="#E2E8F0" font-size="40" font-family="Arial, sans-serif">AI 短剧工厂</text>
   <text x="88" y="444" fill="#CBD5E1" font-size="28" font-family="Arial, sans-serif">从剧本到分镜、资产、生成与剪辑的一站式 AI 工作台</text>
   <g opacity="0.95">

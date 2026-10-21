@@ -6,7 +6,7 @@ hero:
     link: "/docs/"
   secondary:
     text: "访问 GitHub"
-    link: "https://github.com/Timeregainedme/DyeingTime"
+    link: "https://github.com/Timeregainedme/dyeingtime"
 
 features:
   - title: "一致性资产管理"
