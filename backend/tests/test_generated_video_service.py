@@ -212,7 +212,9 @@ async def test_build_run_args_maps_reference_images(monkeypatch: pytest.MonkeyPa
         )
 
         assert run_args["provider"] == "openai"
-        assert run_args["api_key"] == "k"
+        assert run_args["provider_id"] == "p1"
+        # P2：密钥不允许进入任务 payload，worker 执行期按 provider_id 解析。
+        assert "api_key" not in run_args
         assert run_args["input"]["model"] == "sora-mini"
         # payload 只存 file_id 引用，不内联 base64（字节在派发期物化）。
         assert run_args["input"]["frame_file_ids"] == {

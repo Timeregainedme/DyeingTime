@@ -25,7 +25,7 @@ from app.models.studio import (
 )
 from app.models.types import FileUsageKind
 from app.services.common import entity_not_found
-from app.services.llm.provider_resolver import resolve_provider_config_by_model
+from app.services.llm.provider_resolver import resolve_provider_config, resolve_provider_config_by_model
 from app.services.media_reference_files import image_data_url_from_file_id
 from app.services.studio.file_usages import sync_usage_from_shot_context
 from app.services.studio.generation.video import (
@@ -530,7 +530,8 @@ async def build_run_args(
     run_args = {
         "shot_id": shot_id,
         "provider": provider_cfg.provider,
-        "api_key": provider_cfg.api_key,
+        # 不在任务 payload 持久化 API Key；worker 执行时按 provider_id 解析。
+        "provider_id": model.provider_id,
         "base_url": provider_cfg.base_url,
         "input": input_payload,
     }
@@ -613,6 +614,15 @@ async def run_video_generation_task(
             provider = str(run_args.get("provider") or "")
             api_key = str(run_args.get("api_key") or "")
             base_url = run_args.get("base_url")
+            provider_id = str(run_args.get("provider_id") or "")
+            if not api_key and provider_id:
+                # 新任务不在 payload 存密钥；执行期按 provider_id 解析。
+                cfg = await resolve_provider_config(
+                    session,
+                    provider_id=provider_id,
+                    category=ModelCategoryKey.video,
+                )
+                provider, api_key, base_url = cfg.provider_key, cfg.api_key, cfg.base_url
             input_dict = dict(run_args.get("input") or {})
 
             # payload 只存 file_id 引用；参考图/首尾帧字节到这一步（调用供应商前）才下载编码。

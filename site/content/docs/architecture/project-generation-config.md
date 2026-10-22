@@ -46,6 +46,10 @@ weight: 23
 快照只保存模型 ID、名称、供应商 ID / 名称、能力参数与输出策略，
 **不保存 API Key、Base URL 或任何凭据**。
 
+生成任务同样不在 `GenerationTask.payload` 中保存 API Key：
+任务只记录 `provider_id`，worker 执行时按该 ID 从服务端解析凭据。
+历史任务里已有的 `api_key` 字段仍可被旧任务读取，但新任务不再写入。
+
 ## 业务时长与供应商能力
 
 - 供应商能力：优云智算 H3 适配器声明 4–30 秒；

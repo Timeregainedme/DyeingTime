@@ -386,7 +386,8 @@ async def create_audio_task_and_link(
 
     run_args: dict = {
         "provider": provider_cfg.provider,
-        "api_key": provider_cfg.api_key,
+        # 不在任务 payload 持久化 API Key；worker 执行时按 provider_id 解析。
+        "provider_id": model.provider_id,
         "base_url": provider_cfg.base_url,
         "relation_type": relation_type,
         "relation_entity_id": relation_entity_id,
@@ -451,6 +452,11 @@ async def run_audio_generation_task(
             provider = str(run_args.get("provider") or "")
             api_key = str(run_args.get("api_key") or "")
             base_url = run_args.get("base_url")
+            provider_id = str(run_args.get("provider_id") or "")
+            if not api_key and provider_id:
+                # 新任务不在 payload 存密钥；执行期按 provider_id 解析。
+                cfg = await load_audio_provider_config(session, provider_id)
+                provider, api_key, base_url = cfg.provider, cfg.api_key, cfg.base_url
             input_dict = dict(run_args.get("input") or {})
 
             task = AudioGenerationTask(

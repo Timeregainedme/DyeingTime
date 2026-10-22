@@ -283,7 +283,8 @@ async def stage_image_task_and_link(
 
     run_args: dict = {
         "provider": provider_cfg.provider,
-        "api_key": provider_cfg.api_key,
+        # 不在任务 payload 持久化 API Key；worker 执行时按 provider_id 从服务端解析。
+        "provider_id": model.provider_id,
         "base_url": provider_cfg.base_url,
         "relation_type": relation_type,
         "relation_entity_id": relation_entity_id,
@@ -398,6 +399,11 @@ async def run_image_generation_task(
             provider = str(run_args.get("provider") or "")
             api_key = str(run_args.get("api_key") or "")
             base_url = run_args.get("base_url")
+            provider_id = str(run_args.get("provider_id") or "")
+            if not api_key and provider_id:
+                # 新任务不在 payload 存密钥；执行期按 provider_id 解析。
+                cfg = await load_provider_config(session, provider_id)
+                provider, api_key, base_url = cfg.provider, cfg.api_key, cfg.base_url
             input_dict = dict(run_args.get("input") or {})
 
             # payload 里只保存 file_id 引用，参考图字节到这一步（调用供应商前）才下载编码，
