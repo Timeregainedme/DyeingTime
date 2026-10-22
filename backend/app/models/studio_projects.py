@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import JSON, Boolean, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 from app.models.base import TimestampMixin
-from app.models.types import ChapterStatus, ProjectStyle, ProjectVisualStyle
+from app.models.types import ChapterStatus, ProjectVisualStyle
 
 if TYPE_CHECKING:
     from app.models.studio_assets import Actor, Character, Costume, Prop, Scene
@@ -27,7 +28,11 @@ class Project(Base, TimestampMixin):
     id: Mapped[str] = mapped_column(String(64), primary_key=True, comment="项目 ID")
     name: Mapped[str] = mapped_column(String(255), nullable=False, comment="项目名称")
     description: Mapped[str] = mapped_column(Text, nullable=False, default="", comment="项目简介")
-    style: Mapped[ProjectStyle] = mapped_column(String(32), nullable=False, comment="题材/风格")
+    style: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        comment="题材/风格（风格目录名称；兼容历史枚举值）",
+    )
     visual_style: Mapped[ProjectVisualStyle] = mapped_column(
         String(16),
         nullable=False,
@@ -52,8 +57,8 @@ class Project(Base, TimestampMixin):
     use_dialog_audio_as_reference: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
-        default=True,
-        comment="视频生成时是否自动带上镜头台词已生成的配音作为参考音频",
+        default=False,
+        comment="视频生成时是否自动带上镜头台词已生成的配音作为参考音频（新项目默认关闭）",
     )
     default_image_resolution_profile: Mapped[str | None] = mapped_column(
         String(16),
@@ -67,6 +72,85 @@ class Project(Base, TimestampMixin):
         default=None,
         comment="项目级默认视频分辨率档位（如 768p/2k；为空时回落到提供方默认档位）",
     )
+
+    # --- P2：项目级生成配置与模型快照 ---
+    # 只存模型 ID；API Key / Base URL 等凭据始终由服务端按 provider_id 解析。
+    default_image_model_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("models.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="项目默认图片模型 ID；为空回退全局默认",
+    )
+    default_video_model_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("models.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="项目默认视频模型 ID；为空回退全局默认",
+    )
+    default_audio_model_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("models.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="项目默认音频模型 ID；为空回退全局默认",
+    )
+    default_reference_mode: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="reference",
+        comment="H3 默认参考模式（reference=多参考）",
+    )
+    default_shot_duration: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=5,
+        comment="项目默认镜头时长（秒）",
+    )
+    video_duration_min: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=4,
+        comment="项目业务时长下限（秒）",
+    )
+    video_duration_max: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=15,
+        comment="项目业务时长上限（秒）",
+    )
+    video_concurrency: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=4,
+        comment="视频批量并发数（默认 4）",
+    )
+    generation_config_version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1,
+        comment="生成配置版本；确认时递增",
+    )
+    generation_config_confirmed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+        comment="生成配置确认时间；为空表示未确认",
+    )
+    generation_config_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+        comment="生成配置最近保存时间",
+    )
+    generation_config_snapshot: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON,
+        nullable=True,
+        default=None,
+        comment="已确认的生成配置快照（不含凭据）",
+    )
+
     stats: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict, comment="聚合统计（JSON）")
 
     # --- 多租户归属（Phase 1）---

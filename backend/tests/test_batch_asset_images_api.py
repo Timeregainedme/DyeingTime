@@ -63,7 +63,7 @@ def _stub_enqueue(monkeypatch) -> None:
 def _stub_stage(monkeypatch) -> None:
     """替换 stage 深调用：本文件只验证路由/编排/响应，不依赖图片模型与供应商配置。"""
 
-    async def _fake_create_single(db, *, asset_type, asset_id, image_id):
+    async def _fake_create_single(db, *, asset_type, asset_id, image_id, project_id=None):
         return f"task-{asset_id}", f"prompt for {asset_id}"
 
     monkeypatch.setattr(svc, "_create_single_asset_image_task", _fake_create_single)
@@ -343,7 +343,7 @@ def test_batch_image_tasks_route_midway_failure_keeps_processing_rest(
     """C-14：单个资产 stage 失败后，其余资产仍必须被 stage（SAVEPOINT 隔离）。"""
     original = svc._create_single_asset_image_task
 
-    async def _failing_create_single(db, *, asset_type, asset_id, image_id):
+    async def _failing_create_single(db, *, asset_type, asset_id, image_id, project_id=None):
         if asset_id == "char-b":
             # 真实主键冲突：图片槽位 id=1 已被占用，flush 失败会把 session 打成 failed 态
             db.add(

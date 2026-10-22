@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { StudioProjectsService } from '../../services/generated'
-import type { ProjectRead, ProjectStyle } from '../../services/generated'
+import type { ProjectRead } from '../../services/generated'
 import { projects as mockProjects } from '../../mocks/data'
 import { toProjectView, type ProjectView } from './types'
 
@@ -70,7 +70,7 @@ export function useProjectList() {
         id: newProjectId(),
         name: values.name,
         description: values.description,
-        style: values.style as ProjectStyle,
+        style: values.style,
         visual_style: values.visualStyle as never,
         seed: values.seed,
         unify_style: values.unifyStyle,
@@ -93,7 +93,7 @@ export function useProjectList() {
         requestBody: {
           name: values.name,
           description: values.description,
-          style: values.style as ProjectStyle,
+          style: values.style,
           visual_style: values.visualStyle as never,
           seed: values.seed,
           unify_style: values.unifyStyle,

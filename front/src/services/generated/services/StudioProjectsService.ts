@@ -5,10 +5,13 @@
 import type { ApiResponse_NoneType_ } from '../models/ApiResponse_NoneType_';
 import type { ApiResponse_PaginatedData_ProjectRead__ } from '../models/ApiResponse_PaginatedData_ProjectRead__';
 import type { ApiResponse_ProjectCharacterRecurrenceRead_ } from '../models/ApiResponse_ProjectCharacterRecurrenceRead_';
+import type { ApiResponse_ProjectGenerationConfigRead_ } from '../models/ApiResponse_ProjectGenerationConfigRead_';
+import type { ApiResponse_ProjectGenerationOptionsRead_ } from '../models/ApiResponse_ProjectGenerationOptionsRead_';
 import type { ApiResponse_ProjectProductionReadinessRead_ } from '../models/ApiResponse_ProjectProductionReadinessRead_';
 import type { ApiResponse_ProjectRead_ } from '../models/ApiResponse_ProjectRead_';
 import type { ApiResponse_ProjectStyleOptionsRead_ } from '../models/ApiResponse_ProjectStyleOptionsRead_';
 import type { ProjectCreate } from '../models/ProjectCreate';
+import type { ProjectGenerationConfigUpdate } from '../models/ProjectGenerationConfigUpdate';
 import type { ProjectUpdate } from '../models/ProjectUpdate';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
@@ -23,6 +26,80 @@ export class StudioProjectsService {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/studio/projects/style-options',
+        });
+    }
+    /**
+     * 项目可选模型与能力
+     * 项目配置面板的模型清单。
+     *
+     * 只返回模型 ID、名称、供应商与能力，不返回任何 API Key / Base URL。
+     * @returns ApiResponse_ProjectGenerationOptionsRead_ Successful Response
+     * @throws ApiError
+     */
+    public static getProjectGenerationOptionsApiApiV1StudioProjectsProjectIdGenerationOptionsGet({
+        projectId,
+    }: {
+        projectId: string,
+    }): CancelablePromise<ApiResponse_ProjectGenerationOptionsRead_> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/studio/projects/{project_id}/generation-options',
+            path: {
+                'project_id': projectId,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * 读取项目生成配置
+     * @returns ApiResponse_ProjectGenerationConfigRead_ Successful Response
+     * @throws ApiError
+     */
+    public static getProjectGenerationConfigApiApiV1StudioProjectsProjectIdGenerationConfigGet({
+        projectId,
+    }: {
+        projectId: string,
+    }): CancelablePromise<ApiResponse_ProjectGenerationConfigRead_> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/studio/projects/{project_id}/generation-config',
+            path: {
+                'project_id': projectId,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * 保存并确认项目生成配置
+     * 保存项目配置。
+     *
+     * `confirm=true` 会在服务端重新执行能力校验并写入快照；
+     * 校验失败返回 400，不写入任何字段（事务回滚）。
+     * @returns ApiResponse_ProjectGenerationConfigRead_ Successful Response
+     * @throws ApiError
+     */
+    public static saveProjectGenerationConfigApiApiV1StudioProjectsProjectIdGenerationConfigPut({
+        projectId,
+        requestBody,
+    }: {
+        projectId: string,
+        requestBody: ProjectGenerationConfigUpdate,
+    }): CancelablePromise<ApiResponse_ProjectGenerationConfigRead_> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/api/v1/studio/projects/{project_id}/generation-config',
+            path: {
+                'project_id': projectId,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
         });
     }
     /**

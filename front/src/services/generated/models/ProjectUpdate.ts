@@ -2,15 +2,14 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { ProjectStyle } from './ProjectStyle';
 import type { ProjectVisualStyle } from './ProjectVisualStyle';
 export type ProjectUpdate = {
     name?: (string | null);
     description?: (string | null);
     /**
-     * 题材/风格
+     * 题材/风格（来自项目风格目录）
      */
-    style?: (ProjectStyle | null);
+    style?: (string | null);
     visual_style?: (ProjectVisualStyle | null);
     seed?: (number | null);
     unify_style?: (boolean | null);

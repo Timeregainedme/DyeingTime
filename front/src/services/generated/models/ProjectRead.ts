@@ -2,7 +2,6 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { ProjectStyle } from './ProjectStyle';
 import type { ProjectVisualStyle } from './ProjectVisualStyle';
 export type ProjectRead = {
     /**
@@ -14,9 +13,9 @@ export type ProjectRead = {
      */
     description?: string;
     /**
-     * 题材/风格
+     * 题材/风格（来自项目风格目录）
      */
-    style: ProjectStyle;
+    style: string;
     /**
      * 画面表现形式
      */
@@ -50,7 +49,7 @@ export type ProjectRead = {
      */
     default_video_resolution?: (string | null);
     /**
-     * 视频生成时是否自动带上镜头台词已生成的配音作为参考音频（true=使用，false=纯画面参考）
+     * 视频生成时是否自动带上镜头台词已生成的配音作为参考音频（true=使用，false=纯画面参考）；新项目默认关闭
      */
     use_dialog_audio_as_reference?: boolean;
     /**
@@ -66,5 +65,49 @@ export type ProjectRead = {
      * 创建者账号 ID
      */
     created_by?: (number | null);
+    /**
+     * 项目默认图片模型 ID
+     */
+    default_image_model_id?: (string | null);
+    /**
+     * 项目默认视频模型 ID
+     */
+    default_video_model_id?: (string | null);
+    /**
+     * 项目默认音频模型 ID
+     */
+    default_audio_model_id?: (string | null);
+    /**
+     * 默认参考模式
+     */
+    default_reference_mode?: (string | null);
+    /**
+     * 默认镜头时长（秒）
+     */
+    default_shot_duration?: (number | null);
+    /**
+     * 项目业务时长下限（秒）
+     */
+    video_duration_min?: (number | null);
+    /**
+     * 项目业务时长上限（秒）
+     */
+    video_duration_max?: (number | null);
+    /**
+     * 视频批量并发数
+     */
+    video_concurrency?: (number | null);
+    /**
+     * 生成配置版本
+     */
+    generation_config_version?: (number | null);
+    /**
+     * 生成配置确认时间；为空表示未确认
+     */
+    generation_config_confirmed_at?: (string | null);
+    /**
+     * 生成配置最近保存时间
+     */
+    generation_config_updated_at?: (string | null);
 };
 

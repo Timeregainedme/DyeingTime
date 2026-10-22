@@ -21,4 +21,5 @@ description: "记录当前真实生效的系统结构、状态流转、页面边
 - [LLM 默认模型解析](/docs/architecture/llm-default-model-resolution/)
 - [分镜状态流转说明](/docs/architecture/shot-status-flow/)
 - [树状工作台](/docs/architecture/workbench/)
+- [项目生成配置与模型快照](/docs/architecture/project-generation-config/)
 - [分镜页面职责边界](/docs/architecture/shot-page-boundary/)

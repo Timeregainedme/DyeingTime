@@ -65,4 +65,8 @@ export const queryKeys = {
   workbenchTimeline: (projectId: string) => ['workbench', projectId, 'timeline'] as const,
   workbenchStyleOptions: ['workbench', 'style-options'] as const,
   workbenchStyleCatalog: ['workbench', 'style-catalog'] as const,
+  workbenchGenerationOptions: (projectId: string) =>
+    ['workbench', projectId, 'generation-options'] as const,
+  workbenchGenerationConfig: (projectId: string) =>
+    ['workbench', projectId, 'generation-config'] as const,
 }

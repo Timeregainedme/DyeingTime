@@ -12,10 +12,22 @@ from app.core.contracts.provider import ProviderConfig
 from app.models.llm import Model, ModelCategoryKey
 from app.services.llm import get_model_by_category
 from app.services.llm.provider_resolver import resolve_provider_config
+from app.services.studio.project_generation_config import resolve_project_model
 
 
-async def resolve_audio_model(db: AsyncSession, model_id: str | None) -> Model:
-    """根据显式 model_id 或默认音频模型解析 Model。"""
+async def resolve_audio_model(
+    db: AsyncSession,
+    model_id: str | None,
+    *,
+    project_id: str | None = None,
+) -> Model:
+    """根据显式 model_id、项目快照或全局默认解析音频模型。"""
+    if model_id is None and project_id:
+        project_model = await resolve_project_model(
+            db, project_id=project_id, category=ModelCategoryKey.audio
+        )
+        if project_model is not None:
+            return project_model
     try:
         return await get_model_by_category(
             db,

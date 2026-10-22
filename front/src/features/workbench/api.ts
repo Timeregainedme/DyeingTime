@@ -18,6 +18,9 @@ import {
 } from '../../services/generated'
 import type {
   ChapterRead,
+  ProjectGenerationConfigRead,
+  ProjectGenerationConfigUpdate,
+  ProjectGenerationOptionsRead,
   ProjectRead,
   ProjectStyleOptionRead,
   ProjectStyleOptionsRead,
@@ -91,6 +94,43 @@ export async function loadProject(projectId: string): Promise<ProjectRead> {
 export async function loadStyleOptions(): Promise<ProjectStyleOptionsRead> {
   const response = await StudioProjectsService.getProjectStyleOptionsApiV1StudioProjectsStyleOptionsGet()
   if (!response.data) throw new Error('服务端没有返回风格目录')
+  return response.data
+}
+
+/** 项目可配置的图片 / 视频 / 音频模型与业务约束。 */
+export async function loadGenerationOptions(
+  projectId: string,
+): Promise<ProjectGenerationOptionsRead> {
+  const response =
+    await StudioProjectsService.getProjectGenerationOptionsApiApiV1StudioProjectsProjectIdGenerationOptionsGet(
+      { projectId },
+    )
+  if (!response.data) throw new Error('服务端没有返回模型选项')
+  return response.data
+}
+
+/** 项目生成配置（含生效值、检查项与快照）。 */
+export async function loadGenerationConfig(
+  projectId: string,
+): Promise<ProjectGenerationConfigRead> {
+  const response =
+    await StudioProjectsService.getProjectGenerationConfigApiApiV1StudioProjectsProjectIdGenerationConfigGet(
+      { projectId },
+    )
+  if (!response.data) throw new Error('服务端没有返回生成配置')
+  return response.data
+}
+
+/** 保存项目生成配置；confirm=true 时服务端会重新校验并写入快照。 */
+export async function saveGenerationConfig(
+  projectId: string,
+  body: ProjectGenerationConfigUpdate,
+): Promise<ProjectGenerationConfigRead> {
+  const response =
+    await StudioProjectsService.saveProjectGenerationConfigApiApiV1StudioProjectsProjectIdGenerationConfigPut(
+      { projectId, requestBody: body },
+    )
+  if (!response.data) throw new Error('服务端没有返回保存结果')
   return response.data
 }
 

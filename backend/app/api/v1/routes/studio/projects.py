@@ -34,7 +34,17 @@ from app.schemas.studio.projects import (
     ProjectUpdate,
     StyleOption,
 )
+from app.schemas.studio.project_generation import (
+    ProjectGenerationConfigRead,
+    ProjectGenerationConfigUpdate,
+    ProjectGenerationOptionsRead,
+)
 from app.services.studio.character_recurrence import get_project_character_recurrence
+from app.services.studio.project_generation_config import (
+    get_project_generation_config,
+    list_project_generation_options,
+    save_project_generation_config,
+)
 from app.services.studio.style_catalog import group_style_options, list_style_options
 from app.services.studio.project_production_readiness import get_project_production_readiness
 
@@ -94,6 +104,64 @@ async def get_project_style_options(
         },
         default_style_by_visual_style=defaults,
     )
+    return success_response(data)
+
+
+@router.get(
+    "/{project_id}/generation-options",
+    response_model=ApiResponse[ProjectGenerationOptionsRead],
+    summary="项目可选模型与能力",
+)
+async def get_project_generation_options_api(
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
+    ctx: WorkspaceContext = Depends(require_viewer),
+) -> ApiResponse[ProjectGenerationOptionsRead]:
+    """项目配置面板的模型清单。
+
+    只返回模型 ID、名称、供应商与能力，不返回任何 API Key / Base URL。
+    """
+    await get_project_in_workspace(db, project_id, ctx)
+    data = await list_project_generation_options(db)
+    return success_response(data)
+
+
+@router.get(
+    "/{project_id}/generation-config",
+    response_model=ApiResponse[ProjectGenerationConfigRead],
+    summary="读取项目生成配置",
+)
+async def get_project_generation_config_api(
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
+    ctx: WorkspaceContext = Depends(require_viewer),
+) -> ApiResponse[ProjectGenerationConfigRead]:
+    project = await get_project_in_workspace(db, project_id, ctx)
+    data = await get_project_generation_config(db, project=project)
+    return success_response(data)
+
+
+@router.put(
+    "/{project_id}/generation-config",
+    response_model=ApiResponse[ProjectGenerationConfigRead],
+    summary="保存并确认项目生成配置",
+)
+async def save_project_generation_config_api(
+    project_id: str,
+    body: ProjectGenerationConfigUpdate,
+    db: AsyncSession = Depends(get_db),
+    ctx: WorkspaceContext = Depends(require_editor),
+) -> ApiResponse[ProjectGenerationConfigRead]:
+    """保存项目配置。
+
+    `confirm=true` 会在服务端重新执行能力校验并写入快照；
+    校验失败返回 400，不写入任何字段（事务回滚）。
+    """
+    project = await get_project_in_workspace(db, project_id, ctx)
+    try:
+        data = await save_project_generation_config(db, project=project, body=body)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     return success_response(data)
 
 

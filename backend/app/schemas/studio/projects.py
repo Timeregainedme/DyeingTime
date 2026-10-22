@@ -2,20 +2,21 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.studio import ChapterStatus, ProjectStyle, ProjectVisualStyle
+from app.models.studio import ChapterStatus, ProjectVisualStyle
 
 
-PROJECT_STYLE_EXAMPLES = [x.value for x in ProjectStyle]
+PROJECT_STYLE_EXAMPLES = ["真人都市", "真人电影写实", "2D 动画", "3D 国漫"]
 
 
 class ProjectBase(BaseModel):
     name: str = Field(..., description="项目名称")
     description: str = Field("", description="项目简介")
-    style: ProjectStyle = Field(..., description="题材/风格", examples=PROJECT_STYLE_EXAMPLES)
+    style: str = Field(..., description="题材/风格（来自项目风格目录）", examples=PROJECT_STYLE_EXAMPLES)
     visual_style: ProjectVisualStyle = Field(ProjectVisualStyle.live_action, description="画面表现形式")
     seed: int = Field(0, description="随机种子")
     unify_style: bool = Field(True, description="是否统一风格")
@@ -29,10 +30,10 @@ class ProjectBase(BaseModel):
         None, description="项目级默认视频分辨率档位（如 768p/2k）；为空时回落到提供方默认档位"
     )
     use_dialog_audio_as_reference: bool = Field(
-        True,
+        False,
         description=(
             "视频生成时是否自动带上镜头台词已生成的配音作为参考音频"
-            "（true=使用，false=纯画面参考）"
+            "（true=使用，false=纯画面参考）；新项目默认关闭"
         ),
     )
     stats: dict[str, Any] = Field(default_factory=dict, description="聚合统计（JSON）")
@@ -45,7 +46,7 @@ class ProjectCreate(ProjectBase):
 class ProjectUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
-    style: ProjectStyle | None = Field(None, description="题材/风格", examples=PROJECT_STYLE_EXAMPLES)
+    style: str | None = Field(None, description="题材/风格（来自项目风格目录）", examples=PROJECT_STYLE_EXAMPLES)
     visual_style: ProjectVisualStyle | None = None
     seed: int | None = None
     unify_style: bool | None = None
@@ -66,6 +67,25 @@ class ProjectRead(ProjectBase):
     # 只读——不接受通过 ProjectUpdate 修改，避免客户端把自己项目搬进别的租户。
     workspace_id: str = Field(..., description="所属工作区 ID")
     created_by: int | None = Field(None, description="创建者账号 ID")
+
+    # --- P2：项目生成配置 ---
+    # 全部只读；写入走 `PUT /studio/projects/{id}/generation-config`，避免
+    # 通过通用 PATCH 绕过能力校验与确认逻辑。
+    default_image_model_id: str | None = Field(None, description="项目默认图片模型 ID")
+    default_video_model_id: str | None = Field(None, description="项目默认视频模型 ID")
+    default_audio_model_id: str | None = Field(None, description="项目默认音频模型 ID")
+    default_reference_mode: str | None = Field(None, description="默认参考模式")
+    default_shot_duration: int | None = Field(None, description="默认镜头时长（秒）")
+    video_duration_min: int | None = Field(None, description="项目业务时长下限（秒）")
+    video_duration_max: int | None = Field(None, description="项目业务时长上限（秒）")
+    video_concurrency: int | None = Field(None, description="视频批量并发数")
+    generation_config_version: int | None = Field(None, description="生成配置版本")
+    generation_config_confirmed_at: datetime | None = Field(
+        None, description="生成配置确认时间；为空表示未确认"
+    )
+    generation_config_updated_at: datetime | None = Field(
+        None, description="生成配置最近保存时间"
+    )
 
 
 class ChapterBase(BaseModel):

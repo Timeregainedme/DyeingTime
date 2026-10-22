@@ -23,6 +23,7 @@ from app.models.task_links import GenerationTaskLink
 from app.models.types import FileUsageKind
 from app.services.common.errors import entity_not_found
 from app.services.studio.audio_tasks import load_audio_provider_config, resolve_audio_model
+from app.services.studio.project_generation_config import resolve_project_id_for_shot
 from app.services.studio.file_usages import upsert_file_usage
 from app.services.studio.image_task_runner import _CreateOnlyTask
 from app.services.worker.async_task_support import cancel_if_requested_async
@@ -331,7 +332,11 @@ async def create_audio_task_and_link(
     # F：显式传入的 emotion 优先；没传则用台词行上的 emotion。
     emotion = (emotion or "").strip() or resolved_emotion
 
-    model = await resolve_audio_model(db, model_id)
+    # P2：优先使用项目配置的音频模型；台词/镜头能反查项目时自动生效。
+    resolved_project_id = project_id
+    if not resolved_project_id and resolved_shot_id:
+        resolved_project_id = await resolve_project_id_for_shot(db, shot_id=resolved_shot_id)
+    model = await resolve_audio_model(db, model_id, project_id=resolved_project_id)
     provider_cfg = await load_audio_provider_config(db, model.provider_id)
 
     resolved_voice, resolved_voice_source = await _resolve_audio_voice(

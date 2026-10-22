@@ -40,6 +40,7 @@ from app.services.studio.file_usages import (
 )
 from app.services.studio.shot_status import mark_shot_generating, recompute_shot_status
 from app.services.studio.image_tasks import load_provider_config, resolve_image_model
+from app.services.studio.project_generation_config import resolve_project_id_for_image_relation
 from app.services.worker.async_task_support import cancel_if_requested_async
 from app.services.worker.task_logging import log_task_event, log_task_failure
 from app.services.common.workspace import resolve_workspace_id
@@ -260,6 +261,7 @@ async def stage_image_task_and_link(
     resolution_profile: str | None = None,
     purpose: str = "generic",
     render_context: dict | None = None,
+    project_id: str | None = None,
 ) -> str:
     """创建图片生成任务并建立关联，但**不提交事务、不入队**。
 
@@ -269,7 +271,14 @@ async def stage_image_task_and_link(
     store = SqlAlchemyTaskStore(db)
     tm = TaskManager(store=store, strategies={})
 
-    model = await resolve_image_model(db, model_id)
+    # P2：优先使用项目配置的图片模型；关联实体能唯一定位项目时才这样解析，
+    # 全局资产可能被多个项目引用，保持全局默认以避免误用别家模型。
+    resolved_project_id = project_id or await resolve_project_id_for_image_relation(
+        db,
+        relation_type=relation_type,
+        relation_entity_id=relation_entity_id,
+    )
+    model = await resolve_image_model(db, model_id, project_id=resolved_project_id)
     provider_cfg = await load_provider_config(db, model.provider_id)
 
     run_args: dict = {
@@ -336,6 +345,7 @@ async def create_image_task_and_link(
     resolution_profile: str | None = None,
     purpose: str = "generic",
     render_context: dict | None = None,
+    project_id: str | None = None,
 ) -> str:
     """创建图片生成任务，提交事务并入队执行（单资产入口）。"""
     task_id = await stage_image_task_and_link(
@@ -349,6 +359,7 @@ async def create_image_task_and_link(
         resolution_profile=resolution_profile,
         purpose=purpose,
         render_context=render_context,
+        project_id=project_id,
     )
     await db.commit()
 

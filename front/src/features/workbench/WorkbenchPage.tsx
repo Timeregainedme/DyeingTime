@@ -287,15 +287,7 @@ function renderCenter(context: RenderCenterContext) {
       )
 
     case 'config':
-      return (
-        <ProjectConfigPanel
-          projectId={projectId}
-          project={project}
-          loading={projectLoading}
-          error={projectError}
-          onRetry={onRetryProject}
-        />
-      )
+      return <ProjectConfigPanel projectId={projectId} />
 
     case 'script':
       return (

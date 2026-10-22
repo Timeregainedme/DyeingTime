@@ -228,6 +228,7 @@ async def _create_single_asset_image_task(
     image_id: int,
     use_prompt_snapshots: bool = True,
     prompt_override: str | None = None,
+    project_id: str | None = None,
 ) -> tuple[str, str]:
     """为单个资产 stage 图片生成任务，返回 (task_id, prompt)。不提交、不入队。"""
     _base, derived = await _build_asset_image_preview(
@@ -251,6 +252,7 @@ async def _create_single_asset_image_task(
         relation_entity_id=derived.relation_entity_id,
         prompt=prompt,
         images=derived.images,
+        project_id=project_id,
     )
     return task_id, prompt
 
@@ -322,6 +324,7 @@ async def create_batch_asset_image_tasks(
                     "asset_type": asset_type_norm,
                     "asset_id": asset_id,
                     "image_id": image_id,
+                    "project_id": project_id,
                 }
                 # 只在非默认时传新增参数，保持既有测试替身/调用方的兼容性。
                 if not use_prompt_snapshots:

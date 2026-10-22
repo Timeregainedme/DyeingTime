@@ -38,6 +38,10 @@ from app.services.studio.generation.video import (
     validate_images_count,
 )
 from app.services.studio.shot_status import recompute_shot_status
+from app.services.studio.project_generation_config import (
+    resolve_project_id_for_shot,
+    resolve_project_model,
+)
 from app.services.worker.async_task_support import cancel_if_requested_async
 from app.services.worker.task_logging import log_task_event, log_task_failure
 from app.utils.files import create_file_from_url_or_b64
@@ -164,23 +168,40 @@ async def preview_prompt_and_images(
     return submission.prompt, submission.images, audio_ids, None
 
 
-async def resolve_default_video_model(db: AsyncSession) -> Model:
-    settings_row = await db.get(ModelSettings, 1)
-    model_id = settings_row.default_video_model_id if settings_row else None
-    if not model_id:
-        raise HTTPException(
-            status_code=503,
-            detail="No default video model configured; please set ModelSettings.default_video_model_id first",
-        )
-    model = await db.get(Model, model_id)
-    if model is None:
-        raise HTTPException(status_code=503, detail=f"Configured default video model not found: {model_id}")
-    if model.category != ModelCategoryKey.video:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Configured default video model is not video category: {model_id} (category={model.category})",
-        )
-    return model
+async def resolve_default_video_model(
+    db: AsyncSession, *, project_id: str | None = None
+) -> Model:
+    """解析视频模型：项目显式配置优先，缺失时回退全局默认。
+
+    `project_id` 为空时保持原有行为与错误文案，供旧调用方与测试使用。
+    """
+    if project_id is None:
+        settings_row = await db.get(ModelSettings, 1)
+        model_id = settings_row.default_video_model_id if settings_row else None
+        if not model_id:
+            raise HTTPException(
+                status_code=503,
+                detail="No default video model configured; please set ModelSettings.default_video_model_id first",
+            )
+        model = await db.get(Model, model_id)
+        if model is None:
+            raise HTTPException(status_code=503, detail=f"Configured default video model not found: {model_id}")
+        if model.category != ModelCategoryKey.video:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Configured default video model is not video category: {model_id} (category={model.category})",
+            )
+        return model
+
+    model = await resolve_project_model(
+        db, project_id=project_id, category=ModelCategoryKey.video
+    )
+    if model is not None:
+        return model
+    raise HTTPException(
+        status_code=503,
+        detail="No default video model configured; please set ModelSettings.default_video_model_id first",
+    )
 
 
 async def load_provider_config_by_model(db: AsyncSession, model: Model) -> ProviderConfig:
@@ -407,7 +428,8 @@ async def build_run_args(
     skill_id: str | None = None,
     reference_audio_file_ids: list[str] | None = None,
 ) -> dict:
-    model = await resolve_default_video_model(db)
+    project_id = await resolve_project_id_for_shot(db, shot_id=shot_id)
+    model = await resolve_default_video_model(db, project_id=project_id)
     provider_cfg = await load_provider_config_by_model(db, model)
     shot_detail = await validate_shot_and_duration(db, shot_id)
     resolved_ratio = await resolve_effective_video_options(

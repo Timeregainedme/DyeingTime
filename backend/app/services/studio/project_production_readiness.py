@@ -251,9 +251,16 @@ async def get_project_production_readiness(
 
     settings = await db.get(ModelSettings, 1)
     text_model_id = settings.default_text_model_id if settings else None
-    image_model_id = settings.default_image_model_id if settings else None
-    video_model_id = settings.default_video_model_id if settings else None
-    audio_model_id = settings.default_audio_model_id if settings else None
+    # P2：项目显式配置优先，未配置时才回退全局默认。
+    image_model_id = getattr(project, "default_image_model_id", None) or (
+        settings.default_image_model_id if settings else None
+    )
+    video_model_id = getattr(project, "default_video_model_id", None) or (
+        settings.default_video_model_id if settings else None
+    )
+    audio_model_id = getattr(project, "default_audio_model_id", None) or (
+        settings.default_audio_model_id if settings else None
+    )
     checks: list[ProjectProductionReadinessCheck] = [
         await _model_check(
             db,

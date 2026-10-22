@@ -2,7 +2,6 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { ProjectStyle } from './ProjectStyle';
 import type { ProjectVisualStyle } from './ProjectVisualStyle';
 export type ProjectCreate = {
     /**
@@ -14,9 +13,9 @@ export type ProjectCreate = {
      */
     description?: string;
     /**
-     * 题材/风格
+     * 题材/风格（来自项目风格目录）
      */
-    style: ProjectStyle;
+    style: string;
     /**
      * 画面表现形式
      */
@@ -50,7 +49,7 @@ export type ProjectCreate = {
      */
     default_video_resolution?: (string | null);
     /**
-     * 视频生成时是否自动带上镜头台词已生成的配音作为参考音频（true=使用，false=纯画面参考）
+     * 视频生成时是否自动带上镜头台词已生成的配音作为参考音频（true=使用，false=纯画面参考）；新项目默认关闭
      */
     use_dialog_audio_as_reference?: boolean;
     /**

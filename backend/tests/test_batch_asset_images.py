@@ -131,7 +131,7 @@ async def test_create_batch_asset_image_tasks_mocks_pipeline(monkeypatch) -> Non
 
     created_tasks: list[tuple[str, int]] = []
 
-    async def _fake_create_single(db, *, asset_type, asset_id, image_id):
+    async def _fake_create_single(db, *, asset_type, asset_id, image_id, project_id=None):
         created_tasks.append((asset_id, int(image_id)))
         return f"task-{asset_id}", f"prompt for {asset_id}"
 
@@ -160,7 +160,7 @@ async def test_create_batch_asset_image_tasks_only_scans_project(monkeypatch) ->
 
     created: list[str] = []
 
-    async def _fake_create_single(db, *, asset_type, asset_id, image_id):
+    async def _fake_create_single(db, *, asset_type, asset_id, image_id, project_id=None):
         created.append(asset_id)
         return f"task-{asset_id}", "p"
 
@@ -182,7 +182,7 @@ async def test_create_batch_asset_image_tasks_rejects_foreign_asset_ids(monkeypa
 
     called: list[str] = []
 
-    async def _fake_create_single(db, *, asset_type, asset_id, image_id):
+    async def _fake_create_single(db, *, asset_type, asset_id, image_id, project_id=None):
         called.append(asset_id)
         return f"task-{asset_id}", "p"
 
@@ -241,7 +241,7 @@ async def test_create_batch_asset_image_tasks_midway_flush_failure_isolated(monk
     """
     db, engine = await _build_session()
 
-    async def _fake_create_single(db, *, asset_type, asset_id, image_id):
+    async def _fake_create_single(db, *, asset_type, asset_id, image_id, project_id=None):
         if asset_id == "char-abc":
             # 真实主键冲突：id=1 已被 _seed_graph 中的 CharacterImage 占用
             db.add(
@@ -278,7 +278,7 @@ async def test_create_batch_asset_image_tasks_marks_failed_when_enqueue_raises(m
     """
     db, engine = await _build_session()
 
-    async def _fake_create_single(db, *, asset_type, asset_id, image_id):
+    async def _fake_create_single(db, *, asset_type, asset_id, image_id, project_id=None):
         # 真实 stage 会落一行 generation_tasks；这里补一行，好验证失败状态确实落库。
         task_id = f"task-{asset_id}"
         db.add(

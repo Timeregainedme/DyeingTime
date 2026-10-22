@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.llm import Model, ModelCategoryKey, ModelSettings, Provider
+from app.models.llm import ModelCategoryKey, Provider
 from app.models.studio import (
     Shot,
     ShotCandidateStatus,
@@ -19,6 +19,10 @@ from app.models.task import GenerationTask, GenerationTaskStatus
 from app.models.task_links import GenerationTaskLink
 from app.schemas.studio.shots import ShotVideoReadinessCheck, ShotVideoReadinessRead
 from app.services.common import entity_not_found
+from app.services.studio.project_generation_config import (
+    resolve_project_id_for_shot,
+    resolve_project_model,
+)
 from app.services.studio.generation.video import (
     # 参考模式的帧要求必须与生成链路共用同一份定义：这里曾各自维护一份，
     # 新增 "reference" 时只改了 build_context，导致准备度把 reference 判为
@@ -123,38 +127,46 @@ async def _reference_images_ready(
     )
 
 
-async def _video_model_and_provider_ready(db: AsyncSession) -> tuple[ShotVideoReadinessCheck, ShotVideoReadinessCheck]:
-    settings = await db.get(ModelSettings, 1)
-    model_id = settings.default_video_model_id if settings else None
-    if not model_id:
-        return (
-            _check("video_model_ready", False, "未配置默认视频模型"),
-            _check("provider_ready", False, "未配置默认视频模型，无法检查供应商"),
+async def _video_model_and_provider_ready(
+    db: AsyncSession, *, project_id: str | None
+) -> tuple[ShotVideoReadinessCheck, ShotVideoReadinessCheck]:
+    """检查项目视频模型与供应商。
+
+    P2 起模型优先取项目快照；项目显式配置失效时不静默回退全局，
+    而是直接给出可执行的错误，避免「预览一个模型、实际跑另一个」。
+    """
+    try:
+        model = await resolve_project_model(
+            db, project_id=project_id, category=ModelCategoryKey.video
         )
-    model = await db.get(Model, model_id)
+    except Exception as exc:  # noqa: BLE001 - HTTPException/ValueError 都转成未就绪
+        return (
+            _check("video_model_ready", False, f"项目视频模型不可用：{exc}"),
+            _check("provider_ready", False, "视频模型不可用，无法检查供应商"),
+        )
     if model is None:
         return (
-            _check("video_model_ready", False, f"默认视频模型不存在：{model_id}"),
-            _check("provider_ready", False, "默认视频模型不存在，无法检查供应商"),
+            _check("video_model_ready", False, "未配置视频模型（项目与全局均为空）"),
+            _check("provider_ready", False, "未配置视频模型，无法检查供应商"),
         )
     if model.category != ModelCategoryKey.video:
         return (
-            _check("video_model_ready", False, f"默认模型不是视频类别：{model_id}"),
-            _check("provider_ready", False, "默认模型不是视频类别，无法检查供应商"),
+            _check("video_model_ready", False, f"模型不是视频类别：{model.id}"),
+            _check("provider_ready", False, "模型不是视频类别，无法检查供应商"),
         )
     provider = await db.get(Provider, model.provider_id)
     if provider is None:
         return (
-            _check("video_model_ready", True, "默认视频模型可用"),
+            _check("video_model_ready", True, "视频模型可用"),
             _check("provider_ready", False, f"视频模型供应商不存在：{model.provider_id}"),
         )
     if not (provider.api_key or "").strip():
         return (
-            _check("video_model_ready", True, "默认视频模型可用"),
+            _check("video_model_ready", True, "视频模型可用"),
             _check("provider_ready", False, f"视频模型供应商缺少 api_key：{provider.id}"),
         )
     return (
-        _check("video_model_ready", True, "默认视频模型可用"),
+        _check("video_model_ready", True, "视频模型可用"),
         _check("provider_ready", True, "视频模型供应商可用"),
     )
 
@@ -215,7 +227,8 @@ async def get_shot_video_readiness(
         prompt_message = f"视频提示词渲染失败：{exc}"
 
     active_video_task = await _has_active_video_task(db, shot_id=shot_id)
-    model_check, provider_check = await _video_model_and_provider_ready(db)
+    project_id = await resolve_project_id_for_shot(db, shot_id=shot_id)
+    model_check, provider_check = await _video_model_and_provider_ready(db, project_id=project_id)
     checks = [
         _check("extraction_ready", extraction_ok, extraction_msg),
         duration_check,

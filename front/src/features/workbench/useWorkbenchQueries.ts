@@ -8,7 +8,7 @@
  *
  * 分页拉全的策略在 `api.ts`；这里的职责只是声明查询键与生命周期。
  */
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ShotRead } from '../../services/generated'
 import { queryKeys } from '../../lib/queryClient'
 import type { WorkbenchAssetType } from './routes'
@@ -16,6 +16,8 @@ import {
   loadAllChapters,
   loadAllShots,
   loadAssetDetail,
+  loadGenerationConfig,
+  loadGenerationOptions,
   loadGlobalAssets,
   loadProject,
   loadProjectCharacters,
@@ -27,6 +29,7 @@ import {
   loadShotReadiness,
   loadStyleCatalog,
   loadStyleOptions,
+  saveGenerationConfig,
 } from './api'
 
 /** 工作台默认缓存时间：与全局 QueryClient 的 30s 对齐，避免切节点就重拉。 */
@@ -64,6 +67,45 @@ export function useWorkbenchStyleCatalog() {
     queryKey: queryKeys.workbenchStyleCatalog,
     queryFn: loadStyleCatalog,
     staleTime: 5 * 60_000,
+  })
+}
+
+export function useWorkbenchGenerationOptions(projectId: string) {
+  return useQuery({
+    queryKey: queryKeys.workbenchGenerationOptions(projectId),
+    queryFn: () => loadGenerationOptions(projectId),
+    enabled: Boolean(projectId),
+    staleTime: STALE_MS,
+  })
+}
+
+export function useWorkbenchGenerationConfig(projectId: string) {
+  return useQuery({
+    queryKey: queryKeys.workbenchGenerationConfig(projectId),
+    queryFn: () => loadGenerationConfig(projectId),
+    enabled: Boolean(projectId),
+    staleTime: STALE_MS,
+  })
+}
+
+/**
+ * 保存项目生成配置。
+ *
+ * 成功后失效配置、项目详情与开工预检：这三处都读取同一批模型/参数，
+ * 只刷新表单会让树与预检面板继续显示旧值。
+ */
+export function useSaveGenerationConfig(projectId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: Parameters<typeof saveGenerationConfig>[1]) =>
+      saveGenerationConfig(projectId, body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.workbenchGenerationConfig(projectId),
+      })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.project(projectId) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchProject(projectId) })
+    },
   })
 }
 

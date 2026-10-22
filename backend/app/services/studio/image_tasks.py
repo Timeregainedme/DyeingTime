@@ -12,10 +12,28 @@ from app.models.llm import Model, ModelCategoryKey
 from app.models.studio import AssetViewAngle, PromptCategory, PromptTemplate, ShotFrameType
 from app.services.llm import get_model_by_category
 from app.services.llm.provider_resolver import resolve_provider_config
+from app.services.studio.project_generation_config import resolve_project_model
 
 
-async def resolve_image_model(db: AsyncSession, model_id: str | None) -> Model:
-    """根据显式 model_id 或默认图片模型解析 Model。"""
+async def resolve_image_model(
+    db: AsyncSession,
+    model_id: str | None,
+    *,
+    project_id: str | None = None,
+) -> Model:
+    """根据显式 model_id、项目快照或全局默认解析图片模型。
+
+    解析顺序（P2）：
+    1. 显式 `model_id`（API 调用方明确指定）；
+    2. 项目已配置的图片模型；
+    3. 全局 `ModelSettings.default_image_model_id`。
+    """
+    if model_id is None and project_id:
+        project_model = await resolve_project_model(
+            db, project_id=project_id, category=ModelCategoryKey.image
+        )
+        if project_model is not None:
+            return project_model
     try:
         return await get_model_by_category(
             db,
