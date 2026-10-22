@@ -108,8 +108,10 @@ curl -s http://127.0.0.1:8000/api/v1/llm/providers/supported   # 期望 6 个供
 ### 1.3 项目级参数（建项目时就定死）
 
 - **画幅 9:16**：落到 `Project.default_video_ratio = "9:16"`，不要再依赖分镜级覆盖。
-- `style`（题材）与 `visual_style` 是**中文枚举**，传英文值返回 422：
-  - `style`：真人都市 / 真人科幻 / 真人古装 / 动漫科幻 / 动漫3D / 国漫 / 水墨画
+- `style`（题材）来自 `project_styles` 风格目录，`visual_style` 是中文枚举；
+  两者组合必须是目录里的合法组合，非法组合返回 400（P2 起新增了可配置模板，
+  不再用静态枚举校验）：
+  - `style`：目录中的风格名（内置如 真人都市 / 真人电影写实 / 2D 动画 / 3D 国漫）
   - `visual_style`：现实 / 动漫
 - `ProjectCreate` 必填 = `['id', 'name', 'style']`。
 
@@ -423,7 +425,7 @@ POST /api/v1/studio/audio-tasks/speech
 | 现象 | 原因 | 处理 |
 |---|---|---|
 | 422 `Field required` | 缺必填参数（如批量参考图的 `project_id`） | 补参 |
-| 422 值非法 | 传了英文枚举，接口要**中文** | `style`=真人都市/真人科幻/真人古装/动漫科幻/动漫3D/国漫/水墨画；`visual_style`=现实/动漫 |
+| 400 风格组合非法 | 传了中文但不在目录组合里 | 先查 `/studio/projects/style-options`，用返回的 style/visual_style 组合 |
 | 422 镜头语言 | `CameraShotType/CameraAngle/CameraMovement` **枚举值全大写** | 传 `MS` / `EYE_LEVEL` / `STATIC` |
 | 400 `ratio is required` | 请求、分镜覆盖、项目默认**全为空** | 设 `Project.default_video_ratio = 9:16` |
 | 400 `Invalid video ratio` | 非法比例值 | 用模型 capability 返回的比例 |
