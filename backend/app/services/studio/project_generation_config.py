@@ -24,6 +24,7 @@ from app.core.integrations.image_capabilities import resolve_image_capability
 from app.core.integrations.video_capabilities import resolve_video_capability
 from app.models.llm import Model, ModelCategoryKey, ModelSettings, Provider, ProviderStatus
 from app.models.studio import Project
+from app.models.studio import ProjectStyleSnapshot
 from app.schemas.studio.project_generation import (
     EffectiveGenerationModelRead,
     GenerationBusinessPolicyRead,
@@ -518,36 +519,44 @@ async def build_project_generation_config(
         audio.reason or "项目音频模型可使用",
         {"model_id": audio.model_id, "source": audio.source},
     )
+    video_ratio_ok = bool(video_ratio) and (not video_ratios or video_ratio in video_ratios)
     add(
         "video_ratio_ready",
         "视频比例有效",
-        bool(video_ratio) and (not video_ratios or video_ratio in video_ratios),
-        f"视频比例 {video_ratio or '未设置'} 不受当前视频模型支持" if video_ratios else "未配置视频模型能力",
+        video_ratio_ok,
+        f"视频比例 {video_ratio} 已验证" if video_ratio_ok else f"视频比例 {video_ratio or '未设置'} 不受当前视频模型支持",
         {"value": video_ratio, "allowed": video_ratios},
+    )
+    video_resolution_ok = bool(video_resolution) and (
+        not video_resolutions or video_resolution in video_resolutions
     )
     add(
         "video_resolution_ready",
         "视频分辨率有效",
-        bool(video_resolution) and (not video_resolutions or video_resolution in video_resolutions),
-        f"视频分辨率 {video_resolution or '未设置'} 不受当前视频模型支持"
-        if video_resolutions
-        else "未配置视频模型能力",
+        video_resolution_ok,
+        f"视频分辨率 {video_resolution} 已验证"
+        if video_resolution_ok
+        else f"视频分辨率 {video_resolution or '未设置'} 不受当前视频模型支持",
         {"value": video_resolution, "allowed": video_resolutions},
     )
+    image_ratio_ok = bool(image_ratio) and (not image_ratios or image_ratio in image_ratios)
     add(
         "image_ratio_ready",
         "图片比例有效",
-        bool(image_ratio) and (not image_ratios or image_ratio in image_ratios),
-        f"图片比例 {image_ratio or '未设置'} 不受当前图片模型支持" if image_ratios else "未配置图片模型能力",
+        image_ratio_ok,
+        f"图片比例 {image_ratio} 已验证" if image_ratio_ok else f"图片比例 {image_ratio or '未设置'} 不受当前图片模型支持",
         {"value": image_ratio, "allowed": image_ratios},
+    )
+    image_profile_ok = bool(image_profile) and (
+        not image_profiles or image_profile in image_profiles
     )
     add(
         "image_resolution_ready",
         "图片清晰度有效",
-        bool(image_profile) and (not image_profiles or image_profile in image_profiles),
-        f"图片档位 {image_profile or '未设置'} 不受当前图片模型支持"
-        if image_profiles
-        else "未配置图片模型能力",
+        image_profile_ok,
+        f"图片档位 {image_profile} 已验证"
+        if image_profile_ok
+        else f"图片档位 {image_profile or '未设置'} 不受当前图片模型支持",
         {"value": image_profile, "allowed": image_profiles},
     )
 
@@ -566,7 +575,9 @@ async def build_project_generation_config(
         "concurrency_ready",
         "并发数有效",
         concurrency_ok,
-        f"并发数需在 1–{MAX_CONCURRENCY} 之间",
+        f"并发数 {concurrency} 在 1–{MAX_CONCURRENCY} 之间"
+        if concurrency_ok
+        else f"并发数需在 1–{MAX_CONCURRENCY} 之间",
         {"value": concurrency},
     )
     mode_ok = reference_mode in ALLOWED_REFERENCE_MODES
@@ -574,8 +585,21 @@ async def build_project_generation_config(
         "reference_mode_ready",
         "参考模式有效",
         mode_ok,
-        f"参考模式只支持 {', '.join(ALLOWED_REFERENCE_MODES)}",
+        f"参考模式 {reference_mode} 已验证"
+        if mode_ok
+        else f"参考模式只支持 {', '.join(ALLOWED_REFERENCE_MODES)}",
         {"value": reference_mode},
+    )
+
+    style_snapshot = await db.get(ProjectStyleSnapshot, project_id)
+    add(
+        "style_locked",
+        "视觉风格已锁定",
+        style_snapshot is not None,
+        "视觉风格尚未锁定；请在「风格圣经」面板确认并锁定"
+        if style_snapshot is None
+        else f"已锁定：{style_snapshot.style_name}",
+        {"style_name": style_snapshot.style_name if style_snapshot else None},
     )
 
     required_keys = {
@@ -591,7 +615,7 @@ async def build_project_generation_config(
         "reference_mode_ready",
     }
     configured = all(check.ok for check in checks if check.key in required_keys)
-    initialized = configured and confirmed_at is not None
+    initialized = configured and confirmed_at is not None and style_snapshot is not None
 
     return ProjectGenerationConfigRead(
         project_id=project_id,
@@ -691,7 +715,12 @@ async def save_project_generation_config(
 
     # 保存草稿允许不完整；确认必须是完整且可执行的配置。
     if body.confirm:
-        failed = [check for check in candidate.checks if not check.ok]
+        # 风格锁定是独立的初始化步骤：配置可以先确认，initialize 仍需风格锁定。
+        failed = [
+            check
+            for check in candidate.checks
+            if not check.ok and check.key != "style_locked"
+        ]
         if failed:
             raise ValueError(
                 "配置未通过检查：" + "；".join(f"{item.label}（{item.message}）" for item in failed)

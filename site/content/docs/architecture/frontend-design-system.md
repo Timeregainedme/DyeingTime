@@ -167,7 +167,11 @@ body { @apply bg-background text-foreground antialiased; }
 
 ## 9.3 项目设置
 
-项目设置页（`ProjectWorkbench/tabs/SettingsTab.tsx`）承载项目级生成参数：
+P2 起，项目级生成配置的主要入口是树状工作台的「项目配置」面板
+（`features/workbench/panels/ProjectConfigPanel.tsx`），支持模型、比例、分辨率、
+默认时长、并发、音频参考开关、检查与确认。旧版设置页保留为兼容入口。
+
+旧版设置页（`ProjectWorkbench/tabs/SettingsTab.tsx`）承载项目级生成参数：
 
 | 项 | 字段 | 可选项来源 |
 |---|---|---|
@@ -203,6 +207,10 @@ body { @apply bg-background text-foreground antialiased; }
 - 后端首次访问会用内置枚举种子化，升级后行为与枚举时代一致；
 - 删除只影响以后新建项目，已有项目里的字符串值不受影响；
 - Go 控制面也改为读表（该路径已切流），表为空时回落内置列表。
+
+P2 起风格目录新增结构化描述、参考图、样张与三个内置模板；
+项目可在工作台「风格圣经」中分析参考图、人工修订并锁定快照。
+详见 [项目风格快照与锁定](/docs/architecture/project-style-lock/)。
 
 ## 10. 已迁移页面
 

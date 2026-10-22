@@ -125,7 +125,7 @@ function ProjectInspector({
         <Row label="工作区" value={project.workspace_id} />
       </Section>
       <p className="text-[10px] leading-4 text-muted-foreground">
-        项目模型快照、风格锁定与并发配置属于 P2；本阶段属性只读。
+        项目配置在工作台「项目配置」面板编辑；属性栏保持只读，避免两处同时修改。
       </p>
     </>
   )

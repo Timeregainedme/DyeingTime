@@ -152,6 +152,33 @@ async def build_default_text_llm(
     )
 
 
+async def build_text_llm(
+    db: AsyncSession,
+    *,
+    model_id: str | None = None,
+    thinking: bool = False,
+) -> tuple[BaseChatModel, Model, Provider]:
+    """按显式模型或全局默认构造文本/视觉模型。
+
+    P2 风格分析复用它，避免再写一套供应商/模型解析。
+    返回 (chat_model, model, provider) 供调用方在响应中标注实际使用模型。
+    """
+    model = await get_model_by_category(
+        db,
+        ModelCategoryKey.text,
+        model_or_id=model_id,
+        allow_default_fallback=True,
+    )
+    provider = await get_provider_by_model_or_id(db, model)
+    chat_model = _build_chat_openai_model(
+        provider=provider,
+        model=model,
+        thinking=thinking,
+        import_error_detail="Install langchain-openai (e.g. uv sync --group dev) to use style analysis",
+    )
+    return chat_model, model, provider
+
+
 def _build_chat_openai_model(
     *,
     provider: Provider,

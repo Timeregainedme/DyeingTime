@@ -65,6 +65,9 @@ weight: 23
 `PUT` 的 `confirm=false` 只保存草稿；`confirm=true` 会在服务端重新跑完整检查，
 失败返回 400 且不写入任何字段。
 
+配置检查中的 `style_locked` 只影响 `initialized`，不阻塞配置本身的确认：
+用户可以先确认模型与参数，再到「风格圣经」完成锁定。
+
 ## 生成链路接入
 
 - 视频：`build_run_args` 通过镜头反查项目，优先取项目视频模型；

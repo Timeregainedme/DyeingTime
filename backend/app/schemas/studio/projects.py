@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.studio import ChapterStatus, ProjectVisualStyle
 
@@ -181,6 +181,21 @@ class ProjectCharacterRecurrenceRead(BaseModel):
     items: list[CharacterRecurrenceRead] = Field(default_factory=list, description="角色明细")
 
 
+class StyleStructuredProfile(BaseModel):
+    """风格的结构化描述；AI 分析输出与人工修订共用同一形状。"""
+
+    medium: str = Field("", description="视觉媒介")
+    texture: str = Field("", description="画面质感")
+    color: str = Field("", description="色彩与饱和度")
+    lighting: str = Field("", description="光照方式")
+    material: str = Field("", description="材质特征")
+    character_rendering: str = Field("", description="人物渲染特征")
+    scene_rendering: str = Field("", description="场景渲染特征")
+    camera: str = Field("", description="摄影与运镜风格")
+    keep: str = Field("", description="应当保持的视觉特征")
+    avoid: str = Field("", description="禁止出现的风格特征")
+
+
 class ProjectStyleOptionRead(BaseModel):
     """风格目录项。"""
 
@@ -192,6 +207,19 @@ class ProjectStyleOptionRead(BaseModel):
     description: str = Field("", description="面向用户的说明")
     prompt_pack: str = Field("", description="提示词质感描述（注入到出图提示词）")
     sort_order: int = Field(0, description="同组内排序")
+    structured_profile: StyleStructuredProfile | None = Field(
+        None, description="AI 分析/人工修订的结构化风格字段"
+    )
+    reference_file_ids: list[str] = Field(default_factory=list, description="风格参考图文件 ID")
+    sample_file_ids: list[str] = Field(default_factory=list, description="已确认样张文件 ID")
+    analysis_status: str = Field("draft", description="AI 分析状态：draft / analyzed")
+    is_builtin: bool = Field(False, description="是否平台内置模板")
+
+    @field_validator("reference_file_ids", "sample_file_ids", mode="before")
+    @classmethod
+    def _none_to_empty_list(cls, value: object) -> object:
+        """迁移后的老行为 NULL；对外统一为空列表，前端不必判空。"""
+        return value or []
 
 
 class ProjectStyleOptionCreate(BaseModel):
@@ -202,6 +230,12 @@ class ProjectStyleOptionCreate(BaseModel):
     description: str = Field("", description="面向用户的说明")
     prompt_pack: str = Field("", description="提示词质感描述；留空则用内置风格包")
     sort_order: int | None = Field(None, description="同组内排序；不传则排到末尾")
+    structured_profile: StyleStructuredProfile | None = Field(
+        None, description="结构化风格字段"
+    )
+    reference_file_ids: list[str] = Field(default_factory=list, description="风格参考图（1–3 张）")
+    sample_file_ids: list[str] = Field(default_factory=list, description="确认样张（0–3 张）")
+    analysis_status: str = Field("draft", description="draft / analyzed")
 
 
 class ProjectStyleOptionUpdate(BaseModel):
@@ -211,3 +245,7 @@ class ProjectStyleOptionUpdate(BaseModel):
     description: str | None = None
     prompt_pack: str | None = None
     sort_order: int | None = None
+    structured_profile: StyleStructuredProfile | None = None
+    reference_file_ids: list[str] | None = None
+    sample_file_ids: list[str] | None = None
+    analysis_status: str | None = None

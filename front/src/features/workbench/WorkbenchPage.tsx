@@ -302,7 +302,7 @@ function renderCenter(context: RenderCenterContext) {
       )
 
     case 'style':
-      return <StylePanel projectId={projectId} project={project} />
+      return <StylePanel projectId={projectId} />
 
     case 'assets': {
       const query = assetQueries[selection.assetType]

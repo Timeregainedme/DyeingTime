@@ -1,6 +1,6 @@
 ---
 title: "V2 树状工作台重构计划"
-description: "把 DyeingTime 从「章节+分镜两段式」重构为「项目→剧集→场次→镜头」树状工作台的分阶段实施计划、依赖关系与风险清单。P0 审计与 P1 骨架已完成。"
+description: "把 DyeingTime 从「章节+分镜两段式」重构为「项目→剧集→场次→镜头」树状工作台的分阶段实施计划、依赖关系与风险清单。P0 审计、P1 骨架与 P2 项目配置/风格锁定已完成。"
 weight: 2
 ---
 
@@ -147,22 +147,38 @@ weight: 2
 
 验收：刷新 / 切换节点 / 深链接 / 返回正常；不丢已有项目；旧页面路径继续可用。
 
-### P2 — 项目初始化与风格
+### P2 — 项目初始化与风格（已完成）
+
+状态：C3 / C4 已完成并提交；当前实现见
+[项目生成配置与模型快照](/docs/architecture/project-generation-config/) 与
+[项目风格快照与锁定](/docs/architecture/project-style-lock/)。
 
 目标：模型选择、风格锁定、比例分辨率、默认并发 4、音频参考默认关闭。
 
-迁移（新增编号，接 034）：
-- `backend/sql/034-add-project-generation-config.sql` — 项目级模型快照字段、`max_concurrency`、风格锁定字段
+迁移（实际编号）：
+- `backend/sql/034-add-project-generation-config.sql` — 项目模型 ID、时长范围、并发、配置版本/确认时间/快照
+- `backend/sql/035-add-project-style-lock.sql` — 风格结构化字段/参考图/样张、项目风格快照、三个内置模板
 
-修改：
-- `backend/app/models/studio_projects.py` — `Project` 增字段
-- `backend/app/schemas/studio/projects.py` — 对应 DTO
-- `backend/app/api/v1/routes/studio/projects.py` — 增项目配置读写端点
-- `backend/app/services/studio/project_generation_config.py`（新增）— 项目配置快照服务
-- `backend/app/services/studio/project_production_readiness.py` — 纳入并发与快照检查
-- `backend/app/services/studio/style_catalog.py` — 风格锁定校验
-- `backend/app/services/studio/generation/video/build_base.py` — 优先用项目快照取模型
-- `backend/sql/035-default-audio-reference-off.sql` — 存量项目音频参考开关回填为关闭
+新增/修改（实际）：
+- `backend/app/models/studio_projects.py` — Project 生成配置字段、ProjectStyleOption 扩展、ProjectStyleSnapshot
+- `backend/app/schemas/studio/projects.py` / `project_generation.py` / `project_style.py`
+- `backend/app/api/v1/routes/studio/projects.py` — 生成配置读写、项目风格选择/锁定
+- `backend/app/api/v1/routes/studio/styles.py` — 风格分析、结构化字段 CRUD
+- `backend/app/services/studio/project_generation_config.py` — 两层模型解析、能力校验、快照
+- `backend/app/services/studio/project_style.py` — 项目风格选择/锁定
+- `backend/app/services/studio/style_analysis.py` — 复用文本供应商的参考图分析
+- `backend/app/services/studio/style_catalog.py` — 结构化字段与快照优先读取
+- 生成链路：视频/图片/音频任务改为项目模型优先、全局兜底
+- `front/src/features/workbench/panels/ProjectConfigPanel.tsx` — 可编辑项目配置
+- `front/src/features/workbench/panels/StylePanel.tsx` — 模板/自定义/分析/锁定
+- `backend/tests/test_project_generation_config.py` / `test_project_style.py` / `test_style_analysis.py`
+
+关键决策：
+- 项目显式模型失效时**不回退**全局，直接报 503，避免静默换模型；
+- 配置草稿可保存；确认时服务端校验模型/比例/分辨率/时长/并发；
+- 业务时长固定 4–15 秒，与供应商能力取交集；
+- `use_dialog_audio_as_reference` 只改新行默认值，存量项目不回填；
+- 风格锁定快照与全局目录解耦，删除目录项不破坏已锁定项目。
 
 验收：项目参数正确传递到生成预览；风格锁定后不可直接改；无 API Key 泄露。
 
@@ -334,8 +350,8 @@ P6 ──> P7 导出与端到端验收 ──> P8 全站迁移
 |---|---|---|
 | C1 | `[docs]` | P0 审计结论与本计划文档 |
 | C2 | `[feat]` | P1：树状工作台骨架与路由（✅ 已完成） |
-| C3 | `[feat]` | P2：项目生成配置快照与并发配置 |
-| C4 | `[feat]` | P2：风格锁定与快照 |
+| C3 | `[feat]` | P2：项目生成配置快照与并发配置（✅ 已完成） |
+| C4 | `[feat]` | P2：风格锁定与快照（✅ 已完成） |
 | C5 | `[feat]` | P3：剧本文档存储与解析器 |
 | C6 | `[feat]` | P3：统一审核与增量差异 |
 | C7 | `[feat]` | P4：资产版本与角色身份锁定 |

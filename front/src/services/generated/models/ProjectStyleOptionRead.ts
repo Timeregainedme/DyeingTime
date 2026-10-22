@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { StyleStructuredProfile } from './StyleStructuredProfile';
 /**
  * 风格目录项。
  */
@@ -27,5 +28,25 @@ export type ProjectStyleOptionRead = {
      * 同组内排序
      */
     sort_order?: number;
+    /**
+     * AI 分析/人工修订的结构化风格字段
+     */
+    structured_profile?: (StyleStructuredProfile | null);
+    /**
+     * 风格参考图文件 ID
+     */
+    reference_file_ids?: Array<string>;
+    /**
+     * 已确认样张文件 ID
+     */
+    sample_file_ids?: Array<string>;
+    /**
+     * AI 分析状态：draft / analyzed
+     */
+    analysis_status?: string;
+    /**
+     * 是否平台内置模板
+     */
+    is_builtin?: boolean;
 };
 

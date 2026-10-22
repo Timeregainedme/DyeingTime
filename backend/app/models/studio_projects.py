@@ -58,6 +58,7 @@ class Project(Base, TimestampMixin):
         Boolean,
         nullable=False,
         default=False,
+        server_default="0",
         comment="视频生成时是否自动带上镜头台词已生成的配音作为参考音频（新项目默认关闭）",
     )
     default_image_resolution_profile: Mapped[str | None] = mapped_column(
@@ -100,36 +101,42 @@ class Project(Base, TimestampMixin):
         String(32),
         nullable=False,
         default="reference",
+        server_default="reference",
         comment="H3 默认参考模式（reference=多参考）",
     )
     default_shot_duration: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
         default=5,
+        server_default="5",
         comment="项目默认镜头时长（秒）",
     )
     video_duration_min: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
         default=4,
+        server_default="4",
         comment="项目业务时长下限（秒）",
     )
     video_duration_max: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
         default=15,
+        server_default="15",
         comment="项目业务时长上限（秒）",
     )
     video_concurrency: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
         default=4,
+        server_default="4",
         comment="视频批量并发数（默认 4）",
     )
     generation_config_version: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
         default=1,
+        server_default="1",
         comment="生成配置版本；确认时递增",
     )
     generation_config_confirmed_at: Mapped[datetime | None] = mapped_column(
@@ -172,6 +179,13 @@ class Project(Base, TimestampMixin):
     )
 
     workspace: Mapped["Workspace"] = relationship(back_populates="projects")
+
+    style_snapshot: Mapped["ProjectStyleSnapshot | None"] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        uselist=False,
+    )
 
     chapters: Mapped[list["Chapter"]] = relationship(
         back_populates="project",
@@ -392,15 +406,100 @@ class ProjectStyleOption(Base, TimestampMixin):
         comment="提示词质感描述；为空时回落到内置风格包",
     )
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, comment="同组内排序，越小越前")
+    structured_profile: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON,
+        nullable=True,
+        default=None,
+        comment="AI 分析/人工修订的结构化风格字段",
+    )
+    reference_file_ids: Mapped[list[str] | None] = mapped_column(
+        JSON,
+        nullable=True,
+        default=None,
+        comment="风格参考图文件 ID 列表（1–3 张）",
+    )
+    sample_file_ids: Mapped[list[str] | None] = mapped_column(
+        JSON,
+        nullable=True,
+        default=None,
+        comment="已确认样张文件 ID 列表",
+    )
+    analysis_status: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default="draft",
+        comment="AI 分析状态：draft / analyzed",
+    )
+    is_builtin: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="是否平台内置模板",
+    )
 
     __table_args__ = (
         UniqueConstraint("visual_style", "name", name="uq_project_styles_visual_name"),
     )
 
 
+class ProjectStyleSnapshot(Base, TimestampMixin):
+    """项目视觉风格锁定快照。
+
+    为什么独立成表：锁定后必须与全局风格目录解耦。编辑或删除目录项
+    不能改变已锁定项目，因此这里保存名称、结构化描述、prompt_pack、
+    参考图与样张的完整副本。
+    """
+
+    __tablename__ = "project_style_snapshots"
+
+    project_id: Mapped[str] = mapped_column(
+        String(64),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        primary_key=True,
+        comment="项目 ID",
+    )
+    source_style_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("project_styles.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="来源风格 ID；目录项删除后置空",
+    )
+    style_name: Mapped[str] = mapped_column(
+        String(64), nullable=False, comment="锁定时的风格名称"
+    )
+    visual_style: Mapped[str] = mapped_column(
+        String(16), nullable=False, comment="锁定时的画面表现形式"
+    )
+    description: Mapped[str] = mapped_column(
+        Text, nullable=False, default="", comment="锁定时的风格说明"
+    )
+    structured_profile: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON, nullable=True, default=None, comment="锁定时的结构化风格字段"
+    )
+    prompt_pack: Mapped[str] = mapped_column(
+        Text, nullable=False, default="", comment="锁定时的最终提示词质感描述"
+    )
+    reference_file_ids: Mapped[list[str] | None] = mapped_column(
+        JSON, nullable=True, default=None, comment="锁定时的风格参考图"
+    )
+    sample_file_ids: Mapped[list[str] | None] = mapped_column(
+        JSON, nullable=True, default=None, comment="锁定时的确认样张"
+    )
+    snapshot_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, comment="快照版本"
+    )
+    locked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, comment="锁定时间"
+    )
+
+    project: Mapped["Project"] = relationship(back_populates="style_snapshot")
+
+
 __all__ = [
     "Project",
     "ProjectStyleOption",
+    "ProjectStyleSnapshot",
     "Chapter",
     "ProjectActorLink",
     "ProjectSceneLink",

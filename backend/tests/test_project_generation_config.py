@@ -149,7 +149,8 @@ async def test_confirm_writes_snapshot_without_credentials() -> None:
             body=ProjectGenerationConfigUpdate(confirm=True),
         )
         assert config.confirmed is True
-        assert config.initialized is True
+        # 风格锁定是独立的初始化步骤；本用例只确认配置本身。
+        assert config.initialized is False
         assert config.version == 1
         assert config.snapshot is not None
 

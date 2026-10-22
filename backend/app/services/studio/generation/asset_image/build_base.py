@@ -88,13 +88,16 @@ async def _build_asset_prompt(
     style: Any,
     image_row: Any,
     reference_block: str = "",
+    project_id: str | None = None,
 ) -> str:
     category = asset_prompt_category(
         relation_type=relation_type,
         is_front_view=is_front_view(image_row.view_angle),
     )
     # 自定义风格可能配了自己的质感描述；没配则回落到内置风格包
-    motif_override = await resolve_style_motif(db, style=_enum_value(style))
+    motif_override = await resolve_style_motif(
+        db, style=_enum_value(style), project_id=project_id
+    )
     return await build_prompt_with_template(
         db,
         category=category,
@@ -284,7 +287,11 @@ async def build_character_image_base_draft(
     if character is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=entity_not_found("Character"))
     image_row = await validate_character_image(db, character_id=character_id, image_id=image_id)
-    character_motif = await resolve_style_motif(db, style=_enum_value(character.style))
+    character_motif = await resolve_style_motif(
+        db,
+        style=_enum_value(character.style),
+        project_id=getattr(character, "project_id", None),
+    )
     refs: list[str] = []
     warnings: list[str] = []
     default_view_angles: tuple[AssetViewAngle, ...] = (

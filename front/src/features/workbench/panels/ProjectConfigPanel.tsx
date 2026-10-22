@@ -367,6 +367,17 @@ export function ProjectConfigPanel({
     videoModels.length === 0 ||
     audioModels.length === 0
 
+  /** 预览跟随表单：用户切换模型后不必先保存才能看到生效对象。 */
+  const previewModelLabel = (
+    selected: GenerationModelOptionRead | undefined,
+    explicitId: string,
+    fallback: EffectiveGenerationModelRead,
+  ) => {
+    if (!selected) return effectiveLabel(fallback)
+    const source = explicitId ? '项目' : '全局默认'
+    return `${selected.name}（${selected.provider_name} · ${source}）`
+  }
+
   return (
     <div className="space-y-4">
       <PanelHeader
@@ -627,9 +638,18 @@ export function ProjectConfigPanel({
             <CardTitle className="text-sm">生效值预览</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1.5 text-xs">
-            <PreviewRow label="图片模型" value={effectiveLabel(config.image_model)} />
-            <PreviewRow label="视频模型" value={effectiveLabel(config.video_model)} />
-            <PreviewRow label="音频模型" value={effectiveLabel(config.audio_model)} />
+            <PreviewRow
+              label="图片模型"
+              value={previewModelLabel(selectedImage, form.imageModelId, config.image_model)}
+            />
+            <PreviewRow
+              label="视频模型"
+              value={previewModelLabel(selectedVideo, form.videoModelId, config.video_model)}
+            />
+            <PreviewRow
+              label="音频模型"
+              value={previewModelLabel(selectedAudio, form.audioModelId, config.audio_model)}
+            />
             <PreviewRow label="视频规格" value={`${form.videoRatio || '—'} · ${form.videoResolution || '供应商默认'}`} />
             <PreviewRow label="图片规格" value={`${form.imageRatio || '—'} · ${form.imageResolutionProfile || '供应商默认'}`} />
             <PreviewRow label="默认时长" value={`${form.shotDuration}s（允许 ${durationMin}–${durationMax}s）`} />
@@ -691,7 +711,6 @@ export function ProjectConfigPanel({
       <StageNote stage="P2">
         确认后写入项目级快照；修改全局默认模型不会改变本项目。风格锁定与参考图分析在「风格圣经」面板完成。
       </StageNote>
-
       <div className="sticky bottom-0 z-10 flex flex-wrap items-center gap-2 border-t border-border bg-background/95 py-3 backdrop-blur">
         <Button
           variant="outline"

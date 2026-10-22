@@ -12,10 +12,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
 from app.schemas.common import ApiResponse, success_response
+from app.schemas.studio.project_style import (
+    StyleAnalysisCapabilityRead,
+    StyleAnalysisRead,
+    StyleAnalysisRequest,
+)
 from app.schemas.studio.projects import (
     ProjectStyleOptionCreate,
     ProjectStyleOptionRead,
     ProjectStyleOptionUpdate,
+)
+from app.services.studio.style_analysis import (
+    analyze_style_images,
+    get_style_analysis_capability,
 )
 from app.services.studio.style_catalog import (
     create_style_option,
@@ -38,6 +47,41 @@ async def list_styles(db: AsyncSession = Depends(get_db)) -> ApiResponse[list[Pr
     return success_response([ProjectStyleOptionRead.model_validate(row) for row in rows])
 
 
+@router.get(
+    "/analysis-capability",
+    response_model=ApiResponse[StyleAnalysisCapabilityRead],
+    summary="检查 AI 风格分析是否可用",
+)
+async def get_style_analysis_capability_api(
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[StyleAnalysisCapabilityRead]:
+    data = await get_style_analysis_capability(db)
+    return success_response(data)
+
+
+@router.post(
+    "/analyze",
+    response_model=ApiResponse[StyleAnalysisRead],
+    summary="分析风格参考图（不落库）",
+)
+async def analyze_style_api(
+    body: StyleAnalysisRequest,
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[StyleAnalysisRead]:
+    """分析 1–3 张参考图，返回可编辑的结构化字段。
+
+    不在这里写库：AI 结果必须经人工修订后再由 PATCH 保存，
+    避免自动分析覆盖用户草稿。
+    """
+    try:
+        data = await analyze_style_images(
+            db, file_ids=body.file_ids, model_id=body.model_id
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return success_response(data)
+
+
 @router.post(
     "",
     response_model=ApiResponse[ProjectStyleOptionRead],
@@ -55,6 +99,12 @@ async def create_style(
             description=body.description,
             prompt_pack=body.prompt_pack,
             sort_order=body.sort_order,
+            structured_profile=body.structured_profile.model_dump()
+            if body.structured_profile
+            else None,
+            reference_file_ids=body.reference_file_ids,
+            sample_file_ids=body.sample_file_ids,
+            analysis_status=body.analysis_status,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -81,6 +131,12 @@ async def update_style(
             description=body.description,
             prompt_pack=body.prompt_pack,
             sort_order=body.sort_order,
+            structured_profile=body.structured_profile.model_dump()
+            if body.structured_profile
+            else None,
+            reference_file_ids=body.reference_file_ids,
+            sample_file_ids=body.sample_file_ids,
+            analysis_status=body.analysis_status,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

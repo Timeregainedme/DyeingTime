@@ -18,7 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.chains.prompts.style_pack import STYLE_PACKS
-from app.models.studio import ProjectStyle, ProjectStyleOption, ProjectVisualStyle
+from app.models.studio import ProjectStyle, ProjectStyleOption, ProjectStyleSnapshot, ProjectVisualStyle
 from app.services.common import entity_not_found
 
 # 内置风格的中文说明，用于首次种子；用户后续可自行修改。
@@ -57,13 +57,33 @@ def _builtin_options() -> list[ProjectStyleOption]:
 
 
 async def ensure_style_catalog(db: AsyncSession) -> None:
-    """目录为空时写入内置风格；非空则不动（避免覆盖用户改动）。"""
+    """补齐内置风格，同时避免覆盖用户改动。
+
+    - 目录为空：写入历史上全部 7 个内置风格；
+    - 目录只有迁移预置的模板（is_builtin=True）：补齐缺失的历史风格，
+      保证「新库」与「升级库」最终目录一致；
+    - 只要存在任意用户自建风格或已删除过历史风格（存在非 builtin 行），
+      就不再自动回填，避免把用户删掉的风格又加回来。
+    """
     existing = await db.scalar(select(ProjectStyleOption).limit(1))
-    if existing is not None:
+    if existing is None:
+        db.add_all(_builtin_options())
+        await db.flush()
         return
 
-    db.add_all(_builtin_options())
-    await db.flush()
+    rows = list((await db.execute(select(ProjectStyleOption))).scalars().all())
+    if any(not getattr(row, "is_builtin", False) for row in rows):
+        return
+
+    existing_keys = {(row.visual_style, row.name) for row in rows}
+    missing = [
+        row
+        for row in _builtin_options()
+        if (row.visual_style, row.name) not in existing_keys
+    ]
+    if missing:
+        db.add_all(missing)
+        await db.flush()
 
 
 async def list_style_options(db: AsyncSession) -> list[ProjectStyleOption]:
@@ -107,6 +127,10 @@ async def create_style_option(
     description: str = "",
     prompt_pack: str = "",
     sort_order: int | None = None,
+    structured_profile: dict[str, object] | None = None,
+    reference_file_ids: list[str] | None = None,
+    sample_file_ids: list[str] | None = None,
+    analysis_status: str = "draft",
 ) -> ProjectStyleOption:
     """新增风格。
 
@@ -145,8 +169,14 @@ async def create_style_option(
         visual_style=visual,
         name=style_name,
         description=(description or "").strip(),
-        prompt_pack=(prompt_pack or "").strip(),
+        prompt_pack=(prompt_pack or "").strip()
+        or build_prompt_pack_from_profile(structured_profile),
         sort_order=sort_order,
+        structured_profile=structured_profile,
+        reference_file_ids=_normalize_file_ids(reference_file_ids, label="风格参考图"),
+        sample_file_ids=_normalize_file_ids(sample_file_ids, label="确认样张"),
+        analysis_status=_normalize_analysis_status(analysis_status),
+        is_builtin=False,
     )
     db.add(row)
     await db.flush()
@@ -161,6 +191,10 @@ async def update_style_option(
     description: str | None = None,
     prompt_pack: str | None = None,
     sort_order: int | None = None,
+    structured_profile: dict[str, object] | None = None,
+    reference_file_ids: list[str] | None = None,
+    sample_file_ids: list[str] | None = None,
+    analysis_status: str | None = None,
 ) -> ProjectStyleOption:
     row = await get_style_option(db, style_id)
 
@@ -182,8 +216,22 @@ async def update_style_option(
 
     if description is not None:
         row.description = description.strip()
+    if structured_profile is not None:
+        row.structured_profile = structured_profile
     if prompt_pack is not None:
-        row.prompt_pack = prompt_pack.strip()
+        # 空串表示「让后端按结构化字段生成」，而不是把已有描述清空。
+        row.prompt_pack = prompt_pack.strip() or build_prompt_pack_from_profile(
+            structured_profile if structured_profile is not None else row.structured_profile
+        )
+    elif structured_profile is not None:
+        # 只改结构化描述时同步生成 prompt pack，避免两者长期不一致。
+        row.prompt_pack = build_prompt_pack_from_profile(structured_profile)
+    if reference_file_ids is not None:
+        row.reference_file_ids = _normalize_file_ids(reference_file_ids, label="风格参考图")
+    if sample_file_ids is not None:
+        row.sample_file_ids = _normalize_file_ids(sample_file_ids, label="确认样张")
+    if analysis_status is not None:
+        row.analysis_status = _normalize_analysis_status(analysis_status)
     if sort_order is not None:
         row.sort_order = sort_order
 
@@ -202,13 +250,73 @@ async def delete_style_option(db: AsyncSession, *, style_id: str) -> None:
     await db.flush()
 
 
-async def resolve_style_motif(db: AsyncSession, *, style: str) -> str | None:
-    """按风格名取出提示词质感描述。
+_PROFILE_LABELS: tuple[tuple[str, str], ...] = (
+    ("medium", "视觉媒介"),
+    ("texture", "画面质感"),
+    ("color", "色彩"),
+    ("lighting", "光照"),
+    ("material", "材质"),
+    ("character_rendering", "人物渲染"),
+    ("scene_rendering", "场景渲染"),
+    ("camera", "镜头语言"),
+    ("keep", "保持"),
+)
 
-    返回 None 表示「目录里没配」，调用方会回落到内置 `STYLE_PACKS`。
-    之所以返回 None 而不是直接给默认值：内置包的回落逻辑只有一处（style_pack），
-    在两层各写一份默认值迟早会不一致。
+
+def build_prompt_pack_from_profile(profile: dict[str, object] | None) -> str:
+    """把结构化字段拼成一段可直接注入提示词的质感描述。
+
+    风格描述不是越长为好：只保留有内容的字段，用逗号分隔；
+    `avoid` 单独成句，避免和正向描述混在一起被模型误读。
     """
+    if not profile:
+        return ""
+    parts: list[str] = []
+    for key, label in _PROFILE_LABELS:
+        value = str(profile.get(key) or "").strip()
+        if value:
+            parts.append(f"{label}：{value}")
+    avoid = str(profile.get("avoid") or "").strip()
+    if avoid:
+        parts.append(f"避免：{avoid}")
+    return "；".join(parts)
+
+
+def _normalize_file_ids(values: list[str] | None, *, label: str) -> list[str]:
+    """文件 ID 去重、去空；最多 3 张（参考图与样张同一上限）。"""
+    normalized = [str(item).strip() for item in (values or []) if str(item).strip()]
+    unique = list(dict.fromkeys(normalized))
+    if len(unique) > 3:
+        raise ValueError(f"{label}最多 3 张")
+    return unique
+
+
+def _normalize_analysis_status(value: str | None) -> str:
+    status = (value or "draft").strip() or "draft"
+    if status not in {"draft", "analyzed"}:
+        raise ValueError("analysis_status 只支持 draft / analyzed")
+    return status
+
+
+async def resolve_style_motif(
+    db: AsyncSession,
+    *,
+    style: str,
+    project_id: str | None = None,
+) -> str | None:
+    """取出风格提示词质感描述。
+
+    P2 起优先读项目锁定快照：锁定后即使编辑/删除全局目录项，
+    已锁定项目的生成提示词也保持不变。未锁定时再查目录。
+    返回 None 表示「目录里没配」，调用方会回落到内置 `STYLE_PACKS`。
+    """
+    if project_id:
+        snapshot = await db.get(ProjectStyleSnapshot, project_id)
+        if isinstance(snapshot, ProjectStyleSnapshot):
+            text = (snapshot.prompt_pack or "").strip()
+            if text:
+                return text
+
     name = (style or "").strip()
     if not name:
         return None

@@ -10,6 +10,7 @@
 import {
   StudioChaptersService,
   StudioEntitiesService,
+  StudioFilesService,
   StudioProjectsService,
   StudioShotDetailsService,
   StudioShotsService,
@@ -23,13 +24,18 @@ import type {
   ProjectGenerationOptionsRead,
   ProjectRead,
   ProjectStyleOptionRead,
+  ProjectStyleOptionCreate,
+  ProjectStyleOptionUpdate,
   ProjectStyleOptionsRead,
+  ProjectStyleStateRead,
   ProjectTimelineRead,
   ShotDetailRead,
   ShotPreparationStateRead,
   ShotRead,
   ShotRuntimeSummaryRead,
   ShotVideoReadinessRead,
+  StyleAnalysisCapabilityRead,
+  StyleAnalysisRead,
 } from '../../services/generated'
 import type { WorkbenchAssetItem } from './types'
 import type { WorkbenchAssetType } from './routes'
@@ -138,6 +144,93 @@ export async function saveGenerationConfig(
 export async function loadStyleCatalog(): Promise<ProjectStyleOptionRead[]> {
   const response = await StudioStylesService.listStylesApiV1StudioStylesGet()
   return response.data ?? []
+}
+
+/** 项目风格状态：当前选择或锁定快照。 */
+export async function loadProjectStyleState(projectId: string): Promise<ProjectStyleStateRead> {
+  const response =
+    await StudioProjectsService.getProjectStyleStateApiApiV1StudioProjectsProjectIdStyleGet({
+      projectId,
+    })
+  if (!response.data) throw new Error('服务端没有返回项目风格状态')
+  return response.data
+}
+
+export async function selectProjectStyle(
+  projectId: string,
+  styleId: string,
+): Promise<ProjectStyleStateRead> {
+  const response =
+    await StudioProjectsService.selectProjectStyleApiApiV1StudioProjectsProjectIdStylePut({
+      projectId,
+      requestBody: { style_id: styleId },
+    })
+  if (!response.data) throw new Error('服务端没有返回选择结果')
+  return response.data
+}
+
+export async function lockProjectStyle(
+  projectId: string,
+  payload: { style_id?: string | null; sample_file_ids?: string[] },
+): Promise<ProjectStyleStateRead> {
+  const response =
+    await StudioProjectsService.lockProjectStyleApiApiV1StudioProjectsProjectIdStyleLockPost({
+      projectId,
+      requestBody: payload,
+    })
+  if (!response.data) throw new Error('服务端没有返回锁定结果')
+  return response.data
+}
+
+export async function loadStyleAnalysisCapability(): Promise<StyleAnalysisCapabilityRead> {
+  const response =
+    await StudioStylesService.getStyleAnalysisCapabilityApiApiV1StudioStylesAnalysisCapabilityGet()
+  if (!response.data) throw new Error('服务端没有返回分析能力')
+  return response.data
+}
+
+export async function analyzeStyleReferences(payload: {
+  file_ids: string[]
+  model_id?: string | null
+}): Promise<StyleAnalysisRead> {
+  const response = await StudioStylesService.analyzeStyleApiApiV1StudioStylesAnalyzePost({
+    requestBody: payload,
+  })
+  if (!response.data) throw new Error('服务端没有返回分析结果')
+  return response.data
+}
+
+export async function createStyleOption(
+  payload: ProjectStyleOptionCreate,
+): Promise<ProjectStyleOptionRead> {
+  const response = await StudioStylesService.createStyleApiV1StudioStylesPost({
+    requestBody: payload,
+  })
+  if (!response.data) throw new Error('服务端没有返回新建风格')
+  return response.data
+}
+
+export async function updateStyleOption(
+  styleId: string,
+  payload: ProjectStyleOptionUpdate,
+): Promise<ProjectStyleOptionRead> {
+  const response = await StudioStylesService.updateStyleApiV1StudioStylesStyleIdPatch({
+    styleId,
+    requestBody: payload,
+  })
+  if (!response.data) throw new Error('服务端没有返回更新结果')
+  return response.data
+}
+
+/** 上传风格参考图 / 样张；返回文件 ID。 */
+export async function uploadStyleImage(file: File): Promise<string> {
+  const response = await StudioFilesService.uploadFileApiApiV1StudioFilesUploadPost({
+    // 生成客户端的类型把二进制字段写成了 string；运行时是 Blob，request 层会正确放入 FormData。
+    formData: { file: file as unknown as string },
+    name: file.name,
+  })
+  if (!response.data) throw new Error('上传失败：服务端没有返回文件')
+  return response.data.id
 }
 
 /** 项目下全部章节，按集数升序。 */

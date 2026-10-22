@@ -39,11 +39,21 @@ from app.schemas.studio.project_generation import (
     ProjectGenerationConfigUpdate,
     ProjectGenerationOptionsRead,
 )
+from app.schemas.studio.project_style import (
+    ProjectStyleLockRequest,
+    ProjectStyleSelectRequest,
+    ProjectStyleStateRead,
+)
 from app.services.studio.character_recurrence import get_project_character_recurrence
 from app.services.studio.project_generation_config import (
     get_project_generation_config,
     list_project_generation_options,
     save_project_generation_config,
+)
+from app.services.studio.project_style import (
+    get_project_style_state,
+    lock_project_style,
+    select_project_style,
 )
 from app.services.studio.style_catalog import group_style_options, list_style_options
 from app.services.studio.project_production_readiness import get_project_production_readiness
@@ -162,6 +172,64 @@ async def save_project_generation_config_api(
         data = await save_project_generation_config(db, project=project, body=body)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return success_response(data)
+
+
+@router.get(
+    "/{project_id}/style",
+    response_model=ApiResponse[ProjectStyleStateRead],
+    summary="读取项目视觉风格与锁定状态",
+)
+async def get_project_style_state_api(
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
+    ctx: WorkspaceContext = Depends(require_viewer),
+) -> ApiResponse[ProjectStyleStateRead]:
+    project = await get_project_in_workspace(db, project_id, ctx)
+    data = await get_project_style_state(db, project=project)
+    return success_response(data)
+
+
+@router.put(
+    "/{project_id}/style",
+    response_model=ApiResponse[ProjectStyleStateRead],
+    summary="选择项目视觉风格（未锁定前）",
+)
+async def select_project_style_api(
+    project_id: str,
+    body: ProjectStyleSelectRequest,
+    db: AsyncSession = Depends(get_db),
+    ctx: WorkspaceContext = Depends(require_editor),
+) -> ApiResponse[ProjectStyleStateRead]:
+    project = await get_project_in_workspace(db, project_id, ctx)
+    try:
+        data = await select_project_style(db, project=project, style_id=body.style_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    return success_response(data)
+
+
+@router.post(
+    "/{project_id}/style/lock",
+    response_model=ApiResponse[ProjectStyleStateRead],
+    summary="锁定项目视觉风格并生成快照",
+)
+async def lock_project_style_api(
+    project_id: str,
+    body: ProjectStyleLockRequest,
+    db: AsyncSession = Depends(get_db),
+    ctx: WorkspaceContext = Depends(require_editor),
+) -> ApiResponse[ProjectStyleStateRead]:
+    project = await get_project_in_workspace(db, project_id, ctx)
+    try:
+        data = await lock_project_style(
+            db,
+            project=project,
+            style_id=body.style_id,
+            sample_file_ids=body.sample_file_ids,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     return success_response(data)
 
 

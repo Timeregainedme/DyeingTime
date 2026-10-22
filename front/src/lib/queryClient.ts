@@ -69,4 +69,7 @@ export const queryKeys = {
     ['workbench', projectId, 'generation-options'] as const,
   workbenchGenerationConfig: (projectId: string) =>
     ['workbench', projectId, 'generation-config'] as const,
+  workbenchProjectStyle: (projectId: string) =>
+    ['workbench', projectId, 'project-style'] as const,
+  workbenchStyleAnalysisCapability: ['workbench', 'style-analysis-capability'] as const,
 }

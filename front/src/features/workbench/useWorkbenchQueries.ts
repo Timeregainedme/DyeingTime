@@ -21,15 +21,23 @@ import {
   loadGlobalAssets,
   loadProject,
   loadProjectCharacters,
+  loadProjectStyleState,
   loadProjectTimeline,
   loadRuntimeSummary,
   loadShot,
   loadShotDetail,
   loadShotPreparation,
   loadShotReadiness,
+  loadStyleAnalysisCapability,
   loadStyleCatalog,
   loadStyleOptions,
   saveGenerationConfig,
+  selectProjectStyle,
+  lockProjectStyle,
+  analyzeStyleReferences,
+  createStyleOption,
+  updateStyleOption,
+  uploadStyleImage,
 } from './api'
 
 /** 工作台默认缓存时间：与全局 QueryClient 的 30s 对齐，避免切节点就重拉。 */
@@ -106,6 +114,61 @@ export function useSaveGenerationConfig(projectId: string) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.project(projectId) })
       void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchProject(projectId) })
     },
+  })
+}
+
+export function useWorkbenchProjectStyle(projectId: string) {
+  return useQuery({
+    queryKey: queryKeys.workbenchProjectStyle(projectId),
+    queryFn: () => loadProjectStyleState(projectId),
+    enabled: Boolean(projectId),
+    staleTime: STALE_MS,
+  })
+}
+
+/** 选择风格、锁定风格、分析参考图都只需要失效「项目风格 + 目录」两类查询。 */
+export function useProjectStyleActions(projectId: string) {
+  const queryClient = useQueryClient()
+
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchProjectStyle(projectId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchStyleCatalog })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchGenerationConfig(projectId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchProject(projectId) })
+  }
+
+  const select = useMutation({
+    mutationFn: (styleId: string) => selectProjectStyle(projectId, styleId),
+    onSuccess: invalidate,
+  })
+  const lock = useMutation({
+    mutationFn: (payload: { style_id?: string | null; sample_file_ids?: string[] }) =>
+      lockProjectStyle(projectId, payload),
+    onSuccess: invalidate,
+  })
+  const analyze = useMutation({
+    mutationFn: (payload: { file_ids: string[]; model_id?: string | null }) =>
+      analyzeStyleReferences(payload),
+  })
+  const createStyle = useMutation({
+    mutationFn: createStyleOption,
+    onSuccess: invalidate,
+  })
+  const updateStyle = useMutation({
+    mutationFn: (payload: { styleId: string; body: Parameters<typeof updateStyleOption>[1] }) =>
+      updateStyleOption(payload.styleId, payload.body),
+    onSuccess: invalidate,
+  })
+  const upload = useMutation({ mutationFn: uploadStyleImage })
+
+  return { select, lock, analyze, createStyle, updateStyle, upload }
+}
+
+export function useStyleAnalysisCapability() {
+  return useQuery({
+    queryKey: queryKeys.workbenchStyleAnalysisCapability,
+    queryFn: loadStyleAnalysisCapability,
+    staleTime: 60_000,
   })
 }
 

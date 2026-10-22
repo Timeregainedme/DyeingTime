@@ -26,6 +26,7 @@ from app.models.studio_projects import (
     ProjectPropLink,
     ProjectSceneLink,
     ProjectStyleOption,
+    ProjectStyleSnapshot,
 )
 from app.models.studio_shots import (
     Shot,

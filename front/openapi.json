@@ -2051,6 +2051,165 @@
         }
       }
     },
+    "/api/v1/studio/projects/{project_id}/style": {
+      "get": {
+        "tags": [
+          "studio/projects"
+        ],
+        "summary": "读取项目视觉风格与锁定状态",
+        "operationId": "get_project_style_state_api_api_v1_studio_projects__project_id__style_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ProjectStyleStateRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "studio/projects"
+        ],
+        "summary": "选择项目视觉风格（未锁定前）",
+        "operationId": "select_project_style_api_api_v1_studio_projects__project_id__style_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectStyleSelectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ProjectStyleStateRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/projects/{project_id}/style/lock": {
+      "post": {
+        "tags": [
+          "studio/projects"
+        ],
+        "summary": "锁定项目视觉风格并生成快照",
+        "operationId": "lock_project_style_api_api_v1_studio_projects__project_id__style_lock_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectStyleLockRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ProjectStyleStateRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/studio/projects": {
       "get": {
         "tags": [
@@ -8270,6 +8429,79 @@
         ]
       }
     },
+    "/api/v1/studio/styles/analysis-capability": {
+      "get": {
+        "tags": [
+          "studio/styles"
+        ],
+        "summary": "检查 AI 风格分析是否可用",
+        "operationId": "get_style_analysis_capability_api_api_v1_studio_styles_analysis_capability_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_StyleAnalysisCapabilityRead_"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/studio/styles/analyze": {
+      "post": {
+        "tags": [
+          "studio/styles"
+        ],
+        "summary": "分析风格参考图（不落库）",
+        "description": "分析 1–3 张参考图，返回可编辑的结构化字段。\n\n不在这里写库：AI 结果必须经人工修订后再由 PATCH 保存，\n避免自动分析覆盖用户草稿。",
+        "operationId": "analyze_style_api_api_v1_studio_styles_analyze_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StyleAnalysisRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_StyleAnalysisRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/studio/styles/{style_id}": {
       "patch": {
         "tags": [
@@ -11248,6 +11480,48 @@
         "type": "object",
         "title": "ApiResponse[ProjectStyleOptionsRead]"
       },
+      "ApiResponse_ProjectStyleStateRead_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectStyleStateRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[ProjectStyleStateRead]"
+      },
       "ApiResponse_ProjectTimelineRead_": {
         "properties": {
           "code": {
@@ -12171,6 +12445,90 @@
         },
         "type": "object",
         "title": "ApiResponse[StudioScriptExtractionDraft]"
+      },
+      "ApiResponse_StyleAnalysisCapabilityRead_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StyleAnalysisCapabilityRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[StyleAnalysisCapabilityRead]"
+      },
+      "ApiResponse_StyleAnalysisRead_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StyleAnalysisRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[StyleAnalysisRead]"
       },
       "ApiResponse_TaskCancelRead_": {
         "properties": {
@@ -17657,6 +18015,33 @@
         ],
         "title": "ProjectSceneLinkRead"
       },
+      "ProjectStyleLockRequest": {
+        "properties": {
+          "style_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Style Id"
+          },
+          "sample_file_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "title": "Sample File Ids",
+            "description": "确认样张文件 ID（最多 3 张）"
+          }
+        },
+        "type": "object",
+        "title": "ProjectStyleLockRequest",
+        "description": "锁定风格；不传 style_id 时使用当前选择。"
+      },
       "ProjectStyleOptionCreate": {
         "properties": {
           "visual_style": {
@@ -17692,6 +18077,39 @@
             ],
             "title": "Sort Order",
             "description": "同组内排序；不传则排到末尾"
+          },
+          "structured_profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StyleStructuredProfile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "结构化风格字段"
+          },
+          "reference_file_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reference File Ids",
+            "description": "风格参考图（1–3 张）"
+          },
+          "sample_file_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sample File Ids",
+            "description": "确认样张（0–3 张）"
+          },
+          "analysis_status": {
+            "type": "string",
+            "title": "Analysis Status",
+            "description": "draft / analyzed",
+            "default": "draft"
           }
         },
         "type": "object",
@@ -17735,6 +18153,45 @@
             "title": "Sort Order",
             "description": "同组内排序",
             "default": 0
+          },
+          "structured_profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StyleStructuredProfile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "AI 分析/人工修订的结构化风格字段"
+          },
+          "reference_file_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reference File Ids",
+            "description": "风格参考图文件 ID"
+          },
+          "sample_file_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sample File Ids",
+            "description": "已确认样张文件 ID"
+          },
+          "analysis_status": {
+            "type": "string",
+            "title": "Analysis Status",
+            "description": "AI 分析状态：draft / analyzed",
+            "default": "draft"
+          },
+          "is_builtin": {
+            "type": "boolean",
+            "title": "Is Builtin",
+            "description": "是否平台内置模板",
+            "default": false
           }
         },
         "type": "object",
@@ -17791,6 +18248,55 @@
               }
             ],
             "title": "Sort Order"
+          },
+          "structured_profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StyleStructuredProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reference_file_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference File Ids"
+          },
+          "sample_file_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sample File Ids"
+          },
+          "analysis_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analysis Status"
           }
         },
         "type": "object",
@@ -17830,6 +18336,153 @@
         "type": "object",
         "title": "ProjectStyleOptionsRead",
         "description": "项目风格候选项。"
+      },
+      "ProjectStyleSelectRequest": {
+        "properties": {
+          "style_id": {
+            "type": "string",
+            "title": "Style Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "style_id"
+        ],
+        "title": "ProjectStyleSelectRequest",
+        "description": "选择风格（未锁定前的草稿选择）。"
+      },
+      "ProjectStyleSnapshotRead": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "source_style_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Style Id"
+          },
+          "style_name": {
+            "type": "string",
+            "title": "Style Name"
+          },
+          "visual_style": {
+            "type": "string",
+            "title": "Visual Style"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "structured_profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StyleStructuredProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "prompt_pack": {
+            "type": "string",
+            "title": "Prompt Pack"
+          },
+          "reference_file_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reference File Ids"
+          },
+          "sample_file_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sample File Ids"
+          },
+          "snapshot_version": {
+            "type": "integer",
+            "title": "Snapshot Version"
+          },
+          "locked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Locked At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "style_name",
+          "visual_style",
+          "description",
+          "prompt_pack",
+          "snapshot_version",
+          "locked_at"
+        ],
+        "title": "ProjectStyleSnapshotRead",
+        "description": "锁定快照；与全局风格目录解耦。"
+      },
+      "ProjectStyleStateRead": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "locked": {
+            "type": "boolean",
+            "title": "Locked"
+          },
+          "style": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectStyleOptionRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "snapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectStyleSnapshotRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "styles": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectStyleOptionRead"
+            },
+            "type": "array",
+            "title": "Styles"
+          },
+          "visual_styles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Visual Styles"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "locked"
+        ],
+        "title": "ProjectStyleStateRead",
+        "description": "项目风格面板的完整状态。"
       },
       "ProjectTimelineRead": {
         "properties": {
@@ -22977,6 +23630,128 @@
         "title": "StudioShotDraftDialogueLine",
         "description": "镜头对白草稿：speaker/target 使用角色 name，导入时映射为 character_id。"
       },
+      "StyleAnalysisCapabilityRead": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id"
+          },
+          "model_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Name"
+          },
+          "provider_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Name"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "available"
+        ],
+        "title": "StyleAnalysisCapabilityRead",
+        "description": "AI 风格分析是否可用。"
+      },
+      "StyleAnalysisRead": {
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/StyleStructuredProfile"
+          },
+          "prompt_pack": {
+            "type": "string",
+            "title": "Prompt Pack"
+          },
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name"
+          },
+          "provider_name": {
+            "type": "string",
+            "title": "Provider Name"
+          },
+          "image_count": {
+            "type": "integer",
+            "title": "Image Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "profile",
+          "prompt_pack",
+          "model_id",
+          "model_name",
+          "provider_name",
+          "image_count"
+        ],
+        "title": "StyleAnalysisRead",
+        "description": "AI 输出的结构化风格字段；可直接保存为草稿。"
+      },
+      "StyleAnalysisRequest": {
+        "properties": {
+          "file_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 1,
+            "title": "File Ids",
+            "description": "风格参考图文件 ID"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id",
+            "description": "可选文本/视觉模型 ID；默认使用全局文本模型"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_ids"
+        ],
+        "title": "StyleAnalysisRequest",
+        "description": "分析 1–3 张风格参考图；不落库。"
+      },
       "StyleOption": {
         "properties": {
           "value": {
@@ -22997,6 +23772,73 @@
         ],
         "title": "StyleOption",
         "description": "通用下拉选项。"
+      },
+      "StyleStructuredProfile": {
+        "properties": {
+          "medium": {
+            "type": "string",
+            "title": "Medium",
+            "description": "视觉媒介",
+            "default": ""
+          },
+          "texture": {
+            "type": "string",
+            "title": "Texture",
+            "description": "画面质感",
+            "default": ""
+          },
+          "color": {
+            "type": "string",
+            "title": "Color",
+            "description": "色彩与饱和度",
+            "default": ""
+          },
+          "lighting": {
+            "type": "string",
+            "title": "Lighting",
+            "description": "光照方式",
+            "default": ""
+          },
+          "material": {
+            "type": "string",
+            "title": "Material",
+            "description": "材质特征",
+            "default": ""
+          },
+          "character_rendering": {
+            "type": "string",
+            "title": "Character Rendering",
+            "description": "人物渲染特征",
+            "default": ""
+          },
+          "scene_rendering": {
+            "type": "string",
+            "title": "Scene Rendering",
+            "description": "场景渲染特征",
+            "default": ""
+          },
+          "camera": {
+            "type": "string",
+            "title": "Camera",
+            "description": "摄影与运镜风格",
+            "default": ""
+          },
+          "keep": {
+            "type": "string",
+            "title": "Keep",
+            "description": "应当保持的视觉特征",
+            "default": ""
+          },
+          "avoid": {
+            "type": "string",
+            "title": "Avoid",
+            "description": "禁止出现的风格特征",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "StyleStructuredProfile",
+        "description": "风格的结构化描述；AI 分析输出与人工修订共用同一形状。"
       },
       "TaskCancelRead": {
         "properties": {

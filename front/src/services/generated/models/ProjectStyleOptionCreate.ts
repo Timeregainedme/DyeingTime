@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { StyleStructuredProfile } from './StyleStructuredProfile';
 /**
  * 新增风格。
  */
@@ -26,5 +27,21 @@ export type ProjectStyleOptionCreate = {
      * 同组内排序；不传则排到末尾
      */
     sort_order?: (number | null);
+    /**
+     * 结构化风格字段
+     */
+    structured_profile?: (StyleStructuredProfile | null);
+    /**
+     * 风格参考图（1–3 张）
+     */
+    reference_file_ids?: Array<string>;
+    /**
+     * 确认样张（0–3 张）
+     */
+    sample_file_ids?: Array<string>;
+    /**
+     * draft / analyzed
+     */
+    analysis_status?: string;
 };
 

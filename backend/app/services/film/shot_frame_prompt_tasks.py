@@ -691,7 +691,9 @@ async def build_run_args(
     visual_style = _enum_value(getattr(project, "visual_style", None))
     style = _enum_value(getattr(project, "style", None))
     unify_style = bool(getattr(project, "unify_style", True)) if project is not None else True
-    motif_override = await resolve_style_motif(db, style=style)
+    motif_override = await resolve_style_motif(
+        db, style=style, project_id=getattr(project, "id", None)
+    )
     style_pack = style_pack_line(
         visual_style=visual_style,
         style=style,

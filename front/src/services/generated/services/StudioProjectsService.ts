@@ -10,8 +10,11 @@ import type { ApiResponse_ProjectGenerationOptionsRead_ } from '../models/ApiRes
 import type { ApiResponse_ProjectProductionReadinessRead_ } from '../models/ApiResponse_ProjectProductionReadinessRead_';
 import type { ApiResponse_ProjectRead_ } from '../models/ApiResponse_ProjectRead_';
 import type { ApiResponse_ProjectStyleOptionsRead_ } from '../models/ApiResponse_ProjectStyleOptionsRead_';
+import type { ApiResponse_ProjectStyleStateRead_ } from '../models/ApiResponse_ProjectStyleStateRead_';
 import type { ProjectCreate } from '../models/ProjectCreate';
 import type { ProjectGenerationConfigUpdate } from '../models/ProjectGenerationConfigUpdate';
+import type { ProjectStyleLockRequest } from '../models/ProjectStyleLockRequest';
+import type { ProjectStyleSelectRequest } from '../models/ProjectStyleSelectRequest';
 import type { ProjectUpdate } from '../models/ProjectUpdate';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
@@ -92,6 +95,77 @@ export class StudioProjectsService {
         return __request(OpenAPI, {
             method: 'PUT',
             url: '/api/v1/studio/projects/{project_id}/generation-config',
+            path: {
+                'project_id': projectId,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * 读取项目视觉风格与锁定状态
+     * @returns ApiResponse_ProjectStyleStateRead_ Successful Response
+     * @throws ApiError
+     */
+    public static getProjectStyleStateApiApiV1StudioProjectsProjectIdStyleGet({
+        projectId,
+    }: {
+        projectId: string,
+    }): CancelablePromise<ApiResponse_ProjectStyleStateRead_> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/studio/projects/{project_id}/style',
+            path: {
+                'project_id': projectId,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * 选择项目视觉风格（未锁定前）
+     * @returns ApiResponse_ProjectStyleStateRead_ Successful Response
+     * @throws ApiError
+     */
+    public static selectProjectStyleApiApiV1StudioProjectsProjectIdStylePut({
+        projectId,
+        requestBody,
+    }: {
+        projectId: string,
+        requestBody: ProjectStyleSelectRequest,
+    }): CancelablePromise<ApiResponse_ProjectStyleStateRead_> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/api/v1/studio/projects/{project_id}/style',
+            path: {
+                'project_id': projectId,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * 锁定项目视觉风格并生成快照
+     * @returns ApiResponse_ProjectStyleStateRead_ Successful Response
+     * @throws ApiError
+     */
+    public static lockProjectStyleApiApiV1StudioProjectsProjectIdStyleLockPost({
+        projectId,
+        requestBody,
+    }: {
+        projectId: string,
+        requestBody: ProjectStyleLockRequest,
+    }): CancelablePromise<ApiResponse_ProjectStyleStateRead_> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/studio/projects/{project_id}/style/lock',
             path: {
                 'project_id': projectId,
             },
