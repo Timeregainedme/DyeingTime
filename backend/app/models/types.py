@@ -159,6 +159,7 @@ class FileType(str, Enum):
     image = "image"
     video = "video"
     audio = "audio"
+    document = "document"
 
 
 class FileUsageKind(str, Enum):
@@ -172,6 +173,7 @@ class FileUsageKind(str, Enum):
     task_link = "task_link"
     upload = "upload"
     api = "api"
+    script_document = "script_document"
 
 
 class TimelineClipType(str, Enum):

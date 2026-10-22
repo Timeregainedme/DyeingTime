@@ -18,6 +18,7 @@ class FileTypeEnum(str, Enum):
     image = "image"
     video = "video"
     audio = "audio"
+    document = "document"
 
 
 class FileBase(BaseModel):

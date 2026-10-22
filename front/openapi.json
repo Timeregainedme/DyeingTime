@@ -8604,6 +8604,335 @@
         }
       }
     },
+    "/api/v1/studio/projects/{project_id}/script-documents": {
+      "get": {
+        "tags": [
+          "studio/script-documents"
+        ],
+        "summary": "项目剧本文档列表",
+        "operationId": "list_script_documents_api_api_v1_studio_projects__project_id__script_documents_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ScriptDocumentListRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/projects/{project_id}/script-documents/worldbuilding": {
+      "post": {
+        "tags": [
+          "studio/script-documents"
+        ],
+        "summary": "上传世界观与人物设定文档",
+        "operationId": "upload_worldbuilding_document_api_api_v1_studio_projects__project_id__script_documents_worldbuilding_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_worldbuilding_document_api_api_v1_studio_projects__project_id__script_documents_worldbuilding_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ScriptDocumentUploadRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/projects/{project_id}/chapters/{chapter_id}/script-document": {
+      "post": {
+        "tags": [
+          "studio/script-documents"
+        ],
+        "summary": "上传某一集剧本文件",
+        "operationId": "upload_episode_document_api_api_v1_studio_projects__project_id__chapters__chapter_id__script_document_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "chapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chapter Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_episode_document_api_api_v1_studio_projects__project_id__chapters__chapter_id__script_document_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ScriptDocumentUploadRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/script-documents/{document_id}": {
+      "get": {
+        "tags": [
+          "studio/script-documents"
+        ],
+        "summary": "剧本文档详情与版本列表",
+        "operationId": "get_script_document_api_api_v1_studio_script_documents__document_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ScriptDocumentRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/script-documents/{document_id}/versions/{version_id}": {
+      "get": {
+        "tags": [
+          "studio/script-documents"
+        ],
+        "summary": "读取文档版本原文",
+        "operationId": "get_script_document_version_api_api_v1_studio_script_documents__document_id__versions__version_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ScriptDocumentVersionDetailRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/script-documents/{document_id}/versions/{version_id}/activate": {
+      "post": {
+        "tags": [
+          "studio/script-documents"
+        ],
+        "summary": "启用某个文档版本并同步章节原文",
+        "operationId": "activate_script_document_version_api_api_v1_studio_script_documents__document_id__versions__version_id__activate_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ScriptDocumentRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/studio/files/{file_id}/download": {
       "get": {
         "tags": [
@@ -11900,6 +12229,174 @@
         "type": "object",
         "title": "ApiResponse[ScriptDivisionResult]"
       },
+      "ApiResponse_ScriptDocumentListRead_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScriptDocumentListRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[ScriptDocumentListRead]"
+      },
+      "ApiResponse_ScriptDocumentRead_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScriptDocumentRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[ScriptDocumentRead]"
+      },
+      "ApiResponse_ScriptDocumentUploadRead_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScriptDocumentUploadRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[ScriptDocumentUploadRead]"
+      },
+      "ApiResponse_ScriptDocumentVersionDetailRead_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScriptDocumentVersionDetailRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[ScriptDocumentVersionDetailRead]"
+      },
       "ApiResponse_ScriptOptimizationResult_": {
         "properties": {
           "code": {
@@ -13827,6 +14324,32 @@
         "title": "BatchRenderAssetPromptsRequest",
         "description": "批量渲染资产图提示词请求体（不创建图片任务）。"
       },
+      "Body_upload_episode_document_api_api_v1_studio_projects__project_id__chapters__chapter_id__script_document_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": ".docx 或 .md"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_episode_document_api_api_v1_studio_projects__project_id__chapters__chapter_id__script_document_post"
+      },
       "Body_upload_file_api_api_v1_studio_files_upload_post": {
         "properties": {
           "file": {
@@ -13898,6 +14421,32 @@
           "file"
         ],
         "title": "Body_upload_file_api_api_v1_studio_files_upload_post"
+      },
+      "Body_upload_worldbuilding_document_api_api_v1_studio_projects__project_id__script_documents_worldbuilding_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": ".docx 或 .md"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_worldbuilding_document_api_api_v1_studio_projects__project_id__script_documents_worldbuilding_post"
       },
       "CameraAngle": {
         "type": "string",
@@ -15362,7 +15911,8 @@
         "enum": [
           "image",
           "video",
-          "audio"
+          "audio",
+          "document"
         ],
         "title": "FileTypeEnum",
         "description": "文件类型，取值与 DB 模型 ``app.models.types.FileType`` 保持一致。\n\n注意：这里**必须**包含 ``audio``。库里存在音频文件（TTS 产出的\n``generated-audios/...``），枚举缺项会让文件列表的响应序列化整体失败并\n返回 400（整表失败，不是跳过该行）。"
@@ -19798,6 +20348,331 @@
         "type": "object",
         "title": "ScriptDivisionResult",
         "description": "剧本分镜结果：镜头列表 + 总数。"
+      },
+      "ScriptDocumentListRead": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ScriptDocumentRead"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "title": "ScriptDocumentListRead",
+        "description": "项目下的全部剧本文档。"
+      },
+      "ScriptDocumentRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "doc_type": {
+            "type": "string",
+            "title": "Doc Type"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "default": ""
+          },
+          "current_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Version Id"
+          },
+          "active_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Version Id"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/ScriptDocumentVersionRead"
+            },
+            "type": "array",
+            "title": "Versions"
+          },
+          "current_version": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScriptDocumentVersionRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "active_version": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScriptDocumentVersionRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "doc_type"
+        ],
+        "title": "ScriptDocumentRead",
+        "description": "剧本文档及其版本摘要。"
+      },
+      "ScriptDocumentUploadRead": {
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/ScriptDocumentRead"
+          },
+          "version": {
+            "$ref": "#/components/schemas/ScriptDocumentVersionRead"
+          },
+          "created": {
+            "type": "boolean",
+            "title": "Created"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "document",
+          "version",
+          "created"
+        ],
+        "title": "ScriptDocumentUploadRead",
+        "description": "上传结果。``created=false`` 表示同内容重复上传，未新增版本。"
+      },
+      "ScriptDocumentVersionDetailRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "document_id": {
+            "type": "string",
+            "title": "Document Id"
+          },
+          "version_no": {
+            "type": "integer",
+            "title": "Version No"
+          },
+          "file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Id"
+          },
+          "file_name": {
+            "type": "string",
+            "title": "File Name",
+            "default": ""
+          },
+          "file_type": {
+            "type": "string",
+            "title": "File Type",
+            "default": ""
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash",
+            "default": ""
+          },
+          "text_length": {
+            "type": "integer",
+            "title": "Text Length",
+            "default": 0
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "candidate"
+          },
+          "parse_status": {
+            "type": "string",
+            "title": "Parse Status",
+            "default": "not_parsed"
+          },
+          "extract_meta": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extract Meta"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "raw_text": {
+            "type": "string",
+            "title": "Raw Text",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "document_id",
+          "version_no"
+        ],
+        "title": "ScriptDocumentVersionDetailRead",
+        "description": "单版本完整原文，用于并排审核与证据定位。"
+      },
+      "ScriptDocumentVersionRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "document_id": {
+            "type": "string",
+            "title": "Document Id"
+          },
+          "version_no": {
+            "type": "integer",
+            "title": "Version No"
+          },
+          "file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Id"
+          },
+          "file_name": {
+            "type": "string",
+            "title": "File Name",
+            "default": ""
+          },
+          "file_type": {
+            "type": "string",
+            "title": "File Type",
+            "default": ""
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash",
+            "default": ""
+          },
+          "text_length": {
+            "type": "integer",
+            "title": "Text Length",
+            "default": 0
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "candidate"
+          },
+          "parse_status": {
+            "type": "string",
+            "title": "Parse Status",
+            "default": "not_parsed"
+          },
+          "extract_meta": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extract Meta"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "document_id",
+          "version_no"
+        ],
+        "title": "ScriptDocumentVersionRead",
+        "description": "文档版本摘要（不含大段原文）。"
       },
       "ScriptExtractRequest": {
         "properties": {

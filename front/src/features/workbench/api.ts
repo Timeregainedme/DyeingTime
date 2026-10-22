@@ -12,6 +12,7 @@ import {
   StudioEntitiesService,
   StudioFilesService,
   StudioProjectsService,
+  StudioScriptDocumentsService,
   StudioShotDetailsService,
   StudioShotsService,
   StudioStylesService,
@@ -29,6 +30,9 @@ import type {
   ProjectStyleOptionsRead,
   ProjectStyleStateRead,
   ProjectTimelineRead,
+  ScriptDocumentRead,
+  ScriptDocumentUploadRead,
+  ScriptDocumentVersionDetailRead,
   ShotDetailRead,
   ShotPreparationStateRead,
   ShotRead,
@@ -231,6 +235,82 @@ export async function uploadStyleImage(file: File): Promise<string> {
   })
   if (!response.data) throw new Error('上传失败：服务端没有返回文件')
   return response.data.id
+}
+
+/** 项目下的世界观与每集剧本文档。 */
+export async function loadScriptDocuments(projectId: string): Promise<ScriptDocumentRead[]> {
+  const response =
+    await StudioScriptDocumentsService.listScriptDocumentsApiApiV1StudioProjectsProjectIdScriptDocumentsGet(
+      { projectId },
+    )
+  return response.data?.items ?? []
+}
+
+export async function uploadWorldbuildingDocument(
+  projectId: string,
+  file: File,
+  title?: string,
+): Promise<ScriptDocumentUploadRead> {
+  const response =
+    await StudioScriptDocumentsService.uploadWorldbuildingDocumentApiApiV1StudioProjectsProjectIdScriptDocumentsWorldbuildingPost(
+      {
+        projectId,
+        formData: { file: file as unknown as string, title: title || null },
+      },
+    )
+  if (!response.data) throw new Error('上传失败：服务端没有返回文档')
+  return response.data
+}
+
+export async function uploadEpisodeDocument(
+  projectId: string,
+  chapterId: string,
+  file: File,
+  title?: string,
+): Promise<ScriptDocumentUploadRead> {
+  const response =
+    await StudioScriptDocumentsService.uploadEpisodeDocumentApiApiV1StudioProjectsProjectIdChaptersChapterIdScriptDocumentPost(
+      {
+        projectId,
+        chapterId,
+        formData: { file: file as unknown as string, title: title || null },
+      },
+    )
+  if (!response.data) throw new Error('上传失败：服务端没有返回文档')
+  return response.data
+}
+
+export async function loadScriptDocument(documentId: string): Promise<ScriptDocumentRead> {
+  const response =
+    await StudioScriptDocumentsService.getScriptDocumentApiApiV1StudioScriptDocumentsDocumentIdGet(
+      { documentId },
+    )
+  if (!response.data) throw new Error('服务端没有返回文档详情')
+  return response.data
+}
+
+export async function loadScriptDocumentVersion(
+  documentId: string,
+  versionId: string,
+): Promise<ScriptDocumentVersionDetailRead> {
+  const response =
+    await StudioScriptDocumentsService.getScriptDocumentVersionApiApiV1StudioScriptDocumentsDocumentIdVersionsVersionIdGet(
+      { documentId, versionId },
+    )
+  if (!response.data) throw new Error('服务端没有返回版本原文')
+  return response.data
+}
+
+export async function activateScriptDocumentVersion(
+  documentId: string,
+  versionId: string,
+): Promise<ScriptDocumentRead> {
+  const response =
+    await StudioScriptDocumentsService.activateScriptDocumentVersionApiApiV1StudioScriptDocumentsDocumentIdVersionsVersionIdActivatePost(
+      { documentId, versionId },
+    )
+  if (!response.data) throw new Error('服务端没有返回启用结果')
+  return response.data
 }
 
 /** 项目下全部章节，按集数升序。 */

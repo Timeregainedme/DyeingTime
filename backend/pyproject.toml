@@ -28,6 +28,7 @@ dependencies = [
     # 选 bcrypt 而非 passlib：passlib 1.7 与 bcrypt 4.x 存在兼容告警，直接用 bcrypt 更稳
     "pyjwt>=2.8.0",
     "bcrypt>=4.1.0",
+    "python-docx>=1.2.0",
 ]
 
 [project.optional-dependencies]

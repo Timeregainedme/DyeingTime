@@ -24,6 +24,9 @@ import {
   loadProjectStyleState,
   loadProjectTimeline,
   loadRuntimeSummary,
+  loadScriptDocument,
+  loadScriptDocuments,
+  loadScriptDocumentVersion,
   loadShot,
   loadShotDetail,
   loadShotPreparation,
@@ -38,6 +41,9 @@ import {
   createStyleOption,
   updateStyleOption,
   uploadStyleImage,
+  uploadEpisodeDocument,
+  uploadWorldbuildingDocument,
+  activateScriptDocumentVersion,
 } from './api'
 
 /** 工作台默认缓存时间：与全局 QueryClient 的 30s 对齐，避免切节点就重拉。 */
@@ -170,6 +176,69 @@ export function useStyleAnalysisCapability() {
     queryFn: loadStyleAnalysisCapability,
     staleTime: 60_000,
   })
+}
+
+export function useWorkbenchScriptDocuments(projectId: string) {
+  return useQuery({
+    queryKey: queryKeys.workbenchScriptDocuments(projectId),
+    queryFn: () => loadScriptDocuments(projectId),
+    enabled: Boolean(projectId),
+    staleTime: STALE_MS,
+  })
+}
+
+export function useWorkbenchScriptDocument(documentId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.workbenchScriptDocument(documentId ?? ''),
+    queryFn: () => loadScriptDocument(documentId as string),
+    enabled: Boolean(documentId),
+    staleTime: STALE_MS,
+  })
+}
+
+export function useWorkbenchScriptVersion(
+  documentId: string | undefined,
+  versionId: string | undefined,
+) {
+  return useQuery({
+    queryKey: queryKeys.workbenchScriptVersion(documentId ?? '', versionId ?? ''),
+    queryFn: () => loadScriptDocumentVersion(documentId as string, versionId as string),
+    enabled: Boolean(documentId) && Boolean(versionId),
+    staleTime: 60_000,
+  })
+}
+
+/** 上传/启用文档后统一失效文档列表、文档详情、项目与章节缓存。 */
+export function useScriptDocumentActions(projectId: string) {
+  const queryClient = useQueryClient()
+  const invalidate = (documentId?: string) => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchScriptDocuments(projectId) })
+    if (documentId) {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.workbenchScriptDocument(documentId),
+      })
+    }
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchChapters(projectId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchProject(projectId) })
+  }
+
+  const uploadWorld = useMutation({
+    mutationFn: (payload: { file: File; title?: string }) =>
+      uploadWorldbuildingDocument(projectId, payload.file, payload.title),
+    onSuccess: (data) => invalidate(data.document.id),
+  })
+  const uploadEpisode = useMutation({
+    mutationFn: (payload: { chapterId: string; file: File; title?: string }) =>
+      uploadEpisodeDocument(projectId, payload.chapterId, payload.file, payload.title),
+    onSuccess: (data) => invalidate(data.document.id),
+  })
+  const activate = useMutation({
+    mutationFn: (payload: { documentId: string; versionId: string }) =>
+      activateScriptDocumentVersion(payload.documentId, payload.versionId),
+    onSuccess: (data) => invalidate(data.id),
+  })
+
+  return { uploadWorld, uploadEpisode, activate }
 }
 
 export function useWorkbenchCharacters(projectId: string) {

@@ -10,6 +10,7 @@ from app.api.v1.routes.studio import (
     image_tasks,
     projects,
     prompts,
+    script_documents,
     shots,
     styles,
     timeline,
@@ -35,4 +36,7 @@ router.include_router(image_tasks.router, prefix="/image-tasks", tags=["studio/i
 router.include_router(audio_tasks.router, prefix="/audio-tasks", tags=["studio/audio-tasks"])
 router.include_router(shot_character_links.router, prefix="/shot-character-links", tags=["studio/shot-character-links"])
 router.include_router(styles.router, prefix="/styles", tags=["studio/styles"])
+router.include_router(
+    script_documents.router, tags=["studio/script-documents"]
+)
 

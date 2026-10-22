@@ -9,4 +9,4 @@
  * ``generated-audios/...``），枚举缺项会让文件列表的响应序列化整体失败并
  * 返回 400（整表失败，不是跳过该行）。
  */
-export type FileTypeEnum = 'image' | 'video' | 'audio';
+export type FileTypeEnum = 'image' | 'video' | 'audio' | 'document';

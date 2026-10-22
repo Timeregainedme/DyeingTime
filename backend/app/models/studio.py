@@ -28,6 +28,7 @@ from app.models.studio_projects import (
     ProjectStyleOption,
     ProjectStyleSnapshot,
 )
+from app.models.studio_script_documents import ScriptDocument, ScriptDocumentVersion
 from app.models.studio_shots import (
     Shot,
     ShotExtractedCandidate,
@@ -83,6 +84,9 @@ __all__ = [
     # Models
     "Project",
     "ProjectStyleOption",
+    "ProjectStyleSnapshot",
+    "ScriptDocument",
+    "ScriptDocumentVersion",
     "Chapter",
     "Scene",
     "Prop",

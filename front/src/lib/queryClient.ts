@@ -72,4 +72,10 @@ export const queryKeys = {
   workbenchProjectStyle: (projectId: string) =>
     ['workbench', projectId, 'project-style'] as const,
   workbenchStyleAnalysisCapability: ['workbench', 'style-analysis-capability'] as const,
+  workbenchScriptDocuments: (projectId: string) =>
+    ['workbench', projectId, 'script-documents'] as const,
+  workbenchScriptDocument: (documentId: string) =>
+    ['workbench', 'script-document', documentId] as const,
+  workbenchScriptVersion: (documentId: string, versionId: string) =>
+    ['workbench', 'script-version', documentId, versionId] as const,
 }

@@ -31,6 +31,8 @@ def _detect_file_type(filename: str) -> FileType:
         return FileType.image
     if ext in {".mp4", ".mov", ".mkv", ".avi", ".webm"}:
         return FileType.video
+    if ext in {".docx", ".md", ".markdown"}:
+        return FileType.document
     raise HTTPException(status_code=400, detail=f"不支持的文件类型: {ext or '未知后缀'}")
 
 
@@ -51,6 +53,9 @@ def _resolve_download_media_type(filename: str) -> str:
         ".gif": "image/gif",
         ".mp4": "video/mp4",
         ".mov": "video/quicktime",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".md": "text/markdown; charset=utf-8",
+        ".markdown": "text/markdown; charset=utf-8",
     }
     if ext in media_types:
         return media_types[ext]
