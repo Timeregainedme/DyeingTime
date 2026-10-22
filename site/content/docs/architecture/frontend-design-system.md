@@ -212,7 +212,12 @@ body { @apply bg-background text-foreground antialiased; }
 | `/projects/:id/chapters/:cid/board` | `src/features/shots/ShotBoardPage.tsx` | 新增（原只有表格视图） |
 | `/files` | `src/features/files/FileManagerPage.tsx` | 新增（原来工作台里的「前往文件管理」指向不存在的路由，点了 404） |
 | `/styles` | `src/features/styles/StyleManagerPage.tsx` | 新增（风格由枚举升级为可维护目录） |
+| `/projects/:id/workbench/*` | `src/features/workbench/WorkbenchPage.tsx` | 新增（树状工作台骨架，见 [树状工作台](/docs/architecture/workbench/)） |
 | 全局布局 | `src/app/shell/AppShell.tsx` | `src/layouts/MainLayout.tsx`（已删除） |
+
+树状工作台是新设计系统的第一张「多面板工作台」页面：不使用 antd，
+由 `components/ui` + Tailwind + TanStack Query 组成；工作台路径下 `AppShell`
+不渲染旧侧边栏，避免两套导航同时出现。
 
 项目工作台仪表盘的心智是「一屏只回答三个问题」：现在该做什么、流程走到哪、还剩什么没做。
 它删掉了三处重复入口与资产卡片里写死的 80/60/75 假进度条——

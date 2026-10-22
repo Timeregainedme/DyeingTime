@@ -1,11 +1,11 @@
 ---
 title: "V2 树状工作台重构计划"
-description: "把 DyeingTime 从「章节+分镜两段式」重构为「项目→剧集→场次→镜头」树状工作台的分阶段实施计划、依赖关系与风险清单。当前处于 P0 审计完成状态。"
+description: "把 DyeingTime 从「章节+分镜两段式」重构为「项目→剧集→场次→镜头」树状工作台的分阶段实施计划、依赖关系与风险清单。P0 审计与 P1 骨架已完成。"
 weight: 2
 ---
 
 > 本文是**仍在推进中的计划**，不是已生效架构。
-> 当前真实生效的架构见 [项目结构](/docs/architecture/project-structure/)、
+> 当前真实生效的工作台实现见 [树状工作台](/docs/architecture/workbench/)，
 > [视频提示词链路与参考图](/docs/architecture/video-prompt-pipeline/)、
 > [视频抽卡与版本切换](/docs/architecture/video-version-redraw/)、
 > [分镜状态流转说明](/docs/architecture/shot-status-flow/)。
@@ -102,26 +102,48 @@ weight: 2
 
 ## 实施阶段与文件级清单
 
-### P1 — 树状工作台骨架
+### P1 — 树状工作台骨架（已完成）
+
+状态：已完成并提交；当前真实实现见 [树状工作台](/docs/architecture/workbench/)。
 
 目标：新增路由与布局，展示真实项目 / 剧集 / 镜头 / 资产数据；保留旧路径与兼容跳转。
 
-新增：
-- `front/src/app/shell/WorkbenchLayout.tsx` — 左树 + 中编辑器 + 右属性 + 底任务中心布局
-- `front/src/app/shell/workbenchTree.ts` — 树节点数据源（读章节/镜头/资产真实数据）
-- `front/src/pages/aiStudio/workbench/WorkbenchPage.tsx` — 工作台容器页
-- `front/src/pages/aiStudio/workbench/panels/ProjectConfigPanel.tsx`
-- `front/src/pages/aiStudio/workbench/panels/ScriptPanel.tsx`（P3 前先只读章节原文）
-- `front/src/pages/aiStudio/workbench/panels/StylePanel.tsx`
-- `front/src/pages/aiStudio/workbench/panels/AssetTreePanel.tsx`
-- `front/src/pages/aiStudio/workbench/panels/ChapterTreePanel.tsx`
-- `front/src/pages/aiStudio/workbench/panels/ShotPanel.tsx`
-- `front/src/pages/aiStudio/workbench/panels/ExportPanel.tsx`
+实际新增（相对初版规划的路径调整）：
+- `front/src/features/workbench/WorkbenchPage.tsx` — 容器页：路由解析、取数、面板分发
+- `front/src/features/workbench/WorkbenchLayout.tsx` — 顶栏 + 左树 + 中央 + 右栏 + 底部任务栏
+- `front/src/features/workbench/WorkbenchTree.tsx` — 资源树、搜索、键盘导航
+- `front/src/features/workbench/WorkbenchInspector.tsx` — 右侧只读属性
+- `front/src/features/workbench/WorkbenchTaskDock.tsx` — 底部任务栏
+- `front/src/features/workbench/routes.ts` — 工作台路由构造与解析
+- `front/src/features/workbench/buildTree.ts` — 纯函数树装配与过滤
+- `front/src/features/workbench/deriveStage.ts` — 章节阶段推导
+- `front/src/features/workbench/useWorkbenchQueries.ts` / `api.ts` — TanStack Query 与翻页拉全
+- `front/src/features/workbench/panels/*` — 总览 / 配置 / 剧本 / 风格 / 资产 / 剧集 / 镜头 / 导出
+- `front/e2e/workbench.spec.ts` — 工作台交互回归用例
 
 修改：
-- `front/src/App.tsx` — 注册 `/projects/:projectId/workbench/*` 路由组
-- `front/src/app/shell/AppShell.tsx` — 工作台内切换为专用布局
-- `front/src/app/shell/navConfig.ts` — 增加工作台入口
+- `front/src/App.tsx` — 注册 `/projects/:projectId/workbench/*`
+- `front/src/app/shell/AppShell.tsx` — 工作台路径关闭旧侧边栏，避免双导航
+- `front/src/features/projects/ProjectCard.tsx` / `ProjectListPage.tsx` — 项目列表工作台入口
+- `front/src/pages/aiStudio/project/ProjectWorkbench/index.tsx` — 旧项目页工作台入口
+- `front/src/mocks/handlers.ts` — 工作台实体 / 单镜头 / 时间线 mock
+
+已交付：
+- 真实数据树：项目 → 配置 / 剧本 / 风格 / 全局资产（角色、场景、道具、服装）/ 每集 → 镜头 / 导出；
+- 镜头按剧集懒加载，分页拉全（>100 条不遗漏，20,000 条上限显式报错）；
+- 中央面板按节点切换；右栏只读属性；底部任务栏与全局任务中心同源；
+- 刷新、深链接、浏览器前进后退均按 URL 恢复；
+- 旧项目页与旧业务页面保持可用；
+- 三类状态分组展示，未合并状态语义；
+- 未虚构场次，`scene-group` 仅保留类型。
+
+本阶段未做（按计划留给后续）：
+- 项目配置内嵌编辑、风格锁定与模型快照 → P2；
+- `.docx` / `.md` 导入与统一审核 → P3；
+- 角色身份锁定与资产版本 → P4；
+- 场次实体与按场次分组 → P5；
+- 显式参考绑定、批量生成、抽卡问题标记 → P6；
+- 选择镜头导出 → P7。
 
 验收：刷新 / 切换节点 / 深链接 / 返回正常；不丢已有项目；旧页面路径继续可用。
 
@@ -311,7 +333,7 @@ P6 ──> P7 导出与端到端验收 ──> P8 全站迁移
 | 提交 | 类型 | 内容 |
 |---|---|---|
 | C1 | `[docs]` | P0 审计结论与本计划文档 |
-| C2 | `[feat]` | P1：树状工作台骨架与路由 |
+| C2 | `[feat]` | P1：树状工作台骨架与路由（✅ 已完成） |
 | C3 | `[feat]` | P2：项目生成配置快照与并发配置 |
 | C4 | `[feat]` | P2：风格锁定与快照 |
 | C5 | `[feat]` | P3：剧本文档存储与解析器 |
