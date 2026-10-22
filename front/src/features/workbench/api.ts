@@ -8,6 +8,8 @@
  *   3. 提供统一的错误文案。
  */
 import {
+  StudioAssetProfilesService,
+  StudioAudioTasksService,
   StudioChaptersService,
   StudioEntitiesService,
   StudioFilesService,
@@ -20,7 +22,13 @@ import {
   StudioTimelineService,
 } from '../../services/generated'
 import type {
+  AssetImageCandidateRead,
+  AssetProfileRead,
+  AssetProfileUpdate,
   ChapterRead,
+  CharacterAliasRead,
+  CreateDerivedVersionRequest,
+  GenerateCandidatesRequest,
   ProjectGenerationConfigRead,
   ProjectGenerationConfigUpdate,
   ProjectGenerationOptionsRead,
@@ -47,6 +55,9 @@ import type {
   ShotVideoReadinessRead,
   StyleAnalysisCapabilityRead,
   StyleAnalysisRead,
+  VoiceBindingRead,
+  VoiceBindingUpdate,
+  VoiceItem,
 } from '../../services/generated'
 import type { WorkbenchAssetItem } from './types'
 import type { WorkbenchAssetType } from './routes'
@@ -507,10 +518,11 @@ function normalizeAsset(raw: Record<string, unknown>): WorkbenchAssetItem | null
   }
 }
 
-async function loadAssetsByType(entityType: WorkbenchAssetType): Promise<WorkbenchAssetItem[]> {
+async function loadAssetsByType(projectId: string, entityType: WorkbenchAssetType): Promise<WorkbenchAssetItem[]> {
   const rows = await fetchAllPages<Record<string, unknown>>(async (page, pageSize) =>
     StudioEntitiesService.listEntitiesApiV1StudioEntitiesEntityTypeGet({
       entityType,
+      projectId,
       order: 'name',
       isDesc: false,
       page,
@@ -522,16 +534,12 @@ async function loadAssetsByType(entityType: WorkbenchAssetType): Promise<Workben
     .filter((item): item is WorkbenchAssetItem => item !== null)
 }
 
-/**
- * 角色是项目内资产：实体接口按工作区过滤，这里再按 `project_id` 收敛到当前项目。
- *
- * 为什么不加后端参数：P1 明确以现有 API 为准，不为骨架新增契约；
- * 角色数量是「一个项目的出场人物」，通常几十条，客户端过滤足够。
- */
+/** 角色按项目查询；后端同时校验工作区。 */
 export async function loadProjectCharacters(projectId: string): Promise<WorkbenchAssetItem[]> {
   const rows = await fetchAllPages<Record<string, unknown>>(async (page, pageSize) =>
     StudioEntitiesService.listEntitiesApiV1StudioEntitiesEntityTypeGet({
       entityType: 'character',
+      projectId,
       order: 'name',
       isDesc: false,
       page,
@@ -539,14 +547,13 @@ export async function loadProjectCharacters(projectId: string): Promise<Workbenc
     }),
   )
   return rows
-    .filter((row) => row.project_id === projectId)
     .map((row) => normalizeAsset(row))
     .filter((item): item is WorkbenchAssetItem => item !== null)
 }
 
-/** 场景 / 道具 / 服装是工作区级全局资产（表里没有 project_id）。 */
-export function loadGlobalAssets(assetType: WorkbenchAssetType): Promise<WorkbenchAssetItem[]> {
-  return loadAssetsByType(assetType)
+/** 场景 / 道具 / 服装是工作区全局资产，但按项目关联表过滤。 */
+export function loadGlobalAssets(projectId: string, assetType: WorkbenchAssetType): Promise<WorkbenchAssetItem[]> {
+  return loadAssetsByType(projectId, assetType)
 }
 
 /** 单个资产详情；返回原始 dict，由面板按类型展示。 */
@@ -560,6 +567,229 @@ export async function loadAssetDetail(
   })
   if (!response.data) throw new Error('服务端没有返回资产详情')
   return response.data as Record<string, unknown>
+}
+
+/** P4：资产档案（角色圣经 / 当前版本 / 候选图 / 音色来源）。 */
+export async function loadAssetProfile(
+  projectId: string,
+  assetType: WorkbenchAssetType,
+  assetId: string,
+): Promise<AssetProfileRead> {
+  const response =
+    await StudioAssetProfilesService.getAssetProfileApiApiV1StudioProjectsProjectIdAssetsAssetTypeAssetIdProfileGet(
+      { projectId, assetType, assetId },
+    )
+  if (!response.data) throw new Error('服务端没有返回资产档案')
+  return response.data
+}
+
+export async function updateAssetProfile(
+  projectId: string,
+  assetType: WorkbenchAssetType,
+  assetId: string,
+  body: AssetProfileUpdate,
+): Promise<AssetProfileRead> {
+  const response =
+    await StudioAssetProfilesService.updateAssetProfileApiApiV1StudioProjectsProjectIdAssetsAssetTypeAssetIdProfilePatch(
+      { projectId, assetType, assetId, requestBody: body },
+    )
+  if (!response.data) throw new Error('服务端没有返回更新后的资产档案')
+  return response.data
+}
+
+export async function addCharacterAlias(
+  projectId: string,
+  characterId: string,
+  alias: string,
+): Promise<CharacterAliasRead> {
+  const response =
+    await StudioAssetProfilesService.addCharacterAliasApiApiV1StudioProjectsProjectIdAssetsCharacterAssetIdAliasesPost(
+      { projectId, assetId: characterId, requestBody: { alias } },
+    )
+  if (!response.data) throw new Error('服务端没有返回别名')
+  return response.data
+}
+
+export async function deleteCharacterAlias(
+  projectId: string,
+  characterId: string,
+  aliasId: number,
+): Promise<void> {
+  await StudioAssetProfilesService.deleteCharacterAliasApiApiV1StudioProjectsProjectIdAssetsCharacterAssetIdAliasesAliasIdDelete(
+    { projectId, assetId: characterId, aliasId },
+  )
+}
+
+export async function createAssetVersion(
+  projectId: string,
+  assetType: WorkbenchAssetType,
+  assetId: string,
+  body: CreateDerivedVersionRequest,
+): Promise<AssetProfileRead> {
+  const response =
+    await StudioAssetProfilesService.createAssetVersionApiApiV1StudioProjectsProjectIdAssetsAssetTypeAssetIdVersionsPost(
+      { projectId, assetType, assetId, requestBody: body },
+    )
+  if (!response.data) throw new Error('服务端没有返回版本结果')
+  return response.data
+}
+
+export async function createCharacterIdentityVersion(
+  projectId: string,
+  characterId: string,
+  body: CreateDerivedVersionRequest,
+): Promise<AssetProfileRead> {
+  const response =
+    await StudioAssetProfilesService.createCharacterIdentityVersionApiApiV1StudioProjectsProjectIdAssetsCharacterAssetIdIdentityVersionsPost(
+      { projectId, assetId: characterId, requestBody: body },
+    )
+  if (!response.data) throw new Error('服务端没有返回身份版本')
+  return response.data
+}
+
+export async function switchAssetVersion(
+  projectId: string,
+  assetType: WorkbenchAssetType,
+  assetId: string,
+  versionId: string,
+  expectedLockVersion?: number,
+): Promise<AssetProfileRead> {
+  const response =
+    await StudioAssetProfilesService.switchAssetVersionApiApiV1StudioProjectsProjectIdAssetsAssetTypeAssetIdVersionsVersionIdSwitchPost(
+      {
+        projectId,
+        assetType,
+        assetId,
+        versionId,
+        requestBody: {
+          version_id: versionId,
+          expected_lock_version: expectedLockVersion ?? null,
+        },
+      },
+    )
+  if (!response.data) throw new Error('服务端没有返回版本切换结果')
+  return response.data
+}
+
+export async function generateAssetCandidates(
+  projectId: string,
+  assetType: WorkbenchAssetType,
+  assetId: string,
+  body: GenerateCandidatesRequest,
+): Promise<AssetImageCandidateRead[]> {
+  const response =
+    await StudioAssetProfilesService.generateAssetCandidatesApiApiV1StudioProjectsProjectIdAssetsAssetTypeAssetIdCandidatesGeneratePost(
+      { projectId, assetType, assetId, requestBody: body },
+    )
+  return response.data ?? []
+}
+
+export async function uploadAssetCandidate(
+  projectId: string,
+  assetType: WorkbenchAssetType,
+  assetId: string,
+  file: File,
+  viewAngle = 'front',
+  versionId?: string | null,
+): Promise<AssetProfileRead> {
+  const response =
+    await StudioAssetProfilesService.uploadAssetCandidateApiApiV1StudioProjectsProjectIdAssetsAssetTypeAssetIdCandidatesUploadPost(
+      {
+        projectId,
+        assetType,
+        assetId,
+        viewAngle,
+        versionId: versionId || undefined,
+        formData: { file: file as unknown as string },
+      },
+    )
+  if (!response.data) throw new Error('服务端没有返回上传结果')
+  return response.data
+}
+
+export async function adoptAssetCandidate(
+  projectId: string,
+  assetType: WorkbenchAssetType,
+  assetId: string,
+  candidateId: number,
+  versionId?: string | null,
+): Promise<AssetProfileRead> {
+  const response =
+    await StudioAssetProfilesService.adoptAssetCandidateApiApiV1StudioProjectsProjectIdAssetsAssetTypeAssetIdCandidatesCandidateIdAdoptPost(
+      {
+        projectId,
+        assetType,
+        assetId,
+        candidateId,
+        requestBody: { version_id: versionId || null, make_primary: true },
+      },
+    )
+  if (!response.data) throw new Error('服务端没有返回采纳结果')
+  return response.data
+}
+
+export async function deleteAssetCandidate(
+  projectId: string,
+  assetType: WorkbenchAssetType,
+  assetId: string,
+  candidateId: number,
+): Promise<AssetProfileRead> {
+  const response =
+    await StudioAssetProfilesService.deleteAssetCandidateApiApiV1StudioProjectsProjectIdAssetsAssetTypeAssetIdCandidatesCandidateIdDelete(
+      { projectId, assetType, assetId, candidateId },
+    )
+  if (!response.data) throw new Error('服务端没有返回删除结果')
+  return response.data
+}
+
+export async function lockCharacterIdentity(
+  projectId: string,
+  characterId: string,
+  expectedLockVersion?: number,
+): Promise<AssetProfileRead> {
+  const response =
+    await StudioAssetProfilesService.lockCharacterIdentityApiApiV1StudioProjectsProjectIdAssetsCharacterAssetIdLockPost(
+      {
+        projectId,
+        assetId: characterId,
+        requestBody: { expected_lock_version: expectedLockVersion ?? null },
+      },
+    )
+  if (!response.data) throw new Error('服务端没有返回锁定结果')
+  return response.data
+}
+
+export async function loadCharacterVoice(
+  projectId: string,
+  characterId: string,
+): Promise<VoiceBindingRead> {
+  const response =
+    await StudioAssetProfilesService.getCharacterVoiceApiApiV1StudioProjectsProjectIdAssetsCharacterAssetIdVoiceGet(
+      { projectId, assetId: characterId },
+    )
+  if (!response.data) throw new Error('服务端没有返回音色信息')
+  return response.data
+}
+
+export async function updateCharacterVoice(
+  projectId: string,
+  characterId: string,
+  body: VoiceBindingUpdate,
+): Promise<VoiceBindingRead> {
+  const response =
+    await StudioAssetProfilesService.updateCharacterVoiceApiApiV1StudioProjectsProjectIdAssetsCharacterAssetIdVoicePatch(
+      { projectId, assetId: characterId, requestBody: body },
+    )
+  if (!response.data) throw new Error('服务端没有返回音色更新结果')
+  return response.data
+}
+
+export async function loadAvailableVoices(modelId?: string | null): Promise<VoiceItem[]> {
+  const response = await StudioAudioTasksService.listAudioVoicesApiV1StudioAudioTasksVoicesGet({
+    modelId: modelId || undefined,
+    kind: 'preset',
+  })
+  return response.data ?? []
 }
 
 export async function loadShot(shotId: string): Promise<ShotRead> {

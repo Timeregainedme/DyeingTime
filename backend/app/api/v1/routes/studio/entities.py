@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.scoping import get_entity_in_workspace
+from app.api.scoping import get_entity_in_workspace, get_project_in_workspace
 from app.dependencies import WorkspaceContext, get_db, get_workspace_context
 from app.schemas.common import ApiResponse, PaginatedData, created_response, empty_response, paginated_response, success_response
 from app.schemas.studio.entity_existence import (
@@ -113,11 +113,14 @@ async def list_entities(
     q: str | None = Query(None, description="关键字，过滤 name/description"),
     style: str | None = Query(None, description="题材/风格（单值）"),
     visual_style: str | None = Query(None, description="画面表现形式（单值：真人/动漫）"),
+    project_id: str | None = Query(None, description="可选：仅返回该项目关联的资产"),
     order: str | None = Query(None),
     is_desc: bool = Query(False),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
 ) -> ApiResponse[PaginatedData[dict[str, Any]]]:
+    if project_id:
+        await get_project_in_workspace(db, project_id, ctx)
     service = StudioEntitiesService(db)
     payload, total = await service.list_entities(
         entity_type=entity_type,
@@ -129,6 +132,7 @@ async def list_entities(
         page=page,
         page_size=page_size,
         workspace_id=ctx.workspace_id,
+        project_id=project_id,
     )
     return paginated_response(payload, page=page, page_size=page_size, total=total)
 

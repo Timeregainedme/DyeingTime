@@ -77,6 +77,7 @@ export class StudioEntitiesService {
         q,
         style,
         visualStyle,
+        projectId,
         order,
         isDesc = false,
         page = 1,
@@ -95,6 +96,10 @@ export class StudioEntitiesService {
          * 画面表现形式（单值：真人/动漫）
          */
         visualStyle?: (string | null),
+        /**
+         * 可选：仅返回该项目关联的资产
+         */
+        projectId?: (string | null),
         order?: (string | null),
         isDesc?: boolean,
         page?: number,
@@ -110,6 +115,7 @@ export class StudioEntitiesService {
                 'q': q,
                 'style': style,
                 'visual_style': visualStyle,
+                'project_id': projectId,
                 'order': order,
                 'is_desc': isDesc,
                 'page': page,

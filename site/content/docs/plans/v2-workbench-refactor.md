@@ -229,27 +229,47 @@ weight: 2
 - 资产身份版本、音色绑定仍属 P4；
 - 差异第一版不做语义向量 Diff，也不自动覆盖正式数据。
 
-### P4 — 角色与资产版本
+### P4 — 角色与资产版本（进行中）
 
-目标：双候选图、身份锁定、多视角、音色绑定、资产衍生版本。
+状态：C7 已完成并提交；C8 受影响镜头分析本轮继续。当前实现见
+[角色圣经与资产版本](/docs/architecture/character-bible-asset-versions/)。
 
-迁移：
-- `backend/sql/039-add-asset-identity-versions.sql` — 资产基础版本 + 衍生版本
-- `backend/sql/040-add-character-identity-lock.sql` — 角色身份锁定与版本指针
-- `backend/sql/041-add-asset-impact-refs.sql` — 受影响镜头索引
+目标：双候选图、身份锁定、多视角、音色绑定、资产衍生版本、受影响镜头提示。
 
-新增：
-- `backend/app/services/studio/asset_versions.py` — 基础版本 / 衍生版本服务
-- `backend/app/services/studio/character_identity.py` — 角色身份锁定与版本演进
-- `backend/app/services/studio/asset_impact.py` — 受影响镜头提示
-- `backend/app/services/studio/generation/asset_image/build_base.py` — 双候选与多视角参数
-- `front/src/pages/aiStudio/workbench/panels/CharacterPanel.tsx`
+迁移（实际）：
+- `backend/sql/039-add-asset-versions.sql` — 角色别名、资产版本、图片候选
+- `backend/sql/040-add-character-identity-lock.sql` — 角色圣经字段、视觉身份锁定、资产当前版本指针
+- `backend/sql/041-add-asset-impact-refs.sql` — C8 资产版本影响审计
 
-修改：
-- `backend/app/api/v1/routes/studio/entities.py` — 版本与锁定端点
-- `backend/app/services/studio/shot_video_readiness.py` — 锁定状态纳入准备度
+C7 已实现：
+- `backend/app/models/studio_asset_versions.py` — CharacterAlias / AssetVersion / AssetImageCandidate
+- `backend/app/services/studio/character_aliases.py` — 别名持久化与冲突检测
+- `backend/app/services/studio/asset_versions.py` — 基础/衍生/身份版本与当前指针
+- `backend/app/services/studio/asset_image_candidates.py` — 双候选生成、上传、采纳、删除
+- `backend/app/services/studio/asset_profiles.py` — 资产档案聚合与文字字段更新
+- `backend/app/services/studio/character_identity.py` — 视觉锁定、音色绑定与回退读取
+- `backend/app/api/v1/routes/studio/asset_profiles.py` — 档案/版本/候选/锁定/音色 API
+- 图片任务：新增 `asset_image_candidate` 关联，复用 `GenerationTask` 与 image_task_runner
+- P3：别名参与实体预匹配；确认时导入别名与外貌字段
+- `front/src/features/workbench/panels/AssetDetailPanel.tsx` — 角色圣经、候选图、版本、锁定、音色
+- 项目级资产查询：`GET /api/v1/studio/entities/{type}?project_id=...`
 
-验收：锁定资产跨剧集复用；变更不破坏既有视频。
+C7 约束：
+- 一次生成默认两张独立任务，不假设供应商 `n=2`；
+- 采纳/锁定后重新抽卡不自动替换；
+- 视觉锁定由服务端校验，音色不是锁定前置条件；
+- Actor 共享语义不变；
+- 真正图片生成测试使用 Mock，不消耗真实额度。
+
+C8 待完成：
+- 受影响镜头 API 与前端提示；
+- 区分确定资产引用与可能影响；
+- 版本切换影响审计；
+- 历史视频不删除/不自动重拍。
+
+后续边界：
+- 正式场次与镜头拆分仍属 P5；
+- 镜头级显式参考绑定与生成输入快照仍属 P6。
 
 ### P5 — 场次与分镜
 
@@ -376,8 +396,8 @@ P6 ──> P7 导出与端到端验收 ──> P8 全站迁移
 | C4 | `[feat]` | P2：风格锁定与快照（✅ 已完成） |
 | C5 | `[feat]` | P3：剧本文档导入与版本管理（✅ 已完成 `6e3cf7d`） |
 | C6 | `[feat]` | P3：AI 解析、统一审核与增量差异（✅ 已完成） |
-| C7 | `[feat]` | P4：资产版本与角色身份锁定 |
-| C8 | `[feat]` | P4：受影响镜头提示 |
+| C7 | `[feat]` | P4：角色圣经与资产版本（✅ 已完成） |
+| C8 | `[feat]` | P4：资产变更影响分析（进行中） |
 | C9 | `[feat]` | P5：场次实体与划分服务 |
 | C10 | `[feat]` | P5：分镜节奏参数与树状管理 |
 | C11 | `[feat]` | P6：镜头参考绑定与自动推荐 |

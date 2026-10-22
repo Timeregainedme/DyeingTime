@@ -13,9 +13,19 @@ import type { ShotRead } from '../../services/generated'
 import { queryKeys } from '../../lib/queryClient'
 import type { WorkbenchAssetType } from './routes'
 import {
+  addCharacterAlias,
+  adoptAssetCandidate,
+  createAssetVersion,
+  createCharacterIdentityVersion,
+  deleteAssetCandidate,
+  deleteCharacterAlias,
+  generateAssetCandidates,
   loadAllChapters,
   loadAllShots,
   loadAssetDetail,
+  loadAssetProfile,
+  loadAvailableVoices,
+  loadCharacterVoice,
   loadGenerationConfig,
   loadGenerationOptions,
   loadGlobalAssets,
@@ -54,6 +64,11 @@ import {
   mergeScriptParseCandidates,
   startScriptParse,
   updateScriptParseCandidate,
+  updateAssetProfile,
+  updateCharacterVoice,
+  uploadAssetCandidate,
+  lockCharacterIdentity,
+  switchAssetVersion,
 } from './api'
 
 /** 工作台默认缓存时间：与全局 QueryClient 的 30s 对齐，避免切节点就重拉。 */
@@ -264,7 +279,7 @@ export function useWorkbenchCharacters(projectId: string) {
 export function useWorkbenchGlobalAssets(projectId: string, assetType: WorkbenchAssetType) {
   return useQuery({
     queryKey: queryKeys.workbenchAssets(projectId, assetType),
-    queryFn: () => loadGlobalAssets(assetType),
+    queryFn: () => loadGlobalAssets(projectId, assetType),
     enabled: Boolean(projectId) && assetType !== 'character',
     staleTime: STALE_MS,
   })
@@ -281,6 +296,153 @@ export function useWorkbenchAssetDetail(
     enabled: Boolean(projectId) && Boolean(assetType) && Boolean(assetId),
     staleTime: STALE_MS,
   })
+}
+
+/** P4 资产档案；有 pending 候选时自动轮询任务结果。 */
+export function useAssetProfile(
+  projectId: string,
+  assetType: WorkbenchAssetType,
+  assetId: string | undefined,
+) {
+  return useQuery({
+    queryKey: queryKeys.workbenchAssetProfile(projectId, assetType, assetId ?? ''),
+    queryFn: () => loadAssetProfile(projectId, assetType, assetId as string),
+    enabled: Boolean(projectId) && Boolean(assetType) && Boolean(assetId),
+    staleTime: 5_000,
+    refetchInterval: (query) =>
+      query.state.data?.candidates?.some((item) => item.status === 'pending') ? 2500 : false,
+  })
+}
+
+export function useCharacterVoice(projectId: string, characterId: string | undefined) {
+  return useQuery({
+    queryKey: ['workbench', projectId, 'character-voice', characterId ?? ''],
+    queryFn: () => loadCharacterVoice(projectId, characterId as string),
+    enabled: Boolean(projectId) && Boolean(characterId),
+    staleTime: 15_000,
+  })
+}
+
+export function useAvailableVoices(modelId?: string | null) {
+  return useQuery({
+    queryKey: queryKeys.workbenchVoices(modelId ?? 'default'),
+    queryFn: () => loadAvailableVoices(modelId),
+    staleTime: 120_000,
+  })
+}
+
+/** P4 资产编辑动作；成功后统一刷新档案、列表和项目树缩略图。 */
+export function useAssetProfileActions(
+  projectId: string,
+  assetType: WorkbenchAssetType,
+  assetId: string,
+) {
+  const queryClient = useQueryClient()
+  const invalidate = () => {
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.workbenchAssetProfile(projectId, assetType, assetId),
+    })
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.workbenchAssets(projectId, assetType),
+    })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchProject(projectId) })
+  }
+  const update = useMutation({
+    mutationFn: (body: Parameters<typeof updateAssetProfile>[3]) =>
+      updateAssetProfile(projectId, assetType, assetId, body),
+    onSuccess: invalidate,
+  })
+  const addAlias = useMutation({
+    mutationFn: (alias: string) => addCharacterAlias(projectId, assetId, alias),
+    onSuccess: invalidate,
+  })
+  const removeAlias = useMutation({
+    mutationFn: (aliasId: number) => deleteCharacterAlias(projectId, assetId, aliasId),
+    onSuccess: invalidate,
+  })
+  const createVersion = useMutation({
+    mutationFn: (body: Parameters<typeof createAssetVersion>[3]) =>
+      assetType === 'character'
+        ? createAssetVersion(projectId, assetType, assetId, body)
+        : createAssetVersion(projectId, assetType, assetId, body),
+    onSuccess: invalidate,
+  })
+  const createIdentityVersion = useMutation({
+    mutationFn: (body: Parameters<typeof createCharacterIdentityVersion>[2]) =>
+      createCharacterIdentityVersion(projectId, assetId, body),
+    onSuccess: invalidate,
+  })
+  const switchVersion = useMutation({
+    mutationFn: (payload: { versionId: string; expectedLockVersion?: number }) =>
+      switchAssetVersion(
+        projectId,
+        assetType,
+        assetId,
+        payload.versionId,
+        payload.expectedLockVersion,
+      ),
+    onSuccess: invalidate,
+  })
+  const generate = useMutation({
+    mutationFn: (payload: { viewAngle: string; prompt?: string | null }) =>
+      generateAssetCandidates(projectId, assetType, assetId, {
+        view_angle: payload.viewAngle as 'front' | 'left' | 'right' | 'back' | 'three_quarter',
+        candidate_count: 2,
+        prompt: payload.prompt || null,
+      }),
+    onSuccess: invalidate,
+  })
+  const upload = useMutation({
+    mutationFn: (payload: { file: File; viewAngle: string; versionId?: string | null }) =>
+      uploadAssetCandidate(
+        projectId,
+        assetType,
+        assetId,
+        payload.file,
+        payload.viewAngle,
+        payload.versionId,
+      ),
+    onSuccess: invalidate,
+  })
+  const adopt = useMutation({
+    mutationFn: (payload: { candidateId: number; versionId?: string | null }) =>
+      adoptAssetCandidate(projectId, assetType, assetId, payload.candidateId, payload.versionId),
+    onSuccess: invalidate,
+  })
+  const removeCandidate = useMutation({
+    mutationFn: (candidateId: number) =>
+      deleteAssetCandidate(projectId, assetType, assetId, candidateId),
+    onSuccess: invalidate,
+  })
+  const lock = useMutation({
+    mutationFn: (expectedLockVersion?: number) =>
+      lockCharacterIdentity(projectId, assetId, expectedLockVersion),
+    onSuccess: invalidate,
+  })
+  const updateVoice = useMutation({
+    mutationFn: (body: Parameters<typeof updateCharacterVoice>[2]) =>
+      updateCharacterVoice(projectId, assetId, body),
+    onSuccess: () => {
+      invalidate()
+      void queryClient.invalidateQueries({
+        queryKey: ['workbench', projectId, 'character-voice', assetId],
+      })
+    },
+  })
+  return {
+    update,
+    addAlias,
+    removeAlias,
+    createVersion,
+    createIdentityVersion,
+    switchVersion,
+    generate,
+    upload,
+    adopt,
+    removeCandidate,
+    lock,
+    updateVoice,
+  }
 }
 
 /**

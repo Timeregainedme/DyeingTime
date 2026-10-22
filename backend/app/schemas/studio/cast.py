@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -108,6 +109,12 @@ class CharacterBase(BaseModel):
         "",
         description="角色音色描述（剧本提取产出：年龄段/声线/气质/语速等；用于配音选型参考）",
     )
+    # P4 角色圣经字段；旧客户端不传时保持空串。
+    age_range: str = Field("", description="年龄感/年龄段")
+    appearance: str = Field("", description="基础外貌描述")
+    face_features: str = Field("", description="脸型与五官等身份辨识特征")
+    body_type: str = Field("", description="基础体型")
+    identity_features: str = Field("", description="不可随造型改变的身份特征")
 
 
 class CharacterCreate(CharacterBase):
@@ -160,6 +167,10 @@ class CharacterRead(CharacterBase):
     model_config = ConfigDict(from_attributes=True)
 
     thumbnail: str = Field("", description="缩略图下载地址")
+    identity_version_id: str | None = Field(None, description="当前视觉身份版本 ID（只读）")
+    current_appearance_version_id: str | None = Field(None, description="当前造型版本 ID（只读）")
+    identity_locked_at: datetime | None = Field(None, description="视觉身份锁定时间（只读）")
+    identity_lock_version: int = Field(0, description="身份乐观锁版本（只读）")
 
 
 class CharacterPropLinkBase(BaseModel):

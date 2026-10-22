@@ -55,7 +55,19 @@ weight: 15
 - 响应：`ApiResponse[list[VoiceItem]]`，`VoiceItem = {voice_id, name, language, raw}`（取值 `row.get("voice_id") or row.get("id") or row.get("voice")`）。
 - **只有 `compshare_model_api` 支持**：其它供应商抛 `HTTPException(400, "Provider ... does not expose a voice list API")`。因此前端必须把该 400 当作**预期降级**而非故障。
 
-## 前端入口
+## P4 工作台入口
+
+`front/src/features/workbench/panels/AssetDetailPanel.tsx` 在角色详情中提供：
+
+- 当前生效音色与来源（角色覆盖 / 回退演员）；
+- 供应商音色列表选择、音色来源、音色描述；
+- 可选试听（供应商 `raw` 中提供 `audio_url` / `preview_url` / `url` 时）；
+- 绑定/解除绑定；视觉身份锁定不影响音色修改。
+
+API：`GET/PATCH /api/v1/studio/projects/{pid}/assets/character/{cid}/voice`。
+底层仍使用既有 `characters.voice_*` 与 `_resolve_audio_voice`，不新增回退规则。
+
+## 旧版前端入口
 
 - 复用组件 `front/src/pages/aiStudio/components/VoiceSelectField.tsx`：`value` 是供应商侧 `voice_id`（`string | null`，**不是对象**），`onChange` 回传 `VoiceChoice = {voice_id, voice_source}`。
   - 供应商列表里没有的**已保存** `voice_id` 会以 `__saved__:` 前缀补一条选项（label `已保存：<id>`），避免用户因为「看不见」而误把已有配置清空。

@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.routes.studio import (
+    asset_profiles,
     audio_tasks,
     chapters,
     entities,
@@ -41,4 +42,5 @@ router.include_router(
     script_documents.router, tags=["studio/script-documents"]
 )
 router.include_router(script_parse.router, tags=["studio/script-parse"])
+router.include_router(asset_profiles.router, tags=["studio/asset-profiles"])
 

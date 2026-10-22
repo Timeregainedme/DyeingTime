@@ -105,15 +105,9 @@ export function AssetGroupPanel({
         }
       />
 
-      {assetType === 'character' ? (
-        <StageNote stage="P4">
-          角色双候选图、身份锁定、多视角生成与音色确认将在 P4 完成；当前只读展示已有角色。
-        </StageNote>
-      ) : (
-        <StageNote stage="P4">
-          资产基础版本与衍生版本的绑定将在 P4 完成；当前场景 / 道具 / 服装是工作区共享目录。
-        </StageNote>
-      )}
+      <StageNote stage="P4">
+        点击资产进入角色圣经 / 版本编辑：可维护别名、基础图候选、视觉身份锁定、造型衍生、音色与版本历史。
+      </StageNote>
 
       <div className="relative max-w-sm">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -140,8 +134,8 @@ export function AssetGroupPanel({
           title={`还没有${label}`}
           description={
             assetType === 'character'
-              ? '角色通常由剧本提取或一键创建资产产生；创建入口仍在旧版项目页。'
-              : '全局资产在旧版资产管理页创建；P4 会迁入工作台并引入版本。'
+              ? '角色通常由剧本提取或一键创建资产产生；进入详情可补基础形象并锁定身份。'
+              : '全局资产在旧版资产管理页创建；进入详情可补基础版本与衍生版本。'
           }
           action={
             <LegacyLink href={legacyAssetListPath(projectId, assetType)}>

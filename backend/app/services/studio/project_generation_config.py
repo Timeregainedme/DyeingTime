@@ -858,6 +858,16 @@ async def resolve_project_id_for_image_relation(
         ShotFrameImage,
     )
 
+    if relation_type == "asset_image_candidate":
+        from app.models.studio import AssetImageCandidate
+
+        try:
+            candidate_id = int(relation_entity_id)
+        except (TypeError, ValueError):
+            return None
+        candidate = await db.get(AssetImageCandidate, candidate_id)
+        return candidate.project_id if candidate else None
+
     if relation_type == "character_image":
         try:
             image = await db.get(CharacterImage, int(relation_entity_id))

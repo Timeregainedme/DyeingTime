@@ -65,6 +65,7 @@ def _asset_read_payload(obj: Any, thumbnail: str) -> dict[str, Any]:
         "view_count": obj.view_count,
         "style": obj.style,
         "visual_style": obj.visual_style,
+        "current_version_id": getattr(obj, "current_version_id", None),
         "thumbnail": thumbnail,
     }
 
@@ -81,6 +82,7 @@ async def list_entities_paginated(
     page: int,
     page_size: int,
     workspace_id: str | None = None,
+    project_id: str | None = None,
 ) -> tuple[list[dict[str, Any]], int]:
     """分页查询资产实体。
 
@@ -105,6 +107,18 @@ async def list_entities_paginated(
                 stmt.join(link_model, getattr(link_model, link_field) == spec.model.id)
                 .join(Project, Project.id == link_model.project_id)
                 .where(Project.workspace_id == workspace_id)
+            )
+    if project_id:
+        if spec.model is Character:
+            stmt = stmt.where(Character.project_id == project_id)
+        else:
+            link_model, link_field = _link_join_for_entity(spec.model)
+            stmt = stmt.where(
+                spec.model.id.in_(
+                    select(getattr(link_model, link_field)).where(
+                        link_model.project_id == project_id
+                    )
+                )
             )
     stmt = apply_keyword_filter(stmt, q=q, fields=[spec.model.name, spec.model.description])
     if style:
@@ -282,6 +296,10 @@ async def update_entity(
         raise HTTPException(status_code=404, detail=entity_not_found(spec.model.__name__))
 
     update_data = spec.update_model.model_validate(body).model_dump(exclude_unset=True)
+    if entity_type_norm == "character":
+        from app.services.studio.character_identity import assert_identity_fields_editable
+
+        assert_identity_fields_editable(obj, update_data)
     if entity_type_norm == "character":
         if "project_id" in update_data and await db.get(Project, update_data["project_id"]) is None:
             raise HTTPException(status_code=400, detail=entity_not_found("Project"))

@@ -14,6 +14,7 @@ from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.chains.agents.episode_script_parser_agent import EpisodeScriptParserAgent
 from app.core.db import async_session_maker
@@ -71,7 +72,11 @@ async def _load_existing_entities(
 ) -> tuple[list[Character], list[Scene], list[Prop], list[Costume]]:
     """读取项目已有角色与关联场景/道具/服装，供预匹配与提示词上下文。"""
     characters = (
-        await db.execute(select(Character).where(Character.project_id == project_id))
+        await db.execute(
+            select(Character)
+            .options(selectinload(Character.aliases))
+            .where(Character.project_id == project_id)
+        )
     ).scalars().all()
     scenes = (
         await db.execute(
@@ -100,9 +105,19 @@ async def _load_existing_entities(
     return list(characters), list(scenes), list(props), list(costumes)
 
 
-def _entity_brief(items: list[Any]) -> list[dict[str, str]]:
-    """只传名称/描述给模型，避免把无关内部字段暴露给 LLM。"""
-    return [{"name": item.name, "description": item.description or ""} for item in items[:200]]
+def _entity_brief(items: list[Any]) -> list[dict[str, Any]]:
+    """只传名称/别名/描述给模型，避免把无关内部字段暴露给 LLM。"""
+    rows: list[dict[str, Any]] = []
+    for item in items[:200]:
+        row: dict[str, Any] = {
+            "name": item.name,
+            "description": item.description or "",
+        }
+        aliases = getattr(item, "aliases", None)
+        if aliases:
+            row["aliases"] = [alias.alias for alias in aliases]
+        rows.append(row)
+    return rows
 
 
 def _normalize_evidence(
@@ -155,6 +170,10 @@ class ParseMergeAccumulator:
         self.issues: list[ParsedIssue] = []
         self.episode: ParsedEpisode | None = None
         self.character_ids = {item.name: item.id for item in existing_characters}
+        self.character_alias_ids: dict[str, str] = {}
+        for item in existing_characters:
+            for alias in getattr(item, "aliases", None) or []:
+                self.character_alias_ids[alias.normalized_alias] = item.id
         self.scene_ids = {item.name: item.id for item in existing_scenes}
         self.prop_ids = {item.name: item.id for item in existing_props}
         self.costume_ids = {item.name: item.id for item in existing_costumes}
@@ -175,7 +194,9 @@ class ParseMergeAccumulator:
                     target_key = _normalize_name(alias_key)
             current = self.characters.get(target_key)
             item.evidence = _normalize_evidence(item.evidence, chunk)
-            item.matched_character_id = self.character_ids.get(name)
+            item.matched_character_id = self.character_ids.get(
+                name
+            ) or self.character_alias_ids.get(_normalize_name(name).lower())
             if current is None:
                 self.characters[target_key] = item
             else:

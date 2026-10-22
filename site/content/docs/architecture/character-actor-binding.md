@@ -46,6 +46,14 @@ weight: 16
   卡片上显示 `出现 N 集 · 可不绑演员` / `跨 N 集 · 已绑演员` / `跨 N 集 · 建议绑演员`；
   编辑主角级且未绑演员的角色时，表单顶部显示一条 `Alert`（**只提醒，不阻断保存**）。
 
+## P4 视觉身份与 Actor 的关系
+
+- `Character` 是项目内剧情角色，`Actor` 是工作区级共享演员资源；
+- 视觉身份锁定只作用于当前项目的 `Character.identity_version_id` 与身份字段；
+- 不会锁定 `Actor`，也不会影响其它项目复用同一演员；
+- 角色图身份候选仍通过既有资产图链路引用所绑演员图片；
+- 音色仍是“角色覆盖 → 演员默认”的两级回退，与视觉身份版本独立。
+
 ## 开工预检
 
 `GET /api/v1/studio/projects/{project_id}/production-readiness` 中的 `character_actor_ready` 检查项：

@@ -93,6 +93,16 @@ async def _from_asset_image(
         character = await db.get(Character, relation_entity_id)
         return await _from_project(db, character.project_id if character else None)
 
+    if relation_type == "asset_image_candidate":
+        from app.models.studio import AssetImageCandidate
+
+        try:
+            candidate_id = int(relation_entity_id)
+        except (TypeError, ValueError):
+            return None
+        candidate = await db.get(AssetImageCandidate, candidate_id)
+        return await _from_project(db, candidate.project_id if candidate else None)
+
     try:
         image_pk = int(relation_entity_id)
     except (TypeError, ValueError):
@@ -135,7 +145,7 @@ async def resolve_workspace_id(
     - `project_id` / `chapter_id` / `shot_id`：已知的业务实体 ID；
     - `relation_entity_id`：多态的关联实体 ID；`relation_type` 为资产图类型
       （`actor_image` / `scene_image` / `prop_image` / `costume_image` /
-      `character_image` / `character`）时按图片行或角色回溯项目；
+      `character_image` / `character` / `asset_image_candidate`）时按图片行/候选/角色回溯项目；
     - 其余情况按「项目 → 章节 → 镜头」顺序探测。
 
     返回：

@@ -17,6 +17,7 @@ from app.core.contracts.provider import ProviderConfig
 from app.core.tasks import ImageGenerationTask
 from app.models.studio import (
     ActorImage,
+    AssetImageCandidate,
     AssetQualityLevel,
     AssetViewAngle,
     CharacterImage,
@@ -63,6 +64,29 @@ class _CreateOnlyTask:
 
     async def get_result(self) -> object:
         return None
+
+
+async def _mark_candidate_task_failed(
+    session: AsyncSession,
+    *,
+    relation_type: str,
+    relation_entity_id: str,
+    error: str,
+) -> None:
+    """把失败/取消的候选任务显式回写，避免前端永远显示 pending。"""
+    if relation_type != "asset_image_candidate":
+        return
+    try:
+        candidate = await session.get(AssetImageCandidate, int(relation_entity_id))
+    except (TypeError, ValueError):
+        return
+    if candidate is None or candidate.status == "adopted":
+        return
+    candidate.status = "failed"
+    candidate.generation_params = {
+        **(candidate.generation_params or {}),
+        "error": error[:1000],
+    }
 
 
 async def _persist_images_to_assets(
@@ -218,6 +242,24 @@ async def _persist_images_to_assets(
                 character_id=character_id,
                 usage_kind=FileUsageKind.character_image,
                 source_ref=f"character_image:{ci.id}",
+            )
+    elif relation_type == "asset_image_candidate":
+        try:
+            candidate_id = int(relation_entity_id)
+        except (TypeError, ValueError):
+            candidate_id = 0
+        candidate = await session.get(AssetImageCandidate, candidate_id) if candidate_id else None
+        if candidate is not None:
+            candidate.file_id = file_id
+            candidate.status = "succeeded"
+            await upsert_file_usage(
+                session,
+                file_id=file_id,
+                project_id=candidate.project_id,
+                chapter_id=None,
+                shot_id=None,
+                usage_kind=FileUsageKind.asset_image,
+                source_ref=f"asset_image_candidate:{candidate.id}",
             )
     elif relation_type == "shot_frame_image":
         image_row = await session.get(ShotFrameImage, int(relation_entity_id))
@@ -393,6 +435,13 @@ async def run_image_generation_task(
             await session.commit()
             log_task_event("image_generation", task_id, "running")
             if await cancel_if_requested_async(store=store, task_id=task_id, session=session):
+                await _mark_candidate_task_failed(
+                    session,
+                    relation_type=relation_type,
+                    relation_entity_id=relation_entity_id,
+                    error="cancelled before execute",
+                )
+                await session.commit()
                 log_task_event("image_generation", task_id, "cancelled", stage="before_execute")
                 return
 
@@ -432,6 +481,13 @@ async def run_image_generation_task(
                     detailed_error = str(status_dict.get("error") or "")
                 raise RuntimeError(detailed_error or "Image generation task returned no result")
             if await cancel_if_requested_async(store=store, task_id=task_id, session=session):
+                await _mark_candidate_task_failed(
+                    session,
+                    relation_type=relation_type,
+                    relation_entity_id=relation_entity_id,
+                    error="cancelled after execute",
+                )
+                await session.commit()
                 log_task_event("image_generation", task_id, "cancelled", stage="after_execute")
                 return
 
@@ -448,6 +504,13 @@ async def run_image_generation_task(
                 result=result,
             )
             if await cancel_if_requested_async(store=store, task_id=task_id, session=session):
+                await _mark_candidate_task_failed(
+                    session,
+                    relation_type=relation_type,
+                    relation_entity_id=relation_entity_id,
+                    error="cancelled after persist",
+                )
+                await session.commit()
                 log_task_event("image_generation", task_id, "cancelled", stage="after_persist")
                 return
             await store.set_progress(task_id, 100)
@@ -467,6 +530,12 @@ async def run_image_generation_task(
                 store = SqlAlchemyTaskStore(s2)
                 await store.set_error(task_id, str(exc))
                 await store.set_status(task_id, TaskStatus.failed)
+                await _mark_candidate_task_failed(
+                    s2,
+                    relation_type=relation_type,
+                    relation_entity_id=relation_entity_id,
+                    error=str(exc),
+                )
                 related_shot_id = await _resolve_related_shot_id(
                     s2,
                     relation_type=relation_type,

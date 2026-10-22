@@ -5801,6 +5801,24 @@
             "description": "画面表现形式（单值：真人/动漫）"
           },
           {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "可选：仅返回该项目关联的资产",
+              "title": "Project Id"
+            },
+            "description": "可选：仅返回该项目关联的资产"
+          },
+          {
             "name": "order",
             "in": "query",
             "required": false,
@@ -9526,6 +9544,1311 @@
         }
       }
     },
+    "/api/v1/studio/projects/{project_id}/assets/{asset_type}/{asset_id}/profile": {
+      "get": {
+        "tags": [
+          "studio/asset-profiles"
+        ],
+        "summary": "资产档案（角色圣经/资产版本/候选图/音色）",
+        "operationId": "get_asset_profile_api_api_v1_studio_projects__project_id__assets__asset_type___asset_id__profile_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Type"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_AssetProfileRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "studio/asset-profiles"
+        ],
+        "summary": "更新资产文字档案",
+        "operationId": "update_asset_profile_api_api_v1_studio_projects__project_id__assets__asset_type___asset_id__profile_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Type"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetProfileUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_AssetProfileRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/projects/{project_id}/assets/character/{asset_id}/aliases": {
+      "post": {
+        "tags": [
+          "studio/asset-profiles"
+        ],
+        "summary": "新增角色别名",
+        "operationId": "add_character_alias_api_api_v1_studio_projects__project_id__assets_character__asset_id__aliases_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CharacterAliasCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_CharacterAliasRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/projects/{project_id}/assets/character/{asset_id}/aliases/{alias_id}": {
+      "patch": {
+        "tags": [
+          "studio/asset-profiles"
+        ],
+        "summary": "修改角色别名",
+        "operationId": "update_character_alias_api_api_v1_studio_projects__project_id__assets_character__asset_id__aliases__alias_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          },
+          {
+            "name": "alias_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Alias Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CharacterAliasUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_CharacterAliasRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "studio/asset-profiles"
+        ],
+        "summary": "删除角色别名",
+        "operationId": "delete_character_alias_api_api_v1_studio_projects__project_id__assets_character__asset_id__aliases__alias_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          },
+          {
+            "name": "alias_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Alias Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_NoneType_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/projects/{project_id}/assets/{asset_type}/{asset_id}/versions": {
+      "get": {
+        "tags": [
+          "studio/asset-profiles"
+        ],
+        "summary": "资产版本历史",
+        "operationId": "list_asset_versions_api_api_v1_studio_projects__project_id__assets__asset_type___asset_id__versions_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Type"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_list_AssetVersionRead__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "studio/asset-profiles"
+        ],
+        "summary": "创建资产衍生版本",
+        "operationId": "create_asset_version_api_api_v1_studio_projects__project_id__assets__asset_type___asset_id__versions_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Type"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDerivedVersionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_AssetProfileRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/projects/{project_id}/assets/character/{asset_id}/identity-versions": {
+      "post": {
+        "tags": [
+          "studio/asset-profiles"
+        ],
+        "summary": "创建新的角色身份草稿版本",
+        "operationId": "create_character_identity_version_api_api_v1_studio_projects__project_id__assets_character__asset_id__identity_versions_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDerivedVersionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_AssetProfileRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/projects/{project_id}/assets/{asset_type}/{asset_id}/versions/{version_id}/switch": {
+      "post": {
+        "tags": [
+          "studio/asset-profiles"
+        ],
+        "summary": "切换当前资产/身份版本",
+        "operationId": "switch_asset_version_api_api_v1_studio_projects__project_id__assets__asset_type___asset_id__versions__version_id__switch_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Type"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          },
+          {
+            "name": "version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SwitchVersionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_AssetProfileRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/projects/{project_id}/assets/{asset_type}/{asset_id}/versions/{version_id}": {
+      "delete": {
+        "tags": [
+          "studio/asset-profiles"
+        ],
+        "summary": "删除未引用的草稿版本",
+        "operationId": "delete_asset_version_api_api_v1_studio_projects__project_id__assets__asset_type___asset_id__versions__version_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Type"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          },
+          {
+            "name": "version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_NoneType_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/projects/{project_id}/assets/{asset_type}/{asset_id}/candidates": {
+      "get": {
+        "tags": [
+          "studio/asset-profiles"
+        ],
+        "summary": "资产图片候选列表",
+        "operationId": "list_asset_candidates_api_api_v1_studio_projects__project_id__assets__asset_type___asset_id__candidates_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Type"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          },
+          {
+            "name": "view_angle",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "View Angle"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_list_AssetImageCandidateRead__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/projects/{project_id}/assets/{asset_type}/{asset_id}/candidates/generate": {
+      "post": {
+        "tags": [
+          "studio/asset-profiles"
+        ],
+        "summary": "生成资产候选图（默认两张）",
+        "operationId": "generate_asset_candidates_api_api_v1_studio_projects__project_id__assets__asset_type___asset_id__candidates_generate_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Type"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateCandidatesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_list_AssetImageCandidateRead__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/projects/{project_id}/assets/{asset_type}/{asset_id}/candidates/upload": {
+      "post": {
+        "tags": [
+          "studio/asset-profiles"
+        ],
+        "summary": "上传资产图片候选",
+        "operationId": "upload_asset_candidate_api_api_v1_studio_projects__project_id__assets__asset_type___asset_id__candidates_upload_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Type"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          },
+          {
+            "name": "view_angle",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "front",
+              "title": "View Angle"
+            }
+          },
+          {
+            "name": "version_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Version Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_asset_candidate_api_api_v1_studio_projects__project_id__assets__asset_type___asset_id__candidates_upload_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_AssetProfileRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/projects/{project_id}/assets/{asset_type}/{asset_id}/candidates/{candidate_id}/adopt": {
+      "post": {
+        "tags": [
+          "studio/asset-profiles"
+        ],
+        "summary": "采纳资产图片候选",
+        "operationId": "adopt_asset_candidate_api_api_v1_studio_projects__project_id__assets__asset_type___asset_id__candidates__candidate_id__adopt_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Type"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          },
+          {
+            "name": "candidate_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Candidate Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CandidateAdoptRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_AssetProfileRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/projects/{project_id}/assets/{asset_type}/{asset_id}/candidates/{candidate_id}": {
+      "delete": {
+        "tags": [
+          "studio/asset-profiles"
+        ],
+        "summary": "删除未采纳候选图",
+        "operationId": "delete_asset_candidate_api_api_v1_studio_projects__project_id__assets__asset_type___asset_id__candidates__candidate_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Type"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          },
+          {
+            "name": "candidate_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Candidate Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_AssetProfileRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/projects/{project_id}/assets/character/{asset_id}/lock": {
+      "post": {
+        "tags": [
+          "studio/asset-profiles"
+        ],
+        "summary": "锁定角色视觉身份",
+        "operationId": "lock_character_identity_api_api_v1_studio_projects__project_id__assets_character__asset_id__lock_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CharacterLockRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_AssetProfileRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/projects/{project_id}/assets/character/{asset_id}/voice": {
+      "get": {
+        "tags": [
+          "studio/asset-profiles"
+        ],
+        "summary": "角色音色绑定与最终生效来源",
+        "operationId": "get_character_voice_api_api_v1_studio_projects__project_id__assets_character__asset_id__voice_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_VoiceBindingRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "studio/asset-profiles"
+        ],
+        "summary": "绑定/修改/解除角色音色",
+        "operationId": "update_character_voice_api_api_v1_studio_projects__project_id__assets_character__asset_id__voice_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoiceBindingUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_VoiceBindingRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/studio/files/{file_id}/download": {
       "get": {
         "tags": [
@@ -10686,6 +12009,48 @@
         "title": "ActionBeatPhaseRead",
         "description": "动作拍点的轻量阶段推断结果。"
       },
+      "ApiResponse_AssetProfileRead_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssetProfileRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[AssetProfileRead]"
+      },
       "ApiResponse_AsyncTaskCreateRead_": {
         "properties": {
           "code": {
@@ -10811,6 +12176,48 @@
         },
         "type": "object",
         "title": "ApiResponse[ChapterRead]"
+      },
+      "ApiResponse_CharacterAliasRead_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CharacterAliasRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[CharacterAliasRead]"
       },
       "ApiResponse_CharacterPortraitAnalysisResult_": {
         "properties": {
@@ -14292,6 +15699,48 @@
         "type": "object",
         "title": "ApiResponse[VideoPromptPreviewResponse]"
       },
+      "ApiResponse_VoiceBindingRead_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VoiceBindingRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[VoiceBindingRead]"
+      },
       "ApiResponse_dict_": {
         "properties": {
           "code": {
@@ -14379,6 +15828,98 @@
         },
         "type": "object",
         "title": "ApiResponse[dict[str, Any]]"
+      },
+      "ApiResponse_list_AssetImageCandidateRead__": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AssetImageCandidateRead"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[list[AssetImageCandidateRead]]"
+      },
+      "ApiResponse_list_AssetVersionRead__": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AssetVersionRead"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[list[AssetVersionRead]]"
       },
       "ApiResponse_list_ProjectStyleOptionRead__": {
         "properties": {
@@ -14887,6 +16428,511 @@
         "type": "object",
         "title": "ApiResponse[list[dict[str, Any]]]"
       },
+      "AssetImageCandidateRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "asset_type": {
+            "type": "string",
+            "title": "Asset Type"
+          },
+          "asset_id": {
+            "type": "string",
+            "title": "Asset Id"
+          },
+          "asset_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Version Id"
+          },
+          "candidate_batch_id": {
+            "type": "string",
+            "title": "Candidate Batch Id"
+          },
+          "view_angle": {
+            "type": "string",
+            "title": "View Angle"
+          },
+          "quality_level": {
+            "type": "string",
+            "title": "Quality Level"
+          },
+          "file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Id"
+          },
+          "file_url": {
+            "type": "string",
+            "title": "File Url",
+            "default": ""
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "default": "generated"
+          },
+          "generation_task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generation Task Id"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt",
+            "default": ""
+          },
+          "generation_params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Generation Params"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "pending"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "format": {
+            "type": "string",
+            "title": "Format",
+            "default": "png"
+          },
+          "is_adopted": {
+            "type": "boolean",
+            "title": "Is Adopted",
+            "default": false
+          },
+          "adopted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adopted At"
+          },
+          "adopted_by": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adopted By"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "asset_type",
+          "asset_id",
+          "candidate_batch_id",
+          "view_angle",
+          "quality_level"
+        ],
+        "title": "AssetImageCandidateRead"
+      },
+      "AssetProfileRead": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "asset_type": {
+            "type": "string",
+            "title": "Asset Type"
+          },
+          "asset_id": {
+            "type": "string",
+            "title": "Asset Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "style": {
+            "type": "string",
+            "title": "Style",
+            "default": ""
+          },
+          "visual_style": {
+            "type": "string",
+            "title": "Visual Style",
+            "default": ""
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "thumbnail": {
+            "type": "string",
+            "title": "Thumbnail",
+            "default": ""
+          },
+          "current_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Version Id"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/AssetVersionRead"
+            },
+            "type": "array",
+            "title": "Versions"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/AssetImageCandidateRead"
+            },
+            "type": "array",
+            "title": "Candidates"
+          },
+          "age_range": {
+            "type": "string",
+            "title": "Age Range",
+            "default": ""
+          },
+          "appearance": {
+            "type": "string",
+            "title": "Appearance",
+            "default": ""
+          },
+          "face_features": {
+            "type": "string",
+            "title": "Face Features",
+            "default": ""
+          },
+          "body_type": {
+            "type": "string",
+            "title": "Body Type",
+            "default": ""
+          },
+          "identity_features": {
+            "type": "string",
+            "title": "Identity Features",
+            "default": ""
+          },
+          "aliases": {
+            "items": {
+              "$ref": "#/components/schemas/CharacterAliasRead"
+            },
+            "type": "array",
+            "title": "Aliases"
+          },
+          "identity_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identity Version Id"
+          },
+          "current_appearance_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Appearance Version Id"
+          },
+          "identity_locked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identity Locked At"
+          },
+          "identity_lock_version": {
+            "type": "integer",
+            "title": "Identity Lock Version",
+            "default": 0
+          },
+          "identity_locked": {
+            "type": "boolean",
+            "title": "Identity Locked",
+            "default": false
+          },
+          "voice_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Id"
+          },
+          "voice_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Source"
+          },
+          "voice_description": {
+            "type": "string",
+            "title": "Voice Description",
+            "default": ""
+          },
+          "effective_voice_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Voice Id"
+          },
+          "effective_voice_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Voice Source"
+          },
+          "voice_bound_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Bound At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "asset_type",
+          "asset_id",
+          "name"
+        ],
+        "title": "AssetProfileRead"
+      },
+      "AssetProfileUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "age_range": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age Range"
+          },
+          "appearance": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Appearance"
+          },
+          "face_features": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Face Features"
+          },
+          "body_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body Type"
+          },
+          "identity_features": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identity Features"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          },
+          "costume_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Costume Id"
+          },
+          "actor_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Id"
+          }
+        },
+        "type": "object",
+        "title": "AssetProfileUpdate",
+        "description": "更新角色圣经/资产文字字段；锁定后的身份核心字段由服务端拒绝。"
+      },
       "AssetPromptSnapshotUpdateRequest": {
         "properties": {
           "prompt": {
@@ -14902,6 +16948,102 @@
         ],
         "title": "AssetPromptSnapshotUpdateRequest",
         "description": "更新资产提示词审核稿。"
+      },
+      "AssetVersionRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "asset_type": {
+            "type": "string",
+            "title": "Asset Type"
+          },
+          "asset_id": {
+            "type": "string",
+            "title": "Asset Id"
+          },
+          "version_no": {
+            "type": "integer",
+            "title": "Version No"
+          },
+          "parent_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Version Id"
+          },
+          "version_kind": {
+            "type": "string",
+            "title": "Version Kind"
+          },
+          "variant_type": {
+            "type": "string",
+            "title": "Variant Type"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "default": ""
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "attributes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Attributes"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "default": "manual"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "draft"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "adopted_image_count": {
+            "type": "integer",
+            "title": "Adopted Image Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "asset_type",
+          "asset_id",
+          "version_no",
+          "version_kind",
+          "variant_type"
+        ],
+        "title": "AssetVersionRead"
       },
       "AsyncTaskCreateRead": {
         "properties": {
@@ -15173,6 +17315,20 @@
         "title": "BatchRenderAssetPromptsRequest",
         "description": "批量渲染资产图提示词请求体（不创建图片任务）。"
       },
+      "Body_upload_asset_candidate_api_api_v1_studio_projects__project_id__assets__asset_type___asset_id__candidates_upload_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_asset_candidate_api_api_v1_studio_projects__project_id__assets__asset_type___asset_id__candidates_upload_post"
+      },
       "Body_upload_episode_document_api_api_v1_studio_projects__project_id__chapters__chapter_id__script_document_post": {
         "properties": {
           "file": {
@@ -15341,6 +17497,30 @@
         ],
         "title": "CameraShotType",
         "description": "景别（与 `app.schemas.skills.common.ShotType` 对齐，存英文 code）。"
+      },
+      "CandidateAdoptRequest": {
+        "properties": {
+          "version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Id",
+            "description": "可选：指定要采纳到的版本"
+          },
+          "make_primary": {
+            "type": "boolean",
+            "title": "Make Primary",
+            "description": "是否同步为资产图片槽位主图",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "CandidateAdoptRequest"
       },
       "ChapterCreate": {
         "properties": {
@@ -15571,6 +17751,81 @@
         },
         "type": "object",
         "title": "ChapterUpdate"
+      },
+      "CharacterAliasCreate": {
+        "properties": {
+          "alias": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Alias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "alias"
+        ],
+        "title": "CharacterAliasCreate"
+      },
+      "CharacterAliasRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "alias": {
+            "type": "string",
+            "title": "Alias"
+          },
+          "normalized_alias": {
+            "type": "string",
+            "title": "Normalized Alias"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "default": "manual"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "alias",
+          "normalized_alias"
+        ],
+        "title": "CharacterAliasRead"
+      },
+      "CharacterAliasUpdate": {
+        "properties": {
+          "alias": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Alias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "alias"
+        ],
+        "title": "CharacterAliasUpdate"
+      },
+      "CharacterLockRequest": {
+        "properties": {
+          "expected_lock_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Lock Version"
+          }
+        },
+        "type": "object",
+        "title": "CharacterLockRequest"
       },
       "CharacterPortraitAnalysisRequest": {
         "properties": {
@@ -15859,6 +18114,73 @@
         ],
         "title": "CostumeTimelineEntry",
         "description": "单角色的服装演变时间线条目。"
+      },
+      "CreateDerivedVersionRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "variant_type": {
+            "type": "string",
+            "enum": [
+              "base",
+              "costume",
+              "hairstyle",
+              "makeup",
+              "age",
+              "weather",
+              "lighting",
+              "other"
+            ],
+            "title": "Variant Type",
+            "default": "other"
+          },
+          "parent_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Version Id"
+          },
+          "costume_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Costume Id"
+          },
+          "attributes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Attributes"
+          },
+          "activate": {
+            "type": "boolean",
+            "title": "Activate",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "CreateDerivedVersionRequest"
       },
       "DialogueLineMode": {
         "type": "string",
@@ -16965,6 +19287,44 @@
         ],
         "title": "FrameGuidanceDecisionRead",
         "description": "分镜帧 guidance 的保留/压缩决策结果。"
+      },
+      "GenerateCandidatesRequest": {
+        "properties": {
+          "view_angle": {
+            "type": "string",
+            "enum": [
+              "front",
+              "left",
+              "right",
+              "back",
+              "three_quarter"
+            ],
+            "title": "View Angle",
+            "default": "front"
+          },
+          "candidate_count": {
+            "type": "integer",
+            "maximum": 2.0,
+            "minimum": 1.0,
+            "title": "Candidate Count",
+            "default": 2
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt",
+            "description": "可选：覆盖资产图提示词"
+          }
+        },
+        "type": "object",
+        "title": "GenerateCandidatesRequest",
+        "description": "默认一次生成两张；不提供无界重试。"
       },
       "GenerationBusinessPolicyRead": {
         "properties": {
@@ -26165,6 +28525,31 @@
         "title": "StyleStructuredProfile",
         "description": "风格的结构化描述；AI 分析输出与人工修订共用同一形状。"
       },
+      "SwitchVersionRequest": {
+        "properties": {
+          "version_id": {
+            "type": "string",
+            "title": "Version Id"
+          },
+          "expected_lock_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Lock Version",
+            "description": "角色身份并发检查；不匹配返回 409"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version_id"
+        ],
+        "title": "SwitchVersionRequest"
+      },
       "TaskCancelRead": {
         "properties": {
           "task_id": {
@@ -27523,6 +29908,158 @@
           "prompt"
         ],
         "title": "VideoPromptPreviewResponse"
+      },
+      "VoiceBindingRead": {
+        "properties": {
+          "character_id": {
+            "type": "string",
+            "title": "Character Id"
+          },
+          "voice_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Id"
+          },
+          "voice_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Source"
+          },
+          "voice_description": {
+            "type": "string",
+            "title": "Voice Description",
+            "default": ""
+          },
+          "bound_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bound At"
+          },
+          "actor_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Id"
+          },
+          "actor_voice_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Voice Id"
+          },
+          "actor_voice_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Voice Source"
+          },
+          "effective_voice_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Voice Id"
+          },
+          "effective_voice_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Voice Source"
+          },
+          "effective_from": {
+            "type": "string",
+            "title": "Effective From",
+            "default": "unbound"
+          }
+        },
+        "type": "object",
+        "required": [
+          "character_id"
+        ],
+        "title": "VoiceBindingRead"
+      },
+      "VoiceBindingUpdate": {
+        "properties": {
+          "voice_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Id"
+          },
+          "voice_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Source",
+            "description": "preset / custom"
+          },
+          "voice_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Description"
+          }
+        },
+        "type": "object",
+        "title": "VoiceBindingUpdate"
       },
       "VoiceItem": {
         "properties": {

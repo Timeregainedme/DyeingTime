@@ -5,12 +5,13 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.studio import (
     Chapter,
     Character,
+    CharacterAlias,
     Costume,
     ProjectCostumeLink,
     ProjectPropLink,
@@ -49,9 +50,15 @@ async def check_names_existence(
             raise HTTPException(status_code=404, detail=relation_mismatch("shot_id", "project_id"))
 
     async def _find_character_id(q: str) -> str | None:
+        """同时匹配正式名称与持久化别名；别名冲突不在这里自动合并。"""
+        pattern = f"%{q}%"
         stmt = (
             select(Character.id)
-            .where(Character.project_id == project_id, Character.name.ilike(f"%{q}%"))
+            .outerjoin(CharacterAlias, CharacterAlias.character_id == Character.id)
+            .where(
+                Character.project_id == project_id,
+                or_(Character.name.ilike(pattern), CharacterAlias.alias.ilike(pattern)),
+            )
             .limit(1)
         )
         row = (await db.execute(stmt)).scalar_one_or_none()

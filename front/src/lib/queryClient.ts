@@ -54,6 +54,10 @@ export const queryKeys = {
     ['workbench', projectId, 'assets', assetType] as const,
   workbenchAsset: (projectId: string, assetType: string, assetId: string) =>
     ['workbench', projectId, 'asset', assetType, assetId] as const,
+  workbenchAssetProfile: (projectId: string, assetType: string, assetId: string) =>
+    ['workbench', projectId, 'asset-profile', assetType, assetId] as const,
+  workbenchVoices: (modelId: string) =>
+    ['workbench', 'audio-voices', modelId] as const,
   workbenchShot: (projectId: string, shotId: string) =>
     ['workbench', projectId, 'shot', shotId] as const,
   workbenchShotDetail: (projectId: string, shotId: string) =>

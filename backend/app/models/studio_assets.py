@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from sqlalchemy import JSON, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from datetime import datetime
+
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
@@ -36,6 +38,13 @@ class Scene(Base, TimestampMixin):
         nullable=False,
         default=ProjectVisualStyle.live_action,
         comment="画面表现形式（现实/动漫等）",
+    )
+    current_version_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("asset_versions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="当前基础/衍生版本 ID",
     )
 
     prompt_template: Mapped["PromptTemplate | None"] = relationship()
@@ -80,6 +89,13 @@ class Prop(Base, TimestampMixin):
         nullable=False,
         default=ProjectVisualStyle.live_action,
         comment="画面表现形式（现实/动漫等）",
+    )
+    current_version_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("asset_versions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="当前基础/衍生版本 ID",
     )
 
     prompt_template: Mapped["PromptTemplate | None"] = relationship()
@@ -129,6 +145,13 @@ class Costume(Base, TimestampMixin):
         nullable=False,
         default=ProjectVisualStyle.live_action,
         comment="画面表现形式（现实/动漫等）",
+    )
+    current_version_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("asset_versions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="当前基础/衍生版本 ID",
     )
 
     prompt_template: Mapped["PromptTemplate | None"] = relationship()
@@ -285,7 +308,64 @@ class Character(Base, TimestampMixin):
         default="",
         comment="角色音色描述（剧本提取产出：年龄段/声线/气质/语速等；用于配音选型参考）",
     )
+    # --- P4 角色圣经字段 ---
+    age_range: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="", comment="年龄感/年龄段"
+    )
+    appearance: Mapped[str] = mapped_column(
+        Text, nullable=False, default="", comment="基础外貌描述（P3 预填，可人工修订）"
+    )
+    face_features: Mapped[str] = mapped_column(
+        Text, nullable=False, default="", comment="脸型与五官等身份辨识特征"
+    )
+    body_type: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="", comment="基础体型"
+    )
+    identity_features: Mapped[str] = mapped_column(
+        Text, nullable=False, default="", comment="不可随造型改变的身份特征"
+    )
+    identity_version_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("asset_versions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="当前视觉身份版本 ID",
+    )
+    current_appearance_version_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("asset_versions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="当前造型版本 ID（可为空）",
+    )
+    identity_locked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, comment="视觉身份锁定时间"
+    )
+    identity_locked_by: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="视觉身份锁定人",
+    )
+    identity_lock_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0", comment="身份乐观锁版本"
+    )
+    voice_bound_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, comment="最近绑定音色时间"
+    )
+    voice_bound_by: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="最近绑定音色操作人",
+    )
 
+    aliases: Mapped[list["CharacterAlias"]] = relationship(
+        back_populates="character",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="CharacterAlias.id",
+    )
     project: Mapped["Project"] = relationship(back_populates="characters")
     actor: Mapped["Actor"] = relationship(back_populates="characters")
     costume: Mapped["Costume | None"] = relationship(back_populates="characters")

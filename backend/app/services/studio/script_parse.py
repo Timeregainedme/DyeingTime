@@ -50,6 +50,7 @@ from app.schemas.studio.script_parse import (
     ScriptParseRunRead,
 )
 from app.services.llm.resolver import get_default_model_by_category
+from app.services.studio.character_aliases import import_aliases
 from app.services.studio.script_documents import DOC_TYPE_EPISODE, DOC_TYPE_WORLD
 from app.services.studio.script_parse_runner import PROMPT_VERSION
 
@@ -596,6 +597,9 @@ async def _find_or_create_character(
         style=project.style,
         visual_style=project.visual_style,
         voice_description=(payload.voice_description or "")[:2000],
+        age_range=payload.age_range or "",
+        appearance=payload.appearance or "",
+        body_type=payload.body_type or "",
     )
     db.add(character)
     await db.flush()
@@ -724,6 +728,13 @@ async def confirm_parse_run(
                 matched_id=candidate.matched_entity_id,
             )
             count(action, "characters")
+            # 别名只补充不覆盖；跨角色冲突由人工处理，不自动合并。
+            await import_aliases(
+                db,
+                character=character,
+                aliases=character_payload.aliases,
+                source="p3_parse",
+            )
             if not character.costume_id and character_payload.base_costume:
                 costume, costume_action = await _find_or_create_costume(
                     db,
