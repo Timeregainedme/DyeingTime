@@ -254,6 +254,7 @@ export class StudioShotsService {
         shotId,
         templateId,
         referenceMode = 'text_only',
+        referenceAudioFileIds,
     }: {
         shotId: string,
         /**
@@ -261,9 +262,13 @@ export class StudioShotsService {
          */
         templateId?: (string | null),
         /**
-         * 参考模式：first/last/key/first_last/first_last_key/text_only。默认 text_only 只渲染提示词本身；传真实模式时会连同该模式要求的参考帧一起渲染
+         * 参考模式：reference/first/last/key/first_last/first_last_key/text_only。默认 text_only 只渲染提示词本身；传真实模式时会连同该模式要求的参考帧一起渲染
          */
         referenceMode?: string,
+        /**
+         * 参考音频 file_id（仅 reference 模式生效；不传则按项目开关自动带上台词配音）
+         */
+        referenceAudioFileIds?: Array<string>,
     }): CancelablePromise<ApiResponse_ShotVideoPromptPreviewRead_> {
         return __request(OpenAPI, {
             method: 'GET',
@@ -274,6 +279,7 @@ export class StudioShotsService {
             query: {
                 'template_id': templateId,
                 'reference_mode': referenceMode,
+                'reference_audio_file_ids': referenceAudioFileIds,
             },
             errors: {
                 422: `Validation Error`,

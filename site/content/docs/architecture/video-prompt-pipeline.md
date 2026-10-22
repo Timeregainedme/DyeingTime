@@ -31,10 +31,12 @@ IR 是唯一事实来源：参考图列表、主体定义、对白行、镜头�
 | 模型 | 作用 |
 | --- | --- |
 | `IRReference` | 一张参考图：`token`（`图1`…）、`kind`、`name`、`file_id` |
+| `IRAudioReference` | 一条音色参考音频：`Audio N`、说话人、`file_id` |
+| `IRPicture` | 首帧/尾帧/关键帧槽位，用于 I2VA/FL2VA/L2VA 对齐句 |
 | `IRSubjectDefinition` | 主体定义（角色/场景/道具/服装的外观描述） |
 | `IRShot` | 镜头语言：景别、机位、运镜、时长 |
-| `IRDialogueLine` | 一句对白：说话主体、受话主体、文本、情绪 |
-| `IRPrompt` | 汇总以上内容，是渲染器的唯一输入 |
+| `IRDialogueLine` | 一句对白：说话主体、文本、情绪、`line_mode`、音频标签 |
+| `IRPrompt` | 汇总以上内容，是渲染器的唯一输入；含 `reference_mode` |
 
 入口是：
 
@@ -98,9 +100,52 @@ def render_video_prompt(...)
 H3 渲染器在 `renderers/h3.py`，关键约束：
 
 - `H3_MAX_PROMPT_CHARS = 7000`
-- `H3_RECOMMENDED_WORD_RANGE = (350, 500)`
+- `H3_RECOMMENDED_WORD_RANGE = (350, 500)`；实际校验按 `word_range_for_duration()` 自适应：
+  - 4–6 秒：200–300 词；
+  - 7–10 秒：300–400 词；
+  - 11 秒以上：350–500 词。
 - 输出结构由 `h3_label_for(kind, subject_index, picture_index)` 生成标签，保证“主体编号 / 图片编号”与 IR 一致。
 - 部分段落（主体定义、摘要、留存分析）在模型未产出时有 fallback 实现，避免整段缺失。
+
+### 输入模式与渲染分支
+
+`IRPrompt.reference_mode` 决定 H3 走哪套结构：
+
+| 模式 | 渲染结构 | 关键要求 |
+| --- | --- | --- |
+| `reference` | 六段 Ref2VA | `<Subject N> is ...`、`<Audio N>`、`retention_analysis` |
+| `first` / `key` | I2VA 三段 | 首行 `<Picture 1>` 对齐 `0.00` 秒 |
+| `last` | L2VA 三段 | 首行 `<Picture 1>` 对齐总时长 |
+| `first_last` | FL2VA 三段 | `Picture 1` 对齐 `0.00`，`Picture 2` 对齐总时长 |
+| `first_last_key` | FL2VA 三段 | 关键帧不会上传，预览会给 warning |
+| `text_only` | T2VA 三段 | 无图片对齐句 |
+
+首帧/尾帧/纯文本模式不再把角色卡、场景卡当作 `<Picture N>` 编号；这些模式只保留 `IRPicture` 槽位和文字描述，避免提示词编号与实际上传图片错位。
+
+### 音频参考
+
+参考音频只在 `reference` 模式生效。解析顺序：
+
+```text
+build_run_args / preview_prompt_and_images
+→ resolve_video_reference_audio_file_ids()
+→ 按说话人去重，每个说话人取第一条已生成配音，最多 3 条
+→ build_video_context(reference_audio_file_ids=...)
+→ IR.build_video_prompt_ir(audio_file_ids=...)
+→ H3 渲染 <Audio N>
+```
+
+写法：
+
+```text
+<Audio 1> is the voice-timbre reference for <Subject 1> (S1).
+<Audio 1>: reference - its vocal timbre guides the dialogue delivery of <Subject 1> without copying the original signal.
+<Subject 1> (S1) says in the voice timbre referenced from <Audio 1>, <d>[Chinese] ...</d>
+```
+
+音频是**音色参考**，不是原声复用；`retention_analysis` 固定用 `reference`。没有参考音频时，提示词不写 `<Audio N>`，但台词仍保留 `<d>[Chinese] ...</d>` 和 `(Sx)`。
+
+预览接口与真实生成共用同一个音频解析函数，响应里的 `audio_file_ids` 顺序就是 `<Audio N>` 的顺序。
 
 需要 LLM 生成正文时走：
 

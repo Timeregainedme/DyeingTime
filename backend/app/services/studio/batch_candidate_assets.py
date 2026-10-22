@@ -220,6 +220,7 @@ async def create_assets_from_extraction_candidates(
     *,
     chapter_id: str,
     types: list[str] | None = None,
+    link_only: bool = False,
 ) -> dict[str, Any]:
     """按章节一键创建/关联提取候选资产。
 
@@ -305,6 +306,16 @@ async def create_assets_from_extraction_candidates(
                 existing_id = await _find_existing_entity(
                     db, entity_type=entity_type, project_id=project_id, name=name
                 )
+                if existing_id is None and link_only:
+                    skipped.append(
+                        {
+                            "candidate_id": cand.id,
+                            "type": candidate_type,
+                            "name": name,
+                            "reason": "asset_not_found",
+                        }
+                    )
+                    continue
                 if existing_id is None:
                     entity_id = await _create_entity_from_candidate(
                         db,

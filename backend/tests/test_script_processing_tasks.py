@@ -708,7 +708,7 @@ async def test_run_extract_task_marks_cancelled_at_stage_boundary(monkeypatch, t
     monkeypatch.setattr("app.services.script_processing_worker.sync_session_maker", SyncSessionLocal)
     monkeypatch.setattr("app.services.script_processing_worker.ElementExtractorAgent", _FakeExtractorAgent)
 
-    def _fake_llm(_db, *, thinking: bool):  # noqa: ARG001
+    def _fake_llm(_db, *, thinking: bool, **kwargs):  # noqa: ARG001
         return object()
 
     def _cancel_during_sync(db, chapter_id: str, draft) -> None:  # noqa: ANN001

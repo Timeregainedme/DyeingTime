@@ -284,7 +284,8 @@ async def update_model_settings(
 ) -> ModelSettings:
     """更新模型全局设置。"""
     settings = await get_or_create_settings(db)
-    patch_model(settings, body.model_dump())
+    # exclude_unset：新增字段（如 fallback_text_model_id）不会因为旧前端没传而被清空。
+    patch_model(settings, body.model_dump(exclude_unset=True))
     return await flush_and_refresh(db, settings)
 
 

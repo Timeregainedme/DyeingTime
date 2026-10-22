@@ -18,7 +18,7 @@ _SCRIPT_OPTIMIZER_SYSTEM_PROMPT = """\
 
 输出 ScriptOptimizationResult：
 - optimized_script_text：优化后的完整剧本文本（尽量少改，只改与 issues 相关的段落）
-- change_summary：逐条对应 issues 的改动摘要
+- change_summary：改动摘要，必须是字符串（不是数组/对象）；多条改动请拼接成一段文本
 
 只输出 JSON。
 """
@@ -53,5 +53,27 @@ class ScriptOptimizerAgent(AgentBase[ScriptOptimizationResult]):
             data["optimized_script_text"] = ""
         if "change_summary" not in data:
             data["change_summary"] = ""
+        # 模型偶尔会把改动摘要输出为 issue 对象列表，这里先归一化为文本，避免 Pydantic 校验失败
+        change_summary = data.get("change_summary")
+        if isinstance(change_summary, list):
+            parts: list[str] = []
+            for item in change_summary:
+                if isinstance(item, str):
+                    parts.append(item)
+                elif isinstance(item, dict):
+                    issue_type = item.get("issue_type") or item.get("type")
+                    description = item.get("description") or item.get("summary") or item.get("change")
+                    suggestion = item.get("suggestion") or item.get("fix")
+                    text = "：".join(str(x) for x in (issue_type, description) if x)
+                    if suggestion:
+                        text = f"{text}（建议：{suggestion}）" if text else f"建议：{suggestion}"
+                    parts.append(text or str(item))
+                else:
+                    parts.append(str(item))
+            data["change_summary"] = "\n".join(part for part in parts if part)
+        elif change_summary is not None and not isinstance(change_summary, str):
+            data["change_summary"] = str(change_summary)
+        if not isinstance(data.get("optimized_script_text"), str):
+            data["optimized_script_text"] = str(data.get("optimized_script_text") or "")
         return data
 

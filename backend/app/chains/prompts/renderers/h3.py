@@ -1,17 +1,19 @@
 """MiniMax H3 官方提示词格式渲染器。
 
-依据 H3 官方提示词规范（`h3-prompt-writing` skill，`references/ref-en.txt`）：
+依据 H3 官方提示词规范（`h3-prompt-writing` skill，`references/ref-en.txt` 与
+`references/base-en.txt`）：
 
 - **全参考模式**（有参考素材）用固定六段：
   `subject_definitions` → `summary` → `retention_analysis` → `detailed_description`
   → `overall_soundscape` → `non_diegetic_music`；
-- **基础模式**（无参考素材）用三段：
+- **基础模式**（首帧/尾帧/纯文本）用三段：
   `integrated_multimodal_description` → `overall_soundscape` → `non_diegetic_music`；
+- 首帧/尾帧/首尾帧模式必须在正文前写官方对齐句；
 - 正文为英文；仅 `<d>` 内的台词/歌词与画面可见文字保留原语言；
 - 参考模式要求先在 `[Shot 1]` 之前用 1–2 句英文确立风格；
 - `[Shot 1]` 不带时间戳，后续镜头写 `[Shot N] At MM:SS.mmm, ...`；
 - 说话人用稳定 `(S1)`/`(S2)`；台词写 `<d>[Language] ...</d>`；
-- 段落名逐字保留英文，本项目其它文字可以是中文（骨架降级模式）。
+- 音频参考写 `<Audio N> is the voice-timbre reference for <Subject N> (S1).`。
 
 渲染器是**确定性拼装 + 校验**：正文英文由上游 LLM 提供（`H3Prose`），
 未提供时输出结构化骨架并给出警告，便于预览与排障。
@@ -28,7 +30,7 @@ from app.chains.prompts.ir import IRPrompt, IRShot
 
 # 与优云智算 ModelVerse H3 通道一致的上限（`MAX_PROMPT_CHARS`）。
 H3_MAX_PROMPT_CHARS = 7000
-# 生成类任务的建议英文词数区间。
+# 生成类任务的建议英文词数区间（官方口径；短镜头按自适应区间校验）。
 H3_RECOMMENDED_WORD_RANGE = (350, 500)
 
 REFERENCE_SECTION_ORDER: tuple[str, ...] = (
@@ -71,9 +73,23 @@ AUDIO_RETENTION_MARKERS: tuple[str, ...] = (
     "weak_reference",
 )
 
+# 参考模式与基础模式的输入模式集合。
+REFERENCE_MODE = "reference"
+BASE_MODES = {"first", "last", "key", "first_last", "first_last_key", "text_only"}
+
 _TIMESTAMP_PATTERN = re.compile(r"At (\d{2,}:\d{2}\.\d{3})")
-_LABEL_DEFINITION_PATTERN = re.compile(r"^<(Subject|Picture|Video|Audio) (\d+)>:", re.MULTILINE)
+_LABEL_DEFINITION_PATTERN = re.compile(
+    r"^<(Subject|Picture|Video|Audio) (\d+)>(?:\s+is\b|\s*:)", re.MULTILINE
+)
 _LABEL_USAGE_PATTERN = re.compile(r"<(Subject|Picture|Video|Audio) (\d+)>")
+_AUDIO_RETENTION_PATTERN = re.compile(
+    r"^<Audio (\d+)>[^\n]*?:\s*(fully_copy|partially_copy|reference|weak_reference)\b",
+    re.MULTILINE,
+)
+_SUBJECT_RETENTION_PATTERN = re.compile(
+    r"^<Subject (\d+)>[^\n]*?:\s*(fully_preserved|partially_preserved|attribute_transfer|weak_reference)\b",
+    re.MULTILINE,
+)
 
 
 class H3Prose(BaseModel):
@@ -109,6 +125,25 @@ def format_timestamp(seconds: float) -> str:
     minutes, remainder = divmod(total_ms, 60_000)
     secs, millis = divmod(remainder, 1000)
     return f"{minutes:02d}:{secs:02d}.{millis:03d}"
+
+
+def format_seconds(seconds: float) -> str:
+    """对齐句要求 `S.SS`（两位小数），与 `MM:SS.mmm` 是两套格式。"""
+    return f"{max(0.0, float(seconds or 0.0)):.2f}"
+
+
+def word_range_for_duration(duration_seconds: float | None) -> tuple[int, int]:
+    """按镜头时长给出 H3 英文正文的建议词数区间。
+
+    官方建议生成类任务 350–500 词，但 5 秒短剧单镜头达不到该体量；
+    这里按时长自适应，避免把「写短」误判成不合格。
+    """
+    seconds = max(0.0, float(duration_seconds or 0.0))
+    if seconds <= 6.0:
+        return (200, 300)
+    if seconds <= 10.0:
+        return (300, 400)
+    return H3_RECOMMENDED_WORD_RANGE
 
 
 def _parse_timestamp(value: str) -> float:
@@ -161,6 +196,34 @@ def h3_label_for(kind: str, subject_index: int, picture_index: int) -> str:
     return f"<Subject {subject_index}>"
 
 
+def build_h3_alignment_instruction(ir: IRPrompt, *, reference_mode: str | None = None) -> str:
+    """生成首帧/尾帧/首尾帧的官方对齐句。
+
+    - I2VA / 单关键帧：`<Picture 1>` 对齐 0.00 秒；
+    - L2VA：`<Picture 1>` 对齐总时长；
+    - FL2VA：`<Picture 1>` 对齐 0.00 秒，`Picture 2` 对齐总时长。
+    """
+    mode = str(reference_mode or ir.reference_mode or "").strip().lower()
+    duration = format_seconds(ir.duration_seconds)
+    if mode in {"first", "key"}:
+        return (
+            "For the target video, at 0.00 seconds into the target video, "
+            "<Picture 1> (from [Shot 1]) is fully referenced."
+        )
+    if mode in {"first_last", "first_last_key"}:
+        return (
+            "How the reference pictures align with the target video — "
+            "Picture 1 (from Shot 1) aligns with the 0.00-second mark of the target video; "
+            f"Picture 2 (from Shot 1) aligns with the {duration}-second mark of the target video."
+        )
+    if mode == "last":
+        return (
+            "How the reference pictures align with the target video — "
+            f"<Picture 1> (from [Shot 1]) aligns with the {duration}-second mark of the target video."
+        )
+    return ""
+
+
 # --------------------------------------------------------------------------- #
 # 骨架回落（无 LLM 英文正文时）
 # --------------------------------------------------------------------------- #
@@ -176,7 +239,7 @@ def _style_sentence(ir: IRPrompt) -> str:
         bits.append(f"Total duration is {ir.duration_seconds:g} seconds.")
     bits.append(
         "Subject identity, wardrobe, spatial layout, and lighting direction stay consistent "
-        "with the supplied references throughout the shot."
+        "with the supplied visual context throughout the shot."
     )
     return " ".join(bits)
 
@@ -188,11 +251,34 @@ def _subject_label_for_speaker(ir: IRPrompt, speaker_id: str) -> str:
     return ""
 
 
-def _dialogue_fragment(ir: IRPrompt, line) -> str:
-    label = _subject_label_for_speaker(ir, line.speaker_id)
-    who = f"<{label}> ({line.speaker_id})" if label else f"({line.speaker_id})"
+def _subject_for_speaker(ir: IRPrompt, speaker_id: str):
+    for subject in ir.subjects:
+        if subject.speaker_id and subject.speaker_id == speaker_id:
+            return subject
+    return None
+
+
+def _dialogue_fragment(ir: IRPrompt, line, *, use_labels: bool = True) -> str:
+    """把一条台词写成 H3 正文片段，按 line_mode 区分口型与声音来源。"""
     language = line.language or "Chinese"
-    return f"{who} says, <d>[{language}] {line.text}</d>"
+    label = _subject_label_for_speaker(ir, line.speaker_id) if use_labels else ""
+    if use_labels and label:
+        who = f"<{label}> ({line.speaker_id})"
+    else:
+        who = f"{line.speaker_name or 'The speaker'} ({line.speaker_id})"
+
+    audio = f" in the voice timbre referenced from <{line.audio_label}>" if line.audio_label else ""
+    mode = str(line.line_mode or "DIALOGUE").strip().upper()
+    if mode == "VOICE_OVER":
+        return (
+            f"{who}{audio} says in an off-screen voiceover, "
+            f"<d>[{language}] {line.text}</d> while their lips remain completely closed."
+        )
+    if mode == "OFF_SCREEN":
+        return f"{who}{audio} says off-screen, <d>[{language}] {line.text}</d>."
+    if mode == "PHONE":
+        return f"{who}{audio} says through a phone speaker, <d>[{language}] {line.text}</d>."
+    return f"{who}{audio} says, <d>[{language}] {line.text}</d>"
 
 
 def _token_to_picture_label(token: str) -> str:
@@ -204,17 +290,32 @@ def _token_to_picture_label(token: str) -> str:
     return f"<Picture {match.group(1)}>" if match else str(token or "").strip()
 
 
+def _fallback_audio_definitions(ir: IRPrompt) -> list[str]:
+    """生成 `<Audio N>` 定义行；没有音频参考时返回空列表。"""
+    lines: list[str] = []
+    for audio in ir.audio_references:
+        subject = _subject_for_speaker(ir, audio.speaker_id)
+        if subject is not None:
+            target = f"<{subject.label}> ({audio.speaker_id})"
+        else:
+            target = f"the speaker {audio.speaker_name or ''} ({audio.speaker_id})".replace("  ", " ")
+        lines.append(f"<{audio.label}> is the voice-timbre reference for {target.strip()}.")
+    return lines
+
+
 def _fallback_subject_definitions(ir: IRPrompt) -> str:
     lines: list[str] = []
     for subject in ir.subjects:
-        text = f"<{subject.label}>: {subject.name}".rstrip()
+        source = ""
+        if subject.source_tokens:
+            sources = ", ".join(_token_to_picture_label(token) for token in subject.source_tokens)
+            source = f" in {sources}"
+        text = f"<{subject.label}> is {subject.name}{source}"
         definition = str(subject.definition or "").strip()
         if definition:
             text = f"{text}, {definition}"
-        if subject.source_tokens:
-            sources = ", ".join(_token_to_picture_label(token) for token in subject.source_tokens)
-            text = f"{text} (source: {sources})"
         lines.append(text.rstrip("。.") + ".")
+    lines.extend(_fallback_audio_definitions(ir))
     if not lines:
         return "N/A"
     return "\n".join(lines)
@@ -238,10 +339,17 @@ def _fallback_retention_analysis(ir: IRPrompt) -> str:
             f"<{subject.label}> (appears in {appears}): {marker} - "
             f"the referenced {subject.kind} is reused as the source of this content unit{suffix}."
         )
+    for audio in ir.audio_references:
+        subject = _subject_for_speaker(ir, audio.speaker_id)
+        target = f"<{subject.label}>" if subject is not None else "the target speaker"
+        lines.append(
+            f"<{audio.label}>: reference - its vocal timbre guides the dialogue delivery of "
+            f"{target} without copying the original signal."
+        )
     return "\n".join(lines) if lines else "N/A"
 
 
-def _fallback_shot_block(ir: IRPrompt, shot: IRShot) -> str:
+def _fallback_shot_block(ir: IRPrompt, shot: IRShot, *, use_labels: bool = True) -> str:
     if shot.index > 1 and shot.start_seconds > 0:
         header = f"[Shot {shot.index}] At {format_timestamp(shot.start_seconds)},"
     else:
@@ -252,7 +360,10 @@ def _fallback_shot_block(ir: IRPrompt, shot: IRShot) -> str:
         parts.append(str(shot.visual).strip())
     camera_bits = [bit for bit in (shot.shot_size, shot.camera_angle, shot.camera_movement) if bit]
     if camera_bits:
-        parts.append(f"Shot size {shot.shot_size or 'unspecified'}, angle {shot.camera_angle or 'unspecified'}, camera {shot.camera_movement or 'static'}.")
+        parts.append(
+            f"Shot size {shot.shot_size or 'unspecified'}, angle {shot.camera_angle or 'unspecified'}, "
+            f"camera {shot.camera_movement or 'static'}."
+        )
     if shot.action_beats:
         parts.append("Action beats: " + "; ".join(shot.action_beats) + ".")
     if shot.atmosphere:
@@ -262,7 +373,7 @@ def _fallback_shot_block(ir: IRPrompt, shot: IRShot) -> str:
     if shot.screen_direction:
         parts.append(f"Screen direction: {shot.screen_direction}.")
     for line in shot.dialogues:
-        parts.append(_dialogue_fragment(ir, line))
+        parts.append(_dialogue_fragment(ir, line, use_labels=use_labels))
     if shot.sound:
         parts.append(f"Sound: {shot.sound}.")
     if shot.continuity:
@@ -275,7 +386,7 @@ def _fallback_shot_block(ir: IRPrompt, shot: IRShot) -> str:
 def _fallback_detailed_description(ir: IRPrompt) -> str:
     blocks: list[str] = [_style_sentence(ir)]
     for shot in ir.shots:
-        blocks.append(_fallback_shot_block(ir, shot))
+        blocks.append(_fallback_shot_block(ir, shot, use_labels=True))
     if not ir.shots:
         blocks.append("[Shot 1]")
     return "\n".join(block for block in blocks if str(block).strip())
@@ -293,7 +404,20 @@ def _fallback_music() -> str:
 
 
 def _fallback_multimodal(ir: IRPrompt) -> str:
-    return _fallback_detailed_description(ir)
+    """基础模式主段落：不使用全参考标签，只写可见内容与台词。"""
+    blocks: list[str] = [_style_sentence(ir)]
+    descriptions = [
+        f"{subject.name}: {subject.definition}".strip()
+        for subject in ir.subjects
+        if subject.definition
+    ]
+    if descriptions:
+        blocks.append("Visible subjects and settings: " + "; ".join(descriptions) + ".")
+    for shot in ir.shots:
+        blocks.append(_fallback_shot_block(ir, shot, use_labels=False))
+    if not ir.shots:
+        blocks.append("[Shot 1]")
+    return "\n".join(block for block in blocks if str(block).strip())
 
 
 _FALLBACK_BUILDERS = {
@@ -307,11 +431,32 @@ _FALLBACK_BUILDERS = {
 }
 
 
+def _append_missing_audio_lines(section_name: str, body: str, ir: IRPrompt) -> str:
+    """LLM 漏写音频定义/留存分析时补上骨架行，避免结构不完整。"""
+    if not ir.audio_references:
+        return body
+    text = str(body or "").strip()
+    if section_name == "subject_definitions":
+        missing = [line for line in _fallback_audio_definitions(ir) if line.split(" is ")[0] not in text]
+        return "\n".join([text, *missing]).strip() if missing else text
+    if section_name == "retention_analysis":
+        missing: list[str] = []
+        for audio in ir.audio_references:
+            if f"<{audio.label}>" in text:
+                continue
+            missing.append(
+                f"<{audio.label}>: reference - its vocal timbre guides the target speaker's "
+                "dialogue delivery without copying the original signal."
+            )
+        return "\n".join([text, *missing]).strip() if missing else text
+    return text
+
+
 def _resolve_section(name: str, ir: IRPrompt, prose: H3Prose | None) -> str:
     if prose is not None:
         value = str(getattr(prose, name, "") or "").strip()
         if value:
-            return value
+            return _append_missing_audio_lines(name, value, ir)
     builder = _FALLBACK_BUILDERS.get(name)
     return builder(ir) if builder else ""
 
@@ -355,10 +500,15 @@ def render_h3_base(
     ir: IRPrompt,
     *,
     prose: H3Prose | None = None,
+    reference_mode: str | None = None,
     max_chars: int = H3_MAX_PROMPT_CHARS,
 ) -> H3RenderResult:
-    """按 H3 基础模式渲染三段式提示词（无参考素材时使用）。"""
+    """按 H3 基础模式渲染三段式提示词（首帧/尾帧/纯文本）。"""
     warnings: list[str] = []
+    mode = str(reference_mode or ir.reference_mode or "text_only").strip().lower()
+    if mode == "first_last_key":
+        warnings.append("H3 只接收首帧与尾帧；关键帧不会上传，提示词不应把它写成画面锚点")
+
     if prose is None or not str(getattr(prose, "integrated_multimodal_description", "") or "").strip():
         warnings.append("未提供英文正文（H3Prose），已输出结构化骨架：结构与标签合规，但正文语言与 IR 一致")
 
@@ -368,12 +518,20 @@ def render_h3_base(
         sections.append(f"{name}:\n{body}")
     text = "\n\n".join(sections).strip()
 
-    if len(text) > max_chars:
-        warnings.append(f"提示词长度 {len(text)} 超过 H3 上限 {max_chars} 字符")
-    d_open, d_close = text.count("<d>"), text.count("</d>")
-    if d_open != d_close:
-        warnings.append(f"<d> 台词标签未成对闭合（{d_open} 开 / {d_close} 闭）")
+    alignment = build_h3_alignment_instruction(ir, reference_mode=mode)
+    if alignment:
+        text = f"{alignment}\n\n{text}"
+    elif mode in {"first", "last", "key", "first_last", "first_last_key"}:
+        warnings.append(f"{mode} 模式缺少可用的图片槽位，无法生成官方对齐句")
 
+    warnings.extend(
+        validate_h3_base(
+            text,
+            reference_mode=mode,
+            duration_seconds=ir.duration_seconds,
+            max_chars=max_chars,
+        )
+    )
     return H3RenderResult(
         text=text,
         warnings=_dedupe(warnings),
@@ -386,12 +544,20 @@ def render_h3(
     ir: IRPrompt,
     *,
     prose: H3Prose | None = None,
+    reference_mode: str | None = None,
     max_chars: int = H3_MAX_PROMPT_CHARS,
 ) -> H3RenderResult:
-    """按是否存在参考素材自动选择 H3 参考模式或基础模式。"""
-    if ir.references or ir.subjects:
+    """按输入模式选择 H3 参考六段或基础三段。
+
+    `reference_mode` 显式传入时以它为准；未传时使用 IR 上的模式。
+    兼容旧调用：IR 声明 reference 但没有任何参考图时回落到基础三段。
+    """
+    mode = str(reference_mode or ir.reference_mode or "reference").strip().lower()
+    if reference_mode is None and mode == "reference" and not ir.references:
+        mode = "text_only"
+    if mode == "reference":
         return render_h3_reference(ir, prose=prose, max_chars=max_chars)
-    return render_h3_base(ir, prose=prose, max_chars=max_chars)
+    return render_h3_base(ir, prose=prose, reference_mode=mode, max_chars=max_chars)
 
 
 # --------------------------------------------------------------------------- #
@@ -450,6 +616,32 @@ def validate_h3_reference(
             + "、".join(f"<Subject {number}>" for number in sorted(undefined))
         )
 
+    defined_audio = {
+        number for kind, number in _LABEL_DEFINITION_PATTERN.findall(body) if kind == "Audio"
+    }
+    used_audio = {
+        number for kind, number in _LABEL_USAGE_PATTERN.findall(body) if kind == "Audio"
+    }
+    undefined_audio = used_audio - defined_audio
+    if undefined_audio:
+        warnings.append(
+            "使用了未定义的 <Audio N>："
+            + "、".join(f"<Audio {number}>" for number in sorted(undefined_audio))
+        )
+    if defined_audio and not any(
+        f"<Audio {number}>" in description_body for number in defined_audio
+    ):
+        warnings.append(
+            "detailed_description 未引用已定义的 <Audio N>；音色参考应在对应台词前写明"
+        )
+
+    for number, marker in _SUBJECT_RETENTION_PATTERN.findall(body):
+        if marker not in VISIBLE_RETENTION_MARKERS:
+            warnings.append(f"<Subject {number}> 使用了非法的可见内容标记：{marker}")
+    for number, marker in _AUDIO_RETENTION_PATTERN.findall(body):
+        if marker not in AUDIO_RETENTION_MARKERS:
+            warnings.append(f"<Audio {number}> 使用了非法的音频标记：{marker}")
+
     stamps = [_parse_timestamp(value) for value in _TIMESTAMP_PATTERN.findall(body)]
     if stamps:
         last = max(stamps)
@@ -463,30 +655,84 @@ def validate_h3_reference(
     if len(body) > max_chars:
         warnings.append(f"提示词长度 {len(body)} 超过 H3 上限 {max_chars} 字符")
 
-    # H3 的 350–500 词建议针对常规生成任务；5–8 秒的短剧单镜头达不到该体量，
-    # 仅在明显偏长的镜头上提示，避免制造噪音。
     words = _count_words(body)
-    low, high = H3_RECOMMENDED_WORD_RANGE
-    if 0 < words < low and (duration_seconds or 0) >= 8.0:
-        warnings.append(f"英文正文 {words} 词，低于 H3 生成类任务建议的 {low}–{high} 词区间")
+    low, high = word_range_for_duration(duration_seconds)
+    if 0 < words < low:
+        warnings.append(f"英文正文 {words} 词，低于该时长建议的 {low}–{high} 词区间")
+
+    return _dedupe(warnings)
+
+
+def validate_h3_base(
+    text: str,
+    *,
+    reference_mode: str = "text_only",
+    duration_seconds: float | None = None,
+    max_chars: int = H3_MAX_PROMPT_CHARS,
+) -> list[str]:
+    """校验基础模式提示词的结构与首帧/尾帧对齐句。"""
+    warnings: list[str] = []
+    body = str(text or "")
+    mode = str(reference_mode or "text_only").strip().lower()
+
+    missing = [name for name in BASE_SECTION_ORDER if f"{name}:" not in body]
+    if missing:
+        warnings.append("缺少 H3 必需段落：" + "、".join(missing))
+
+    positions = [body.find(f"{name}:") for name in BASE_SECTION_ORDER]
+    present = [position for position in positions if position >= 0]
+    if present != sorted(present):
+        warnings.append("H3 段落顺序不符合规范（应为 " + " → ".join(BASE_SECTION_ORDER) + "）")
+
+    if mode in {"first", "key", "first_last", "first_last_key"}:
+        if not body.startswith(("For the target video", "How the reference pictures align")):
+            warnings.append(f"{mode} 模式缺少官方首帧/首尾帧对齐句")
+
+    if mode == "last":
+        if not body.startswith("How the reference pictures align"):
+            warnings.append("last 模式缺少官方尾帧对齐句")
+
+    description_body = _section_body(body, "integrated_multimodal_description")
+    if "[Shot 1]" not in description_body:
+        warnings.append("integrated_multimodal_description 缺少 [Shot 1]")
+    if re.search(r"\[Shot 1\]\s*At ", description_body):
+        warnings.append("[Shot 1] 不应带时间戳（首个镜头不写 At MM:SS.mmm）")
+
+    d_open, d_close = body.count("<d>"), body.count("</d>")
+    if d_open != d_close:
+        warnings.append(f"<d> 台词标签未成对闭合（{d_open} 开 / {d_close} 闭）")
+
+    if len(body) > max_chars:
+        warnings.append(f"提示词长度 {len(body)} 超过 H3 上限 {max_chars} 字符")
+
+    words = _count_words(body)
+    low, high = word_range_for_duration(duration_seconds)
+    if 0 < words < low:
+        warnings.append(f"英文正文 {words} 词，低于该时长建议的 {low}–{high} 词区间")
 
     return _dedupe(warnings)
 
 
 __all__ = [
     "AUDIO_RETENTION_MARKERS",
+    "BASE_MODES",
     "BASE_SECTION_ORDER",
     "H3_MAX_PROMPT_CHARS",
     "H3Prose",
     "H3_RECOMMENDED_WORD_RANGE",
     "H3RenderResult",
     "KNOWN_TASK_TYPES",
+    "REFERENCE_MODE",
     "REFERENCE_SECTION_ORDER",
     "VISIBLE_RETENTION_MARKERS",
+    "build_h3_alignment_instruction",
+    "format_seconds",
     "format_timestamp",
     "h3_label_for",
     "render_h3",
     "render_h3_base",
     "render_h3_reference",
+    "validate_h3_base",
     "validate_h3_reference",
+    "word_range_for_duration",
 ]

@@ -3,7 +3,10 @@
 /* tslint:disable */
 /* eslint-disable */
 /**
- * 剧本分镜中的单镜信息：行号 + 预览文本（可选弱语义）。
+ * 剧本分镜中的单镜信息。
+ *
+ * 快速切分只依赖 `index` / `script_excerpt` / `shot_name`；行号与时间字段是历史
+ * 可选信息，不再作为写入数据库的硬前置，避免模型输出近义词导致整单校验失败。
  */
 export type ShotDivision = {
     /**
@@ -11,13 +14,13 @@ export type ShotDivision = {
      */
     index: number;
     /**
-     * 起始行号（1-based）
+     * 起始行号（1-based，可选）
      */
-    start_line: number;
+    start_line?: (number | null);
     /**
-     * 结束行号（1-based）
+     * 结束行号（1-based，可选）
      */
-    end_line: number;
+    end_line?: (number | null);
     /**
      * 镜头对应的剧本摘录/文本
      */
@@ -27,8 +30,8 @@ export type ShotDivision = {
      */
     shot_name?: string;
     /**
-     * 时间（日/夜/未知等，可选）
+     * 时间描述（自由文本，可选；不再参与强校验）
      */
-    time_of_day?: ('DAY' | 'NIGHT' | 'DAWN' | 'DUSK' | 'UNKNOWN' | '日' | '夜' | '黎明' | '黄昏' | '不明' | '未知' | null);
+    time_of_day?: (string | null);
 };
 

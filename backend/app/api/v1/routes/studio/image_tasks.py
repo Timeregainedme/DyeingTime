@@ -55,6 +55,11 @@ from app.services.studio.generation.frame.derive_preview import (
 from app.services.studio.image_task_runner import create_image_task_and_link as _create_image_task_and_link_service
 from app.services.studio.batch_asset_images import (
     create_batch_asset_image_tasks as create_batch_asset_image_tasks_service,
+    render_batch_asset_image_prompts as render_batch_asset_image_prompts_service,
+)
+from app.services.studio.asset_prompt_snapshots import (
+    list_asset_prompt_snapshots as list_asset_prompt_snapshots_service,
+    update_asset_prompt_snapshot_prompt as update_asset_prompt_snapshot_prompt_service,
 )
 
 
@@ -117,6 +122,35 @@ class BatchAssetImageTaskRequest(BaseModel):
         max_length=200,
         description="目标资产 ID 列表；缺省为该类型在当前项目下的全部资产",
     )
+    use_prompt_snapshots: bool = Field(
+        True,
+        description="是否优先使用「生成提示词」阶段保存的审核稿；没有审核稿时回落到模板渲染",
+    )
+    prompt_overrides: dict[str, str] | None = Field(
+        None,
+        description="按 asset_id 覆盖提示词；优先级高于审核稿",
+    )
+
+
+class BatchRenderAssetPromptsRequest(BaseModel):
+    """批量渲染资产图提示词请求体（不创建图片任务）。"""
+
+    project_id: str = Field(..., description="目标项目 ID")
+    asset_ids: list[str] | None = Field(
+        None,
+        max_length=200,
+        description="目标资产 ID 列表；缺省为该类型在当前项目下的全部资产",
+    )
+    only_missing: bool = Field(
+        False,
+        description="只渲染还没有审核稿的资产；为 true 时已有审核稿会进入 skipped",
+    )
+
+
+class AssetPromptSnapshotUpdateRequest(BaseModel):
+    """更新资产提示词审核稿。"""
+
+    prompt: str = Field(..., min_length=1, description="审核后的完整提示词")
 
 
 class ShotFrameImageTaskRequest(BaseModel):
@@ -203,6 +237,9 @@ async def _load_frame_render_guidance(
             "frame_specific_guidance": "",
             "composition_anchor": "",
             "screen_direction_guidance": "",
+            "negative_prompt": "",
+            "avoid_items": [],
+            "style_pack": "",
         }
 
     input_dict = dict(run_args.get("input") or {})
@@ -212,6 +249,13 @@ async def _load_frame_render_guidance(
         "frame_specific_guidance": str(input_dict.get("frame_specific_guidance") or "").strip(),
         "composition_anchor": str(input_dict.get("composition_anchor") or "").strip(),
         "screen_direction_guidance": str(input_dict.get("screen_direction_guidance") or "").strip(),
+        "negative_prompt": str(input_dict.get("negative_prompt") or "").strip(),
+        "avoid_items": [
+            str(item).strip()
+            for item in (input_dict.get("avoid_items_list") or [])
+            if str(item).strip()
+        ],
+        "style_pack": str(input_dict.get("style_pack") or "").strip(),
     }
 
 
@@ -447,8 +491,94 @@ async def create_batch_asset_image_tasks(
         asset_type=body.asset_type,
         project_id=body.project_id,
         asset_ids=body.asset_ids,
+        use_prompt_snapshots=body.use_prompt_snapshots,
+        prompt_overrides=body.prompt_overrides,
     )
     return created_response(result)
+
+
+@router.post(
+    "/assets/{asset_type}/batch-render-prompts",
+    response_model=ApiResponse[dict[str, Any]],
+    summary="批量渲染资产图提示词（只渲染，不创建图片任务）",
+)
+async def batch_render_asset_image_prompts(
+    asset_type: str,
+    body: BatchRenderAssetPromptsRequest,
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[dict[str, Any]]:
+    """批量渲染指定类型资产的图片提示词，并保存为可审核的审核稿。"""
+    result = await render_batch_asset_image_prompts_service(
+        db,
+        asset_type=asset_type,
+        project_id=body.project_id,
+        asset_ids=body.asset_ids,
+        only_missing=body.only_missing,
+    )
+    await db.commit()
+    return success_response(result)
+
+
+@router.get(
+    "/assets/{asset_type}/prompt-snapshots",
+    response_model=ApiResponse[list[dict[str, Any]]],
+    summary="列出资产图提示词审核稿",
+)
+async def list_asset_prompt_snapshots(
+    asset_type: str,
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[list[dict[str, Any]]]:
+    """按项目与资产类型列出行审核稿，供提示词审核弹窗回读。"""
+    rows = await list_asset_prompt_snapshots_service(
+        db,
+        project_id=project_id,
+        asset_type=asset_type,
+    )
+    return success_response(
+        [
+            {
+                "asset_type": row.asset_type,
+                "asset_id": row.asset_id,
+                "image_id": row.image_id,
+                "prompt": row.prompt,
+                "updated_at": row.updated_at,
+            }
+            for row in rows
+        ]
+    )
+
+
+@router.patch(
+    "/assets/{asset_type}/prompt-snapshots/{asset_id}",
+    response_model=ApiResponse[dict[str, Any]],
+    summary="更新资产图提示词审核稿",
+)
+async def update_asset_prompt_snapshot(
+    asset_type: str,
+    asset_id: str,
+    body: AssetPromptSnapshotUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[dict[str, Any]]:
+    """保存用户对某条资产图提示词的编辑。"""
+    row = await update_asset_prompt_snapshot_prompt_service(
+        db,
+        asset_type=asset_type,
+        asset_id=asset_id,
+        prompt=body.prompt.strip(),
+    )
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="prompt snapshot not found")
+    await db.commit()
+    return success_response(
+        {
+            "asset_type": row.asset_type,
+            "asset_id": row.asset_id,
+            "image_id": row.image_id,
+            "prompt": row.prompt,
+            "updated_at": row.updated_at,
+        }
+    )
 
 
 @router.post(
@@ -486,6 +616,9 @@ async def create_shot_frame_image_generation_task(
         frame_specific_guidance=render_guidance["frame_specific_guidance"],
         composition_anchor=render_guidance["composition_anchor"],
         screen_direction_guidance=render_guidance["screen_direction_guidance"],
+        negative_prompt=render_guidance.get("negative_prompt", ""),
+        avoid_items=render_guidance.get("avoid_items", []),
+        style_pack=render_guidance.get("style_pack", ""),
     )
     context = _build_frame_context_service(
         shot_id=shot_id,
@@ -571,6 +704,9 @@ async def render_shot_frame_prompt(
         frame_specific_guidance=render_guidance["frame_specific_guidance"],
         composition_anchor=render_guidance["composition_anchor"],
         screen_direction_guidance=render_guidance["screen_direction_guidance"],
+        negative_prompt=render_guidance.get("negative_prompt", ""),
+        avoid_items=render_guidance.get("avoid_items", []),
+        style_pack=render_guidance.get("style_pack", ""),
     )
     context = _build_frame_context_service(
         shot_id=shot_id,

@@ -64,6 +64,19 @@ def _enum_value(value: Any) -> str:
     return str(raw or "")
 
 
+def _reference_block_lines(entries: list[tuple[str, str]]) -> str:
+    """把「参考图角色」渲染成图片模板可用的文本。
+
+    entries 是 `(名称, 用途说明)` 的有序列表，token 按列表顺序生成 `图1`、`图2`。
+    """
+    lines = [f"图{index} 为「{name}」{role}。" for index, (name, role) in enumerate(entries, start=1)]
+    return "\n".join(lines)
+
+
+def _empty_reference_block() -> str:
+    return "本次没有参考图：外观完全由文字描述决定，不继承任何参考图的光照、比例或材质。"
+
+
 async def _build_asset_prompt(
     db,
     *,
@@ -74,6 +87,7 @@ async def _build_asset_prompt(
     visual_style: Any,
     style: Any,
     image_row: Any,
+    reference_block: str = "",
 ) -> str:
     category = asset_prompt_category(
         relation_type=relation_type,
@@ -97,6 +111,7 @@ async def _build_asset_prompt(
             "style_pack": style_pack_line(
                 visual_style=visual_style, style=style, motif_override=motif_override
             ),
+            "reference_block": (reference_block or "").strip() or _empty_reference_block(),
             "negative_prompt": negative_image_prompt(visual_style=visual_style, style=style),
         },
         fallback_prompt=description,
@@ -132,6 +147,31 @@ async def build_actor_image_base_draft(
     if actor is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=entity_not_found("Actor"))
     image_row = await validate_actor_image(db, actor_id=actor_id, image_id=image_id)
+    refs: list[str] = []
+    warnings: list[str] = []
+    reference_block = ""
+    if not is_front_view(image_row.view_angle):
+        refs = await _resolve_front_ref(
+            db,
+            image_model=ActorImage,
+            parent_field_name="actor_id",
+            parent_id=actor_id,
+            preferred_quality_level=image_row.quality_level,
+        )
+        if refs:
+            reference_block = _reference_block_lines(
+                [
+                    (
+                        actor.name,
+                        "的正面基准，只用于身份、发型、服装、背景与光照；不得改动这些项",
+                    )
+                ]
+            )
+        else:
+            warnings.append(
+                "缺少正面参考图：该演员还没有 front 视角的图片，本次是非正面视角生成，"
+                "没有可用的参考图，视角一致性无法保证。建议先生成正面图再生成其它视角。"
+            )
     prompt = await _build_asset_prompt(
         db,
         relation_type="actor_image",
@@ -141,22 +181,8 @@ async def build_actor_image_base_draft(
         visual_style=actor.visual_style,
         style=actor.style,
         image_row=image_row,
+        reference_block=reference_block,
     )
-    refs: list[str] = []
-    warnings: list[str] = []
-    if not is_front_view(image_row.view_angle):
-        refs = await _resolve_front_ref(
-            db,
-            image_model=ActorImage,
-            parent_field_name="actor_id",
-            parent_id=actor_id,
-            preferred_quality_level=image_row.quality_level,
-        )
-        if not refs:
-            warnings.append(
-                "缺少正面参考图：该演员还没有 front 视角的图片，本次是非正面视角生成，"
-                "没有可用的参考图，视角一致性无法保证。建议先生成正面图再生成其它视角。"
-            )
     return AssetImageBaseDraft(
         entity_type="actor",
         entity_id=actor_id,
@@ -202,6 +228,29 @@ async def build_asset_image_base_draft(
         parent_field_name = "costume_id"
     if asset is None or image_row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=entity_not_found("AssetImage"))
+    reference_block = ""
+    if not is_front_view(image_row.view_angle):
+        refs = await _resolve_front_ref(
+            db,
+            image_model=image_model,
+            parent_field_name=parent_field_name,
+            parent_id=asset_id,
+            preferred_quality_level=image_row.quality_level,
+        )
+        if refs:
+            reference_block = _reference_block_lines(
+                [
+                    (
+                        asset.name,
+                        "的正面基准，只用于形制、颜色、材质、背景与光照；不得改动这些项",
+                    )
+                ]
+            )
+        else:
+            warnings.append(
+                "缺少正面参考图：该资产还没有 front 视角的图片，本次是非正面视角生成，"
+                "没有可用的参考图，视角一致性无法保证。建议先生成正面图再生成其它视角。"
+            )
     prompt = await _build_asset_prompt(
         db,
         relation_type=relation_type,
@@ -211,20 +260,8 @@ async def build_asset_image_base_draft(
         visual_style=asset.visual_style,
         style=asset.style,
         image_row=image_row,
+        reference_block=reference_block,
     )
-    if not is_front_view(image_row.view_angle):
-        refs = await _resolve_front_ref(
-            db,
-            image_model=image_model,
-            parent_field_name=parent_field_name,
-            parent_id=asset_id,
-            preferred_quality_level=image_row.quality_level,
-        )
-        if not refs:
-            warnings.append(
-                "缺少正面参考图：该资产还没有 front 视角的图片，本次是非正面视角生成，"
-                "没有可用的参考图，视角一致性无法保证。建议先生成正面图再生成其它视角。"
-            )
     return AssetImageBaseDraft(
         entity_type=asset_type.strip().lower(),
         entity_id=asset_id,
@@ -248,30 +285,6 @@ async def build_character_image_base_draft(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=entity_not_found("Character"))
     image_row = await validate_character_image(db, character_id=character_id, image_id=image_id)
     character_motif = await resolve_style_motif(db, style=_enum_value(character.style))
-    prompt = await build_prompt_with_template(
-        db,
-        category=PromptCategory.character_image_front,
-        variables={
-            "name": character.name,
-            "description": character.description,
-            "visual_style": _enum_value(character.visual_style),
-            "style": _enum_value(character.style),
-            "view_angle": map_view_angle_for_prompt(image_row.view_angle),
-            "quality_level": image_row.quality_level,
-            "format": image_row.format,
-            # C2：项目级风格包一处配置、全局注入
-            "style_pack": style_pack_line(
-                visual_style=character.visual_style,
-                style=character.style,
-                motif_override=character_motif,
-            ),
-            "negative_prompt": negative_image_prompt(
-                visual_style=character.visual_style, style=character.style
-            ),
-        },
-        fallback_prompt=character.description,
-        not_found_msg="Character.description is empty",
-    )
     refs: list[str] = []
     warnings: list[str] = []
     default_view_angles: tuple[AssetViewAngle, ...] = (
@@ -282,7 +295,13 @@ async def build_character_image_base_draft(
     )
     # 角色图 = 演员参考图 + 服装参考图。两条来源**各自**独立判定缺失：
     # 只报「总数为 0」会让用户以为「两个都没配」，而实际更常见的是只缺其中一个。
+    actor_refs: list[str] = []
+    costume_refs: list[str] = []
+    actor_name = "绑定演员"
+    costume_name = "绑定服装"
     if character.actor_id:
+        actor = await db.get(Actor, character.actor_id)
+        actor_name = str(getattr(actor, "name", "") or actor_name)
         actor_refs = await pick_ordered_ref_file_ids(
             db,
             image_model=ActorImage,
@@ -307,6 +326,8 @@ async def build_character_image_base_draft(
                 "建议在角色编辑里绑定演员，以保证各集长相一致（系统不做名字匹配，名字相同也要绑）。"
             )
     if character.costume_id:
+        costume = await db.get(Costume, character.costume_id)
+        costume_name = str(getattr(costume, "name", "") or costume_name)
         costume_refs = await pick_ordered_ref_file_ids(
             db,
             image_model=CostumeImage,
@@ -328,6 +349,59 @@ async def build_character_image_base_draft(
             "本次生成将在零参考图的情况下进行：角色外观完全由文字描述决定，"
             "可能与演员/服装设定不一致。建议先补齐演员图与服装图再生成。"
         )
+
+    reference_entries: list[tuple[str, str]] = []
+    for index, _file_id in enumerate(actor_refs):
+        reference_entries.append(
+            (
+                actor_name,
+                "的正面身份参考，只约束长相、发型、发色、肤色、体型与年龄"
+                if index == 0
+                else "的其他视角补充，保持同一人物、同一发型与同一服装",
+            )
+        )
+    for index, _file_id in enumerate(costume_refs):
+        reference_entries.append(
+            (
+                costume_name,
+                "的正面服装形制参考，只约束版型、颜色、材质与配饰"
+                if index == 0
+                else "的其他视角补充，保持同一套服装的版型、颜色与材质",
+            )
+        )
+
+    category = (
+        PromptCategory.character_image_front
+        if is_front_view(image_row.view_angle)
+        else PromptCategory.character_image_other
+    )
+    prompt = await build_prompt_with_template(
+        db,
+        category=category,
+        variables={
+            "name": character.name,
+            "description": character.description,
+            "visual_style": _enum_value(character.visual_style),
+            "style": _enum_value(character.style),
+            "view_angle": map_view_angle_for_prompt(image_row.view_angle),
+            "quality_level": image_row.quality_level,
+            "format": image_row.format,
+            # C2：项目级风格包一处配置、全局注入
+            "style_pack": style_pack_line(
+                visual_style=character.visual_style,
+                style=character.style,
+                motif_override=character_motif,
+            ),
+            "reference_block": _reference_block_lines(reference_entries)
+            if reference_entries
+            else _empty_reference_block(),
+            "negative_prompt": negative_image_prompt(
+                visual_style=character.visual_style, style=character.style
+            ),
+        },
+        fallback_prompt=character.description,
+        not_found_msg="Character.description is empty",
+    )
     return AssetImageBaseDraft(
         entity_type="character",
         entity_id=character_id,

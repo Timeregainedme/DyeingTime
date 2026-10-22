@@ -150,6 +150,12 @@ class ModelSettings(Base):
         nullable=True,
         comment="默认文本模型 ID",
     )
+    fallback_text_model_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("models.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="文本模型失败时的备用模型 ID（如 OpenCode Go minimax-m3）",
+    )
     default_image_model_id: Mapped[str | None] = mapped_column(
         String(64),
         ForeignKey("models.id", ondelete="SET NULL"),
@@ -172,6 +178,7 @@ class ModelSettings(Base):
     log_level: Mapped[LogLevel] = mapped_column(String(16), nullable=False, default=LogLevel.info, comment="日志级别")
 
     default_text_model: Mapped["Model | None"] = relationship(foreign_keys=[default_text_model_id])
+    fallback_text_model: Mapped["Model | None"] = relationship(foreign_keys=[fallback_text_model_id])
     default_image_model: Mapped["Model | None"] = relationship(foreign_keys=[default_image_model_id])
     default_video_model: Mapped["Model | None"] = relationship(foreign_keys=[default_video_model_id])
     default_audio_model: Mapped["Model | None"] = relationship(foreign_keys=[default_audio_model_id])

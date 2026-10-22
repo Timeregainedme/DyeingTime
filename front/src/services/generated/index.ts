@@ -22,6 +22,7 @@ export type { ApiResponse_FileDetailRead_ } from './models/ApiResponse_FileDetai
 export type { ApiResponse_FileRead_ } from './models/ApiResponse_FileRead_';
 export type { ApiResponse_GenerationTaskLinkRead_ } from './models/ApiResponse_GenerationTaskLinkRead_';
 export type { ApiResponse_ImageGenerationOptionsRead_ } from './models/ApiResponse_ImageGenerationOptionsRead_';
+export type { ApiResponse_list_dict_str__Any___ } from './models/ApiResponse_list_dict_str__Any___';
 export type { ApiResponse_list_ProjectStyleOptionRead__ } from './models/ApiResponse_list_ProjectStyleOptionRead__';
 export type { ApiResponse_list_PromptCategoryOptionRead__ } from './models/ApiResponse_list_PromptCategoryOptionRead__';
 export type { ApiResponse_list_ProviderSupportedRead__ } from './models/ApiResponse_list_ProviderSupportedRead__';
@@ -91,10 +92,12 @@ export type { ApiResponse_UserRead_ } from './models/ApiResponse_UserRead_';
 export type { ApiResponse_VariantAnalysisResult_ } from './models/ApiResponse_VariantAnalysisResult_';
 export type { ApiResponse_VideoGenerationOptionsRead_ } from './models/ApiResponse_VideoGenerationOptionsRead_';
 export type { ApiResponse_VideoPromptPreviewResponse_ } from './models/ApiResponse_VideoPromptPreviewResponse_';
+export type { AssetPromptSnapshotUpdateRequest } from './models/AssetPromptSnapshotUpdateRequest';
 export type { AsyncTaskCreateRead } from './models/AsyncTaskCreateRead';
 export type { AudioGenerationOptionsRead } from './models/AudioGenerationOptionsRead';
 export type { BatchAssetImageTaskRequest } from './models/BatchAssetImageTaskRequest';
 export type { BatchCreateAssetsFromCandidatesRequest } from './models/BatchCreateAssetsFromCandidatesRequest';
+export type { BatchRenderAssetPromptsRequest } from './models/BatchRenderAssetPromptsRequest';
 export type { Body_upload_file_api_api_v1_studio_files_upload_post } from './models/Body_upload_file_api_api_v1_studio_files_upload_post';
 export type { CameraAngle } from './models/CameraAngle';
 export type { CameraMovement } from './models/CameraMovement';
@@ -240,6 +243,7 @@ export type { ShotPreparationMutationResultRead } from './models/ShotPreparation
 export type { ShotPreparationStateRead } from './models/ShotPreparationStateRead';
 export type { ShotPromptAssetRef } from './models/ShotPromptAssetRef';
 export type { ShotPromptCameraInfo } from './models/ShotPromptCameraInfo';
+export type { ShotPromptDialogueRead } from './models/ShotPromptDialogueRead';
 export type { ShotRead } from './models/ShotRead';
 export type { ShotRuntimeSummaryRead } from './models/ShotRuntimeSummaryRead';
 export type { ShotSemanticSuggestion } from './models/ShotSemanticSuggestion';

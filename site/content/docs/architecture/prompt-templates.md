@@ -57,9 +57,9 @@ cd backend && .venv/bin/python scripts/gen_prompt_templates_sql.py
 
 - `import` 三个帧模板常量（`_FIRST_FRAME_TEMPLATE` / `_LAST_FRAME_TEMPLATE` / `_KEY_FRAME_TEMPLATE`）以及 `_SHOT_FRAME_INPUT_VARS`，保证 SQL 与运行代码同源；
 - 用统一的 `ASSET_VARS` 描述资产类模板变量；
-- 输出 `backend/sql/012-rewrite-prompt-templates.sql`。
+- 默认输出 `backend/sql/028-rewrite-image-prompt-templates.sql`（012 是已应用的种子，不再改写）。
 
-Agent 提示词种子同样由生成器产出（`backend/scripts/gen_agent_prompt_templates_sql.py` → `backend/sql/015-add-agent-prompt-templates.sql`），直接 `import` 各 Agent 的 `_*_SYSTEM_PROMPT` 常量，避免手抄漂移。
+Agent 提示词种子同样由生成器产出：`gen_agent_prompt_templates_sql.py` 默认输出 `029-update-h3-agent-prompt.sql`，`--full` 才额外生成 015 全量种子。两者都直接 `import` 各 Agent 的 `_*_SYSTEM_PROMPT` 常量，避免手抄漂移。
 
 生成物与代码的一致性由一个只读校验脚本把关：`backend/scripts/check_agent_prompt_templates_sql.py` 解析 015 里的 `UPDATE` 语句、还原被转义的内容，再与生成器内存中的 `AGENT_TEMPLATES` 逐字比对；它**不写文件**，退出码 `0` = 完全一致、`1` = 存在差异或解析失败（可直接挂进 CI）。
 
@@ -68,9 +68,18 @@ Agent 提示词种子同样由生成器产出（`backend/scripts/gen_agent_promp
 应用方式：
 
 ```bash
+# 新部署：012 建种子
 docker exec -i compose-mysql-1 mysql -uroot -p"$DB_PASS" --default-character-set=utf8mb4 dyeingtime \
   < backend/sql/012-rewrite-prompt-templates.sql
+
+# 已有部署：028 更新图片模板，029 更新未发布的 H3 Agent 默认提示词
+docker exec -i compose-mysql-1 mysql -uroot -p"$DB_PASS" --default-character-set=utf8mb4 dyeingtime \
+  < backend/sql/028-rewrite-image-prompt-templates.sql
+docker exec -i compose-mysql-1 mysql -uroot -p"$DB_PASS" --default-character-set=utf8mb4 dyeingtime \
+  < backend/sql/029-update-h3-agent-prompt.sql
 ```
+
+`028` 会先创建 `prompt_templates_backup_028` 备份表，再更新图片模板；需要回滚时可直接从备份表恢复。`029` / `032` / `033` 只更新 `published_at IS NULL` 的 Agent 模板（H3 视频、分镜拆解、剧本优化/精简）；已发布的自定义版本不会被静默覆盖。
 
 迁移可重复执行：跑第二次不会新增行，`SELECT COUNT(*) FROM prompt_templates` 仍是 26。
 
@@ -106,8 +115,29 @@ docker exec -i compose-mysql-1 mysql -uroot -p"$DB_PASS" --default-character-set
 
 ```text
 name  description  tags  visual_style  style
-view_angle  quality_level  format  style_pack  negative_prompt
+view_angle  quality_level  format  style_pack  reference_block  negative_prompt
 ```
+
+模板正文统一为「交付物 → 参考图角色 → 主体与细节 → 统一约束」：
+
+```text
+[交付物]
+角色定妆照：正面平视半身，纯色中性背景……
+
+[参考图角色]
+图1 为「演员甲」的正面身份参考……
+图2 为「黑色风衣」的正面服装形制参考……
+
+[主体与细节]
+……
+
+[Constraints]
+保持面部五官、发型发色、肤色与年龄感不变
+画面内不出现文字、字幕、水印或 UI
+避免出现：{{ negative_prompt }}
+```
+
+非正面视角模板必须先写「仅修改：视角」再写「保留：五官/发型/服装/背景/光照/比例」，避免整张图自由漂移。`reference_block` 由 `asset_image/build_base.py` 根据实际参考图顺序生成，不再由模板手写编号。
 
 **这里有一个历史坑**：早期模板正文用了 `{{ view }}` 和 `{{ extra_details }}`，但这两个变量从未被传进 `variables`。渲染时 `render_prompt_template_content` 会把未知变量渲染成空字符串，于是“镜头方向：”后面一直是空的。新模板统一改用实际会传入的 `view_angle` / `tags` / `style_pack` / `negative_prompt`。
 
@@ -160,12 +190,15 @@ ANIME_NEGATIVE_IMAGE
 ANCIENT_NEGATIVE_IMAGE
 ```
 
-由 `negative_image_prompt(*, visual_style, style)` 用「，」拼成一条，写进模板变量 `negative_prompt`，并由每个模板结尾的固定块消费：
+由 `negative_image_prompt(*, visual_style, style)` 用「，」拼成一条，写进模板变量 `negative_prompt`，并由每个模板的 `[Constraints]` 段消费：
 
 ```text
-负面提示（必须避免，不要出现在画面中）：
-{{ negative_prompt }}
+[Constraints]
+...
+避免出现：{{ negative_prompt }}
 ```
+
+分镜帧链路不经过资产模板：基础提示词只写画面，最终渲染由 `frame/derive_preview.py` 追加 `[参考图角色]` 与 `[统一约束]`，其中统一约束会合并 `negative_prompt`、`DEFAULT_PRESERVE_ITEMS`、`DEFAULT_AVOID_ITEMS` 与「画面无文字」规则。
 
 ### 刻意不写的东西
 
@@ -181,7 +214,11 @@ ANCIENT_NEGATIVE_IMAGE
 若参考图包含服装则沿用
 ```
 
-角色图基础草稿由 `build_character_image_base_draft`（`backend/app/services/studio/generation/asset_image/build_base.py`）构造，使用 **`PromptCategory.character_image_front`**。
+角色图基础草稿由 `build_character_image_base_draft`（`backend/app/services/studio/generation/asset_image/build_base.py`）构造：
+
+- 正面视角使用 `PromptCategory.character_image_front`；
+- 非正面视角使用 `PromptCategory.character_image_other`，并绑定正面图作为「正面基准」；
+- 角色绑定演员 + 服装时，`reference_block` 会分别写清演员身份参考与服装形制参考。
 
 这里曾经有过一个静默缺陷：该函数原先传的是 `PromptCategory.combined`，而库里**没有** `combined` 模板行，`build_prompt_with_template` 只能回落到 `prompt_from_description(character.description)`，导致角色卡提示词退化成一句原始描述，而 `character_image_front` 成了死配置。现已修正，两个类别现在都有真实模板。
 

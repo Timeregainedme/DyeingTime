@@ -13,6 +13,10 @@ export type VideoPromptPreviewResponse = {
      */
     images?: Array<string>;
     /**
+     * 关联参考音频 file_id 列表（顺序即 <Audio N>）
+     */
+    audio_file_ids?: Array<string>;
+    /**
      * 视频提示词预览上下文包
      */
     pack?: (ShotVideoPromptPackRead | null);

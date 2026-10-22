@@ -24,6 +24,7 @@ from app.schemas.studio.shots import (
     ActionBeatPhaseRead,
     ShotPromptAssetRef,
     ShotPromptCameraInfo,
+    ShotPromptDialogueRead,
     ShotVideoPromptPackRead,
 )
 from app.services.common import entity_not_found
@@ -432,11 +433,26 @@ async def build_shot_video_prompt_pack(
             scene = ref
 
     dialog_lines = list(getattr(detail, "dialog_lines", []) or []) if detail is not None else []
+    sorted_dialog_lines = sorted(dialog_lines, key=lambda x: (x.index, x.id))
     dialogue_summary = "\n".join(
         f"{line.speaker_name or '角色'}：{line.text}" if line.speaker_name else line.text
-        for line in sorted(dialog_lines, key=lambda x: (x.index, x.id))
+        for line in sorted_dialog_lines
         if line.text
     )
+    dialogues = [
+        ShotPromptDialogueRead(
+            index=int(getattr(line, "index", 0) or 0),
+            speaker_name=str(getattr(line, "speaker_name", "") or ""),
+            text=str(getattr(line, "text", "") or ""),
+            emotion=getattr(line, "emotion", None),
+            line_mode=_enum_value(getattr(line, "line_mode", None)) or "DIALOGUE",
+            generated_audio_file_id=(
+                str(getattr(line, "generated_audio_file_id", "") or "").strip() or None
+            ),
+        )
+        for line in sorted_dialog_lines
+        if str(getattr(line, "text", "") or "").strip()
+    ]
     previous_shot_summary, _ = _build_neighbor_prompt_summary(previous_shot)
     _, next_shot_goal = _build_neighbor_prompt_summary(next_shot)
     action_beats = _build_action_beats(
@@ -478,6 +494,7 @@ async def build_shot_video_prompt_pack(
             character_names=[item.name for item in characters],
         ),
         dialogue_summary=dialogue_summary,
+        dialogues=dialogues,
         characters=characters,
         scene=scene,
         props=props,

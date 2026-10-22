@@ -24,7 +24,9 @@ from app.chains.prompts.renderers.h3 import (
     REFERENCE_SECTION_ORDER,
     H3Prose,
     render_h3,
+    render_h3_base,
     render_h3_reference,
+    validate_h3_base,
     validate_h3_reference,
 )
 from app.core.contracts.video_generation import VideoGenerationInput
@@ -258,6 +260,7 @@ def test_render_h3_reference_fallback_keeps_sections_ordered_and_hides_internal_
     assert positions == sorted(positions)
     # 内部 token（图1）不能泄漏到 H3 输出，必须映射为 <Picture N>。
     assert "<Picture 1>" in result.text
+    assert "<Subject 1> is " in result.text
     assert "图1" not in result.text
     assert result.warnings
     assert result.char_count > 0
@@ -267,7 +270,7 @@ def test_render_h3_reference_with_english_prose_is_structurally_clean() -> None:
     ir = build_video_prompt_ir(_pack(), duration_seconds=6)
     result = render_h3_reference(ir, prose=_prose())
 
-    assert result.warnings == []
+    assert [item for item in result.warnings if "低于该时长建议" not in item] == []
     assert "<Picture 1>" in result.text
     assert "图1" not in result.text
 
@@ -598,3 +601,142 @@ def test_resolve_frame_template_override_reads_backend_row() -> None:
     )
     # 未知 frame_type 直接返回 None（不查库）
     assert asyncio.run(resolve_frame_template_override(_FakeTemplateDB(_FakeTemplate("x")), frame_type="bogus")) is None
+
+
+# --------------------------------------------------------------------------- #
+# H3 模式感知：首帧/尾帧对齐句与音频参考
+# --------------------------------------------------------------------------- #
+
+
+def test_h3_first_frame_mode_prepends_i2va_alignment_instruction() -> None:
+    ir = build_video_prompt_ir(_pack(), reference_mode="first", duration_seconds=5)
+    result = render_h3_base(ir, reference_mode="first")
+
+    assert result.text.startswith(
+        "For the target video, at 0.00 seconds into the target video, "
+        "<Picture 1> (from [Shot 1]) is fully referenced."
+    )
+    assert "subject_definitions:" not in result.text
+    assert "integrated_multimodal_description:" in result.text
+
+
+def test_h3_first_last_mode_prepends_fl2va_alignment_instruction() -> None:
+    ir = build_video_prompt_ir(_pack(), reference_mode="first_last", duration_seconds=6)
+    result = render_h3_base(ir, reference_mode="first_last")
+
+    assert result.text.startswith("How the reference pictures align with the target video")
+    assert "0.00-second mark" in result.text
+    assert "6.00-second mark" in result.text
+    assert "Picture 2" in result.text
+
+
+def test_h3_first_last_key_mode_uses_fl2va_alignment_and_warns_key_frame() -> None:
+    ir = build_video_prompt_ir(_pack(), reference_mode="first_last_key", duration_seconds=6)
+    result = render_h3_base(ir, reference_mode="first_last_key")
+
+    assert result.text.startswith("How the reference pictures align with the target video")
+    assert "6.00-second mark" in result.text
+    assert any("关键帧不会上传" in item for item in result.warnings)
+
+
+def test_h3_last_frame_mode_prepends_l2va_alignment_instruction() -> None:
+    ir = build_video_prompt_ir(_pack(), reference_mode="last", duration_seconds=5)
+    result = render_h3_base(ir, reference_mode="last")
+
+    assert result.text.startswith("How the reference pictures align with the target video")
+    assert "<Picture 1> (from [Shot 1])" in result.text
+    assert "5.00-second mark" in result.text
+
+
+def test_h3_base_validator_flags_missing_alignment_instruction() -> None:
+    text = "\n\n".join(
+        [
+            "integrated_multimodal_description:\n[Shot 1] a woman stands still.",
+            "overall_soundscape:\nN/A",
+            "non_diegetic_music:\nN/A",
+        ]
+    )
+    warnings = validate_h3_base(text, reference_mode="first", duration_seconds=5)
+    assert any("对齐句" in item for item in warnings)
+
+
+def test_build_video_prompt_ir_binds_audio_reference_to_speaker() -> None:
+    ir = build_video_prompt_ir(
+        _pack(),
+        dialogues=[
+            IRDialogueInput(
+                speaker_name="林晚",
+                text="你回来了。",
+                line_mode="DIALOGUE",
+                audio_file_id="audio-1",
+            ),
+            IRDialogueInput(
+                speaker_name="林晚",
+                text="我等你很久了。",
+                line_mode="DIALOGUE",
+                audio_file_id="audio-2",
+            ),
+        ],
+        audio_file_ids=["audio-1", "audio-2"],
+    )
+
+    assert [item.label for item in ir.audio_references] == ["Audio 1"]
+    assert ir.audio_references[0].speaker_id == "S1"
+    assert all(line.audio_label == "Audio 1" for line in ir.shots[0].dialogues)
+    assert "audio reference" in ir.task_types
+
+
+def test_render_h3_reference_includes_audio_definition_and_retention() -> None:
+    ir = build_video_prompt_ir(
+        _pack(),
+        dialogues=[
+            IRDialogueInput(
+                speaker_name="林晚",
+                text="你回来了。",
+                audio_file_id="audio-1",
+            )
+        ],
+        audio_file_ids=["audio-1"],
+    )
+    prose = _prose()
+    prose.detailed_description = (
+        prose.detailed_description.replace(
+            "<d>[Chinese] 你好，我叫林晚。</d>",
+            "in the voice timbre referenced from <Audio 1>, "
+            "<d>[Chinese] 你好，我叫林晚。</d>",
+        )
+    )
+    result = render_h3_reference(ir, prose=prose)
+
+    assert "<Audio 1> is the voice-timbre reference for <Subject 1> (S1)." in result.text
+    assert "<Audio 1>: reference" in result.text
+    assert "referenced from <Audio 1>" in result.text
+    assert not any("未定义" in item and "Audio" in item for item in result.warnings)
+
+
+def test_build_video_prompt_ir_without_audio_keeps_dialogue_but_no_audio_tag() -> None:
+    ir = build_video_prompt_ir(
+        _pack(),
+        dialogues=[IRDialogueInput(speaker_name="林晚", text="你回来了。")],
+    )
+    result = render_h3_reference(ir)
+
+    assert ir.audio_references == []
+    assert "<Audio " not in result.text
+    assert "林晚" in result.text or "Subject 1" in result.text
+
+
+def test_non_reference_ir_does_not_collect_asset_pictures() -> None:
+    ir = build_video_prompt_ir(_pack(), reference_mode="first_last", duration_seconds=6)
+
+    assert ir.references == []
+    assert [picture.role for picture in ir.pictures] == ["first_frame", "last_frame"]
+    assert all(not subject.source_tokens for subject in ir.subjects)
+
+
+def test_h3_word_range_is_adaptive_by_duration() -> None:
+    from app.chains.prompts.renderers.h3 import word_range_for_duration
+
+    assert word_range_for_duration(5) == (200, 300)
+    assert word_range_for_duration(8) == (300, 400)
+    assert word_range_for_duration(12) == (350, 500)

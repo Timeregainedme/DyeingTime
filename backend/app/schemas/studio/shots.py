@@ -96,6 +96,10 @@ class BatchCreateAssetsFromCandidatesRequest(BaseModel):
         max_length=4,
         description="候选类型过滤（character/scene/prop/costume）；缺省处理全部类型",
     )
+    link_only: bool = Field(
+        False,
+        description="只把已有资产重新关联到镜头，不创建新资产；用于资产修改后的重新关联",
+    )
 
 
 class ShotExtractedCandidateRead(BaseModel):
@@ -491,6 +495,17 @@ class ShotPromptCameraInfo(BaseModel):
     duration: int | None = Field(None, description="镜头时长（秒）")
 
 
+class ShotPromptDialogueRead(BaseModel):
+    """用于视频提示词的结构化台词行（保留对白模式与配音文件）。"""
+
+    index: int = Field(0, description="镜头内行号")
+    speaker_name: str = Field("", description="说话人名称")
+    text: str = Field("", description="台词文本")
+    emotion: str | None = Field(None, description="情绪/语气")
+    line_mode: str = Field("DIALOGUE", description="对白模式：DIALOGUE/VOICE_OVER/OFF_SCREEN/PHONE")
+    generated_audio_file_id: str | None = Field(None, description="已生成配音的文件 ID")
+
+
 class ShotVideoPromptPackRead(BaseModel):
     """视频提示词渲染前的标准上下文包。"""
 
@@ -506,6 +521,7 @@ class ShotVideoPromptPackRead(BaseModel):
     composition_anchor: str = Field("", description="当前镜头的构图与空间锚点建议")
     screen_direction_guidance: str = Field("", description="当前镜头的人物朝向、视线与左右轴线建议")
     dialogue_summary: str = Field("", description="对白摘要")
+    dialogues: list[ShotPromptDialogueRead] = Field(default_factory=list, description="结构化台词行")
     characters: list[ShotPromptAssetRef] = Field(default_factory=list, description="角色引用")
     scene: ShotPromptAssetRef | None = Field(None, description="场景引用")
     props: list[ShotPromptAssetRef] = Field(default_factory=list, description="道具引用")
@@ -524,6 +540,7 @@ class ShotVideoPromptPreviewRead(BaseModel):
     template_id: str | None = Field(None, description="使用的提示词模板 ID")
     template_name: str | None = Field(None, description="使用的提示词模板名称")
     rendered_prompt: str = Field(..., description="渲染后的提示词")
+    audio_file_ids: list[str] = Field(default_factory=list, description="参考音频 file_id（顺序即 <Audio N>）")
     pack: ShotVideoPromptPackRead = Field(..., description="渲染上下文包")
     warnings: list[str] = Field(default_factory=list, description="渲染时发现的非阻塞提示")
 

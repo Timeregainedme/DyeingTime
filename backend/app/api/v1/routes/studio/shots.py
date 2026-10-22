@@ -303,12 +303,24 @@ async def preview_shot_video_prompt(
     reference_mode: str = Query(
         "text_only",
         description=(
-            "参考模式：first/last/key/first_last/first_last_key/text_only。"
+            "参考模式：reference/first/last/key/first_last/first_last_key/text_only。"
             "默认 text_only 只渲染提示词本身；传真实模式时会连同该模式要求的参考帧一起渲染"
         ),
     ),
+    reference_audio_file_ids: list[str] = Query(
+        default_factory=list,
+        description="参考音频 file_id（仅 reference 模式生效；不传则按项目开关自动带上台词配音）",
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> ApiResponse[ShotVideoPromptPreviewRead]:
+    from app.services.film.generated_video import resolve_video_reference_audio_file_ids
+
+    audio_ids = await resolve_video_reference_audio_file_ids(
+        db,
+        shot_id=shot_id,
+        reference_mode=reference_mode,
+        explicit_file_ids=reference_audio_file_ids,
+    )
     derived = await derive_video_preview(
         db,
         base=build_video_base_draft(shot_id=shot_id, prompt=None),
@@ -318,6 +330,7 @@ async def preview_shot_video_prompt(
             reference_mode=reference_mode,
             images=[],
             template_id=template_id,
+            reference_audio_file_ids=audio_ids,
         ),
     )
     return success_response(to_shot_video_prompt_preview_read(derived=derived))
@@ -452,6 +465,7 @@ async def batch_create_assets_from_candidates(
         db,
         chapter_id=body.chapter_id,
         types=body.types,
+        link_only=body.link_only,
     )
     return success_response(result)
 

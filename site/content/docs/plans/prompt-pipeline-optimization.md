@@ -9,6 +9,34 @@ weight: 12
 > [分镜基础提示词生成](/docs/architecture/shot-frame-prompt-generation/)、
 > [视频提示词链路](/docs/architecture/video-prompt-pipeline/)。
 
+## 0. 2026-10-21 落地进度
+
+已完成（详见对应 architecture 文档）：
+
+- H3 渲染器按 `reference_mode` 分流：Ref2VA 六段、I2VA/FL2VA/L2VA 三段 + 官方对齐句、T2VA 三段；
+- `<Subject N> is ...` 定义语法与 `<Audio N>` 音色参考；
+- 参考音频按说话人去重，提示词预览与实际提交共用同一解析；
+- 分镜帧基础提示词改为 `[Scene]/[Subject]/[Details]/[Constraints]` 分块；
+- 帧最终渲染补 `[参考图角色]` 与 `[统一约束]`；
+- 资产图模板改为「交付物 → 参考图角色 → 主体与细节 → Constraints」，非正面视角写「仅修改 / 保留」；
+- 新增 `028-rewrite-image-prompt-templates.sql` 与 `029-update-h3-agent-prompt.sql`。
+
+2026-10-22 追加落地：
+
+- 章节制作拆成「提取分镜 / 提取资产 / 生成提示词 / 生成图片」四个独立按钮；
+- 分镜快速切分只要求 `index/script_excerpt/shot_name`，未使用字段不再强校验；
+- 分镜自动分块并行 + 90 秒超时 + 备用模型 `minimax-m3`；
+- 资产提示词审核稿表 `asset_prompt_snapshots`；
+- 资产「重新关联」支持 `link_only=true`；
+- 章节制作状态接口 `GET /studio/chapters/{id}/production-status`。
+
+仍待推进：
+
+- 帧任务模板缓存与提示词快照；
+- 模板变量拼写校验；
+- 图片 prompt 长度超限时的自动裁剪策略；
+- `first_last_key` 模式在 UI 上明确提示关键帧不会上传。
+
 ## 1. 链路全景
 
 当前共有 **五条** 与提示词相关的支路，彼此独立实现：
@@ -35,7 +63,7 @@ style_pack(代码+目录) ──style_pack_line───────────
 negative_image_prompt(代码) ──────────────────────────────┘
 
 镜头/实体数据 ─→ 帧 Agent(LLM) ─→ first/last/key_frame_prompt(落库)
-                                    └─ frame-render：图片内容说明 + guidance + 基础提示词 → 图片模型
+                                    └─ frame-render：参考图角色 + guidance + 分块正文 + 统一约束 → 图片模型
 
 镜头数据 ─→ IR(结构化) ─→ H3 渲染器 ─→ 视频提示词 → 视频适配器
 ```
@@ -74,7 +102,7 @@ _ANIME_STYLES = {"动漫科幻", "动漫3D", "国漫", "水墨画"}
 
 ### P1：分镜帧链路完全没有负面词
 
-资产图会把 `negative_image_prompt()` 渲染进模板，帧渲染只拼"图片内容说明 + 正文 + guidance"，
+资产图会把 `negative_image_prompt()` 渲染进模板；帧渲染现在也会追加 `[统一约束]`（`negative_prompt` + `DEFAULT_AVOID_ITEMS` + 无文字规则），
 `_SHOT_FRAME_INPUT_VARS` 里也没有 negative 变量。
 
 后果：帧更容易出现文字、水印、畸变手指。而这批帧随后会作为视频的首尾帧/参考图，

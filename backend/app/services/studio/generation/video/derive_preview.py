@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.chains.prompts.ir import (
     MAX_REFERENCE_IMAGES,
+    IRDialogueInput,
     IRPrompt,
     build_video_prompt_ir,
     dialogues_from_summary,
@@ -33,15 +34,34 @@ class VideoDerivedPreview(GenerationDerivedPreview):
     reference_mode: str
     rendered_prompt: str
     images: list[str]
+    audio_file_ids: list[str] = []
     pack: ShotVideoPromptPackRead
     template_id: str | None = None
     template_name: str | None = None
 
 
+def _dialogue_inputs(pack: ShotVideoPromptPackRead) -> list[IRDialogueInput]:
+    """优先使用结构化台词（保留旁白/画外音与配音文件），旧数据回落到摘要解析。"""
+    if pack.dialogues:
+        return [
+            IRDialogueInput(
+                speaker_name=item.speaker_name,
+                text=item.text,
+                emotion=item.emotion,
+                line_mode=item.line_mode,
+                audio_file_id=item.generated_audio_file_id,
+            )
+            for item in pack.dialogues
+        ]
+    return dialogues_from_summary(pack.dialogue_summary)
+
+
 def _build_ir(pack: ShotVideoPromptPackRead, context: VideoGenerationContext) -> IRPrompt:
     return build_video_prompt_ir(
         pack,
-        dialogues=dialogues_from_summary(pack.dialogue_summary),
+        dialogues=_dialogue_inputs(pack),
+        reference_mode=context.reference_mode,
+        audio_file_ids=context.reference_audio_file_ids,
         duration_seconds=pack.camera.duration,
         aspect_ratio=context.ratio or None,
         max_references=MAX_REFERENCE_IMAGES,
@@ -114,7 +134,7 @@ async def _render_with_model_prompt_format(
     prose, prose_warnings = await _generate_h3_prose(db, ir)
     warnings.extend(prose_warnings)
 
-    result = render_h3(ir, prose=prose)
+    result = render_h3(ir, prose=prose, reference_mode=context.reference_mode)
     warnings.extend(result.warnings)
     return result.text, warnings
 
@@ -146,6 +166,7 @@ async def derive_video_preview(
             reference_mode=context.reference_mode,
             rendered_prompt=rendered_prompt,
             images=images,
+            audio_file_ids=list(context.reference_audio_file_ids),
             pack=pack,
             template_id=context.template_id,
             template_name=None,
@@ -178,6 +199,7 @@ async def derive_video_preview(
         reference_mode=context.reference_mode,
         rendered_prompt=rendered_prompt.strip(),
         images=images,
+        audio_file_ids=list(context.reference_audio_file_ids),
         pack=pack,
         template_id=template.id if template else None,
         template_name=template.name if template else None,
@@ -194,6 +216,7 @@ def to_shot_video_prompt_preview_read(
         template_id=derived.template_id,
         template_name=derived.template_name,
         rendered_prompt=derived.rendered_prompt,
+        audio_file_ids=derived.audio_file_ids,
         pack=derived.pack,
         warnings=derived.warnings,
     )

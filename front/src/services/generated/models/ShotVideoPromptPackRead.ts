@@ -5,6 +5,7 @@
 import type { ActionBeatPhaseRead } from './ActionBeatPhaseRead';
 import type { ShotPromptAssetRef } from './ShotPromptAssetRef';
 import type { ShotPromptCameraInfo } from './ShotPromptCameraInfo';
+import type { ShotPromptDialogueRead } from './ShotPromptDialogueRead';
 /**
  * 视频提示词渲染前的标准上下文包。
  */
@@ -57,6 +58,10 @@ export type ShotVideoPromptPackRead = {
      * 对白摘要
      */
     dialogue_summary?: string;
+    /**
+     * 结构化台词行
+     */
+    dialogues?: Array<ShotPromptDialogueRead>;
     /**
      * 角色引用
      */

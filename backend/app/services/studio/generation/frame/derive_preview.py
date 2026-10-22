@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.chains.prompts import short_drama_rules as rules
 from app.schemas.studio.shots import FrameGuidanceDecisionRead, RenderedShotFramePromptRead, ShotFramePromptMappingRead
 from app.services.studio.generation.frame.build_base import FrameBaseDraft
 from app.services.studio.generation.frame.build_context import FrameGenerationContext
@@ -283,20 +284,53 @@ def enrich_frame_prompt_with_guidance(
     return "\n".join([*guidance_lines, text]).strip()
 
 
+def _dedupe_lines(items: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for item in items:
+        text = str(item or "").strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        result.append(text)
+    return result
+
+
 def compose_shot_frame_rendered_prompt(
     *,
     replaced_prompt: str,
     mappings: list[ShotFramePromptMappingRead],
+    negative_prompt: str = "",
+    avoid_items: list[str] | None = None,
 ) -> str:
-    """拼装最终提交给模型的关键帧提示词。"""
+    """拼装最终提交给图片模型的提示词。
+
+    结构固定为：参考图角色 → 模型产出的分块正文 → 统一约束。
+    参考图角色写清「图N 约束什么、不改变什么」，避免模型把身份图当构图图使用。
+    """
     lines: list[str] = []
-    if mappings:
-        lines.append("## 图片内容说明")
-        for mapping in mappings:
-            lines.append(f"{mapping.token}: {mapping.name}")
+    role_block = rules.build_image_reference_role_block(mappings, prefix="[参考图角色]")
+    if role_block:
+        lines.append(role_block)
         lines.append("")
-    lines.append("## 生成内容")
-    lines.append((replaced_prompt or "").strip())
+
+    body = (replaced_prompt or "").strip()
+    if body:
+        lines.append(body)
+
+    constraints: list[str] = []
+    constraints.extend(rules.DEFAULT_PRESERVE_ITEMS)
+    constraints.extend(avoid_items or [])
+    if negative_prompt:
+        constraints.append(f"避免出现：{negative_prompt}")
+    constraints.extend(rules.IMAGE_TEXT_RULES)
+
+    cleaned = _dedupe_lines(constraints)
+    if cleaned:
+        lines.append("")
+        lines.append("[统一约束]")
+        lines.extend(cleaned)
+
     return "\n".join(lines).strip()
 
 
@@ -347,7 +381,11 @@ def derive_frame_preview(
     rendered_prompt = compose_shot_frame_rendered_prompt(
         replaced_prompt=enriched_prompt,
         mappings=context.ordered_refs,
+        negative_prompt=base.negative_prompt,
+        avoid_items=base.avoid_items,
     )
+    # 长度预算针对模型产出的正文；参考图角色与统一约束是系统追加的，不应计入。
+    length_warning = rules.image_prompt_length_warning(enriched_prompt)
     return FrameDerivedPreview(
         shot_id=base.shot_id,
         frame_type=base.frame_type.value if hasattr(base.frame_type, "value") else str(base.frame_type),
@@ -359,6 +397,7 @@ def derive_frame_preview(
         dropped_guidance_details=dropped_guidance_details,
         images=[mapping.file_id for mapping in context.ordered_refs],
         mappings=context.ordered_refs,
+        warnings=[length_warning] if length_warning else [],
     )
 
 

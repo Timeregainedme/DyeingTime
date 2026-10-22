@@ -3,10 +3,13 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { ApiResponse_dict_str__Any__ } from '../models/ApiResponse_dict_str__Any__';
+import type { ApiResponse_list_dict_str__Any___ } from '../models/ApiResponse_list_dict_str__Any___';
 import type { ApiResponse_RenderedPromptResponse_ } from '../models/ApiResponse_RenderedPromptResponse_';
 import type { ApiResponse_RenderedShotFramePromptRead_ } from '../models/ApiResponse_RenderedShotFramePromptRead_';
 import type { ApiResponse_TaskCreated_ } from '../models/ApiResponse_TaskCreated_';
+import type { AssetPromptSnapshotUpdateRequest } from '../models/AssetPromptSnapshotUpdateRequest';
 import type { BatchAssetImageTaskRequest } from '../models/BatchAssetImageTaskRequest';
+import type { BatchRenderAssetPromptsRequest } from '../models/BatchRenderAssetPromptsRequest';
 import type { ShotFrameImageTaskRequest } from '../models/ShotFrameImageTaskRequest';
 import type { ShotFramePromptRenderRequest } from '../models/ShotFramePromptRenderRequest';
 import type { StudioImageTaskRequest } from '../models/StudioImageTaskRequest';
@@ -202,6 +205,88 @@ export class StudioImageTasksService {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/studio/image-tasks/assets/batch-image-tasks',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * 批量渲染资产图提示词（只渲染，不创建图片任务）
+     * 批量渲染指定类型资产的图片提示词，并保存为可审核的审核稿。
+     * @returns ApiResponse_dict_str__Any__ Successful Response
+     * @throws ApiError
+     */
+    public static batchRenderAssetImagePromptsApiV1StudioImageTasksAssetsAssetTypeBatchRenderPromptsPost({
+        assetType,
+        requestBody,
+    }: {
+        assetType: string,
+        requestBody: BatchRenderAssetPromptsRequest,
+    }): CancelablePromise<ApiResponse_dict_str__Any__> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/studio/image-tasks/assets/{asset_type}/batch-render-prompts',
+            path: {
+                'asset_type': assetType,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * 列出资产图提示词审核稿
+     * 按项目与资产类型列出行审核稿，供提示词审核弹窗回读。
+     * @returns ApiResponse_list_dict_str__Any___ Successful Response
+     * @throws ApiError
+     */
+    public static listAssetPromptSnapshotsApiV1StudioImageTasksAssetsAssetTypePromptSnapshotsGet({
+        assetType,
+        projectId,
+    }: {
+        assetType: string,
+        projectId: string,
+    }): CancelablePromise<ApiResponse_list_dict_str__Any___> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/studio/image-tasks/assets/{asset_type}/prompt-snapshots',
+            path: {
+                'asset_type': assetType,
+            },
+            query: {
+                'project_id': projectId,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * 更新资产图提示词审核稿
+     * 保存用户对某条资产图提示词的编辑。
+     * @returns ApiResponse_dict_str__Any__ Successful Response
+     * @throws ApiError
+     */
+    public static updateAssetPromptSnapshotApiV1StudioImageTasksAssetsAssetTypePromptSnapshotsAssetIdPatch({
+        assetType,
+        assetId,
+        requestBody,
+    }: {
+        assetType: string,
+        assetId: string,
+        requestBody: AssetPromptSnapshotUpdateRequest,
+    }): CancelablePromise<ApiResponse_dict_str__Any__> {
+        return __request(OpenAPI, {
+            method: 'PATCH',
+            url: '/api/v1/studio/image-tasks/assets/{asset_type}/prompt-snapshots/{asset_id}',
+            path: {
+                'asset_type': assetType,
+                'asset_id': assetId,
+            },
             body: requestBody,
             mediaType: 'application/json',
             errors: {

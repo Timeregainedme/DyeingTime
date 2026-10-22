@@ -22,12 +22,16 @@ from app.core.contracts.image_generation import DEFAULT_IMAGE_OUTPUT_FORMAT
 from app.core.task_manager import SqlAlchemyTaskStore
 from app.core.task_manager.types import TaskStatus
 from app.models.studio import (
+    Actor,
     ActorImage,
     Character,
     CharacterImage,
+    Costume,
     CostumeImage,
     Project,
+    Prop,
     PropImage,
+    Scene,
     SceneImage,
 )
 from app.models.types import AssetQualityLevel, AssetViewAngle
@@ -39,6 +43,10 @@ from app.services.studio.generation.asset_image import (
     build_asset_image_context,
     build_character_image_base_draft,
     derive_asset_image_preview,
+)
+from app.services.studio.asset_prompt_snapshots import (
+    get_asset_prompt_snapshot,
+    upsert_asset_prompt_snapshot,
 )
 from app.services.studio.image_task_runner import stage_image_task_and_link
 
@@ -127,14 +135,14 @@ async def _project_asset_ids(
     return [str(x) for x in (await db.execute(stmt)).scalars().all() if x]
 
 
-async def _create_single_asset_image_task(
+async def _build_asset_image_preview(
     db: AsyncSession,
     *,
     asset_type: str,
     asset_id: str,
     image_id: int,
-) -> tuple[str, str]:
-    """为单个资产 stage 图片生成任务，返回 (task_id, prompt)。不提交、不入队。"""
+):
+    """构造单个资产图的基础草稿与最终预览（不创建任务）。"""
     if asset_type == "character":
         base = await build_character_image_base_draft(
             db,
@@ -157,16 +165,94 @@ async def _create_single_asset_image_task(
             image_id=image_id,
         )
     context = build_asset_image_context(base=base)
-    derived = derive_asset_image_preview(base=base, context=context)
+    return base, derive_asset_image_preview(base=base, context=context)
+
+
+async def _asset_display_name(
+    db: AsyncSession,
+    *,
+    asset_type: str,
+    asset_id: str,
+) -> str:
+    """读取资产名称，供提示词审核表展示。"""
+    model_by_type = {
+        "actor": Actor,
+        "character": Character,
+        "scene": Scene,
+        "prop": Prop,
+        "costume": Costume,
+    }
+    model = model_by_type.get(asset_type)
+    if model is None:
+        return asset_id
+    row = await db.get(model, asset_id)
+    return str(getattr(row, "name", "") or asset_id)
+
+
+async def _resolve_prompt_for_asset(
+    db: AsyncSession,
+    *,
+    asset_type: str,
+    asset_id: str,
+    image_id: int,
+    use_prompt_snapshots: bool,
+    prompt_override: str | None = None,
+) -> str:
+    """决定本次生成使用的提示词：显式覆盖 > 审核稿 > 重新渲染。"""
+    override = str(prompt_override or "").strip()
+    if override:
+        return override
+
+    if use_prompt_snapshots:
+        try:
+            snapshot = await get_asset_prompt_snapshot(db, asset_type=asset_type, asset_id=asset_id)
+        except Exception:  # noqa: BLE001 - 快照读取失败不应阻断图片生成
+            snapshot = None
+        if snapshot is not None and str(snapshot.prompt or "").strip():
+            return str(snapshot.prompt).strip()
+
+    _base, derived = await _build_asset_image_preview(
+        db,
+        asset_type=asset_type,
+        asset_id=asset_id,
+        image_id=image_id,
+    )
+    return derived.prompt
+
+
+async def _create_single_asset_image_task(
+    db: AsyncSession,
+    *,
+    asset_type: str,
+    asset_id: str,
+    image_id: int,
+    use_prompt_snapshots: bool = True,
+    prompt_override: str | None = None,
+) -> tuple[str, str]:
+    """为单个资产 stage 图片生成任务，返回 (task_id, prompt)。不提交、不入队。"""
+    _base, derived = await _build_asset_image_preview(
+        db,
+        asset_type=asset_type,
+        asset_id=asset_id,
+        image_id=image_id,
+    )
+    prompt = await _resolve_prompt_for_asset(
+        db,
+        asset_type=asset_type,
+        asset_id=asset_id,
+        image_id=image_id,
+        use_prompt_snapshots=use_prompt_snapshots,
+        prompt_override=prompt_override,
+    )
     task_id = await stage_image_task_and_link(
         db=db,
         model_id=None,
         relation_type=derived.relation_type,
         relation_entity_id=derived.relation_entity_id,
-        prompt=derived.prompt,
+        prompt=prompt,
         images=derived.images,
     )
-    return task_id, derived.prompt
+    return task_id, prompt
 
 
 def _enqueue(task_id: str) -> None:
@@ -183,6 +269,8 @@ async def create_batch_asset_image_tasks(
     project_id: str,
     asset_ids: list[str] | None = None,
     max_assets: int = MAX_BATCH_ASSETS,
+    use_prompt_snapshots: bool = True,
+    prompt_overrides: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """批量创建资产图片生成任务（限定在单个项目内）。
 
@@ -230,12 +318,18 @@ async def create_batch_asset_image_tasks(
             continue
         try:
             async with db.begin_nested():
-                task_id, prompt = await _create_single_asset_image_task(
-                    db,
-                    asset_type=asset_type_norm,
-                    asset_id=asset_id,
-                    image_id=image_id,
-                )
+                create_kwargs: dict[str, Any] = {
+                    "asset_type": asset_type_norm,
+                    "asset_id": asset_id,
+                    "image_id": image_id,
+                }
+                # 只在非默认时传新增参数，保持既有测试替身/调用方的兼容性。
+                if not use_prompt_snapshots:
+                    create_kwargs["use_prompt_snapshots"] = False
+                override = (prompt_overrides or {}).get(asset_id)
+                if override:
+                    create_kwargs["prompt_override"] = override
+                task_id, prompt = await _create_single_asset_image_task(db, **create_kwargs)
         except Exception as exc:  # noqa: BLE001 - 单个资产失败不应阻断批量
             skipped.append({"asset_id": asset_id, "reason": str(exc)})
             continue
@@ -263,3 +357,101 @@ async def create_batch_asset_image_tasks(
             tasks.append({"asset_id": asset_id, "task_id": task_id, "prompt": prompt})
 
     return {"tasks": tasks, "skipped": skipped, "enqueue_failed": enqueue_failed}
+
+
+async def render_batch_asset_image_prompts(
+    db: AsyncSession,
+    *,
+    asset_type: str,
+    project_id: str,
+    asset_ids: list[str] | None = None,
+    only_missing: bool = False,
+    max_assets: int = MAX_BATCH_ASSETS,
+) -> dict[str, Any]:
+    """批量渲染资产图提示词并写入审核稿，不创建图片任务。
+
+    这是“生成提示词”按钮的后端能力：模板渲染是确定性的、不扣图费，
+    用户可以先把提示词审完，再单独触发“生成图片”。
+    """
+    asset_type_norm = asset_type.strip().lower()
+    if asset_type_norm not in BATCH_ASSET_TYPES:
+        raise ValueError(f"unsupported asset_type: {asset_type}")
+
+    if await db.get(Project, project_id) is None:
+        raise ValueError(entity_not_found("Project"))
+
+    project_ids = set(
+        await _project_asset_ids(db, asset_type=asset_type_norm, project_id=project_id)
+    )
+    skipped: list[dict[str, str]] = []
+    if asset_ids:
+        requested = list(dict.fromkeys(str(x).strip() for x in asset_ids if str(x).strip()))
+        targets = [x for x in requested if x in project_ids]
+        skipped.extend(
+            {"asset_id": x, "reason": "not in project"} for x in requested if x not in project_ids
+        )
+    else:
+        targets = sorted(project_ids)
+
+    if len(targets) > max_assets:
+        raise ValueError(
+            f"too many assets: {len(targets)} > {max_assets}；请缩小 asset_ids 范围或分批执行"
+        )
+
+    items: list[dict[str, Any]] = []
+    for asset_id in targets:
+        image_id = await pick_primary_image_id(db, asset_type=asset_type_norm, asset_id=asset_id)
+        if image_id is None:
+            image_id = await _ensure_asset_image_slot(
+                db, asset_type=asset_type_norm, asset_id=asset_id
+            )
+        if image_id is None:
+            skipped.append({"asset_id": asset_id, "reason": "no image slot"})
+            continue
+
+        try:
+            existing = await get_asset_prompt_snapshot(
+                db, asset_type=asset_type_norm, asset_id=asset_id
+            )
+            if only_missing and existing is not None and str(existing.prompt or "").strip():
+                skipped.append({"asset_id": asset_id, "reason": "prompt snapshot exists"})
+                continue
+
+            async with db.begin_nested():
+                base, derived = await _build_asset_image_preview(
+                    db,
+                    asset_type=asset_type_norm,
+                    asset_id=asset_id,
+                    image_id=image_id,
+                )
+                prompt = str(derived.prompt or "").strip()
+                if not prompt:
+                    skipped.append({"asset_id": asset_id, "reason": "empty prompt"})
+                    continue
+                snapshot = await upsert_asset_prompt_snapshot(
+                    db,
+                    project_id=project_id,
+                    asset_type=asset_type_norm,
+                    asset_id=asset_id,
+                    image_id=image_id,
+                    prompt=prompt,
+                )
+            items.append(
+                {
+                    "asset_type": asset_type_norm,
+                    "asset_id": asset_id,
+                    "asset_name": await _asset_display_name(
+                        db, asset_type=asset_type_norm, asset_id=asset_id
+                    ),
+                    "image_id": image_id,
+                    "prompt": snapshot.prompt,
+                    "warnings": list(getattr(base, "reference_warnings", []) or []),
+                }
+            )
+        except Exception as exc:  # noqa: BLE001 - 单个资产失败不应阻断批量
+            logger.exception(
+                "批量渲染资产提示词失败：asset_type=%s asset_id=%s", asset_type_norm, asset_id
+            )
+            skipped.append({"asset_id": asset_id, "reason": str(exc)})
+
+    return {"items": items, "skipped": skipped}

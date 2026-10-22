@@ -14,5 +14,9 @@ export type BatchCreateAssetsFromCandidatesRequest = {
      * 候选类型过滤（character/scene/prop/costume）；缺省处理全部类型
      */
     types?: (Array<string> | null);
+    /**
+     * 只把已有资产重新关联到镜头，不创建新资产；用于资产修改后的重新关联
+     */
+    link_only?: boolean;
 };
 

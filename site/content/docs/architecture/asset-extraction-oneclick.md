@@ -5,6 +5,11 @@ weight: 14
 ---
 
 > 本文属于“当前架构”文档，描述当前真实生效的实现。
+>
+> **2026-10-22 更新**：`ChapterShotsPage` 已改为四个独立按钮
+> 「提取分镜 / 提取资产 / 生成提示词 / 生成图片」，不再自动串联全链路。
+> 下文“一键提取资产（全链路）”描述的是已移除的历史实现，保留仅用于回溯。
+> 新的四段式说明见 [章节制作四阶段](/docs/architecture/chapter-production-stages/)。
 
 ## 背景
 
@@ -31,9 +36,10 @@ extract-async -> 候选落库(shot_extracted_candidates，含 payload.descriptio
 
 接口：`POST /api/v1/studio/shots/extracted-candidates/batch-create-assets`
 
-前端入口：`ChapterShotsPage` 的「一键创建资产」按钮（`front/src/pages/aiStudio/shots/ChapterShotsPage.tsx::handleBatchCreateAssets`），与「一键提取分镜」并列。
+前端入口：`ChapterShotsPage` 的「提取资产」按钮（`front/src/pages/aiStudio/shots/components/ChapterProductionActions.tsx`）；「重新关联」按钮复用同一接口并传 `link_only=true`。
 
-- 入参：`{ chapter_id, types?: [character|scene|prop|costume] }`，缺省处理该章节全部 pending 候选。
+- 入参：`{ chapter_id, types?: [character|scene|prop|costume], link_only?: boolean }`，缺省处理该章节全部 pending 候选。
+- `link_only=true` 时不创建新资产，只按名称查找已有资产并建立镜头关联；找不到的候选进入 `skipped`，原因 `asset_not_found`。
 - `types` 的两种「空」语义不同（`app/services/studio/batch_candidate_assets.py::create_assets_from_extraction_candidates`）：
   - **不传 `types`（`None`）= 不限定类型，处理全部**；
   - **显式传空数组 `[]` = 一个类型都不处理**，直接返回三个空列表；
@@ -45,9 +51,9 @@ extract-async -> 候选落库(shot_extracted_candidates，含 payload.descriptio
   - 无论新建还是关联，候选都标记为 `linked`。
 - 返回：`{ created, linked, skipped }`（逐候选明细）。
 
-## 一键提取资产（全链路）
+## 一键提取资产（全链路，已移除）
 
-前端入口：`ChapterShotsPage` 的「一键提取资产」主按钮（`front/src/pages/aiStudio/shots/ChapterShotsPage.tsx::handleOneClickExtractAssets`），排在「一键提取分镜」与「一键创建资产」之前。
+> 2026-10-22 起该入口已从 `ChapterShotsPage` 移除，改为四个独立按钮；本节仅记录历史实现。
 
 它把三个原本分散的步骤串成一条链路，解决「用户不知道该点哪个、也不知道上一步跑完没有」：
 
@@ -97,9 +103,12 @@ extract-async -> 候选落库(shot_extracted_candidates，含 payload.descriptio
 
 早先本文把 `ChapterPrep` 记为入口，但该页已**无路由、全仓无 import**（`front/src/App.tsx:31` 把 `/chapters/:chapterId/prep/*` 重定向到 `../shots`），属不可达代码。当前真实入口：
 
-- **一键提取资产（全链路）**：同在 `ChapterShotsPage`，为该页主按钮。没有分镜时先切分镜，再对本章节全部镜头跑资产提取，提取任务结束后自动创建资产；三步由任务 settle 事件串联，中途失败/取消即中止（详见上节）。
-- **一键提取分镜**：`ChapterShotsPage`（`/projects/:projectId/chapters/:chapterId/shots`）的「一键提取分镜」按钮，调 `divide-async` 落库分镜；已存在分镜时禁用（需先清空）。
-- **一键创建资产**：同在 `ChapterShotsPage`，与「一键提取分镜」并列。调用下节的 `batch-create-assets`（`types` 不传 = 处理全部 pending），完成后提示 `新建/关联/跳过` 计数并刷新分镜列表；无候选时提示先完成信息提取。
+- **四段式按钮**：`ChapterShotsPage`（`/projects/:projectId/chapters/:chapterId/shots`）顶部：
+  - 「提取分镜」：只调 `divide-async` 落库分镜；已存在分镜时禁用。
+  - 「提取资产」：`extract-async` + `batch-create-assets`，只建资产与镜头关联。
+  - 「生成提示词」：批量渲染资产图提示词并写入 `asset_prompt_snapshots`；分镜帧提示词可选。
+  - 「生成图片」：资产图按服装 → 场景 → 道具 → 角色批量提交；分镜帧图可选。
+  - 「重新关联」：`batch-create-assets` + `link_only=true`，修改资产后重新建立镜头关联。
 - **逐镜候选确认**：`ChapterShotEditPage`（`.../shots/:shotId/edit`），逐候选关联/新建/忽略。
   - 候选不存在时弹「当前无可关联资产，是否新建？」，跳转到资产创建入口并携带上下文：角色 → `/projects/:id?tab=roles&create=1`，场景/道具/服装 → `/assets?tab=<kind>&create=1`。
   - 库里已有同名资产时改为弹「可关联」确认，复用已有实体而非新建。

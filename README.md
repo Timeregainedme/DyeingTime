@@ -400,9 +400,15 @@ backend/sql/001-init-prompt-template.sql
 backend/sql/002-add-shot-extracted-candidates.sql
 ...
 backend/sql/027-add-style-prompt-pack.sql
+backend/sql/028-rewrite-image-prompt-templates.sql
+backend/sql/029-update-h3-agent-prompt.sql
+backend/sql/030-add-fallback-text-model.sql
+backend/sql/031-add-asset-prompt-snapshots.sql
+backend/sql/032-update-script-division-agent-prompt.sql
+backend/sql/033-update-script-agents-prompts.sql
 ```
 
-**新增迁移请追加为下一个未占用序号的新文件（如 `028-*.sql`），不要修改已应用的编号文件。**
+**新增迁移请追加为下一个未占用序号的新文件（如 `034-*.sql`），不要修改已应用的编号文件。**
 所有迁移脚本都写成幂等形式（`CREATE TABLE IF NOT EXISTS` / `information_schema` 判定），
 重复执行不会报错。
 

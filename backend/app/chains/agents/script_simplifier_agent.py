@@ -57,5 +57,12 @@ class ScriptSimplifierAgent(AgentBase[ScriptSimplificationResult]):
             data["simplified_script_text"] = str(data.get("optimized_script_text") or "")
         if "simplification_summary" not in data:
             data["simplification_summary"] = str(data.get("change_summary") or "")
+        # 归一化非字符串输出，避免 Pydantic 校验失败
+        if not isinstance(data.get("simplified_script_text"), str):
+            value = data.get("simplified_script_text")
+            data["simplified_script_text"] = "\n".join(str(x) for x in value) if isinstance(value, list) else str(value or "")
+        if not isinstance(data.get("simplification_summary"), str):
+            value = data.get("simplification_summary")
+            data["simplification_summary"] = "\n".join(str(x) for x in value) if isinstance(value, list) else str(value or "")
         return data
 

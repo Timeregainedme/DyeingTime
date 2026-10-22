@@ -4,37 +4,55 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.studio import CameraAngle, CameraMovement, CameraShotType
 from app.schemas.skills.common import DialogueLine, DialogueLineMode, EvidenceSpan
 from app.schemas.skills.film import Character, Location, Prop, Scene, ProjectCinematicBreakdown
 
 
-SceneTimeLoose = Literal["DAY", "NIGHT", "DAWN", "DUSK", "UNKNOWN", "日", "夜", "黎明", "黄昏", "不明", "未知"]
-
-
 class ShotDivision(BaseModel):
-    """剧本分镜中的单镜信息：行号 + 预览文本（可选弱语义）。"""
+    """剧本分镜中的单镜信息。
+
+    快速切分只依赖 `index` / `script_excerpt` / `shot_name`；行号与时间字段是历史
+    可选信息，不再作为写入数据库的硬前置，避免模型输出近义词导致整单校验失败。
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     index: int = Field(..., ge=1, description="镜头序号（章节内唯一）")
-    start_line: int = Field(..., ge=1, description="起始行号（1-based）")
-    end_line: int = Field(..., ge=1, description="结束行号（1-based）")
+    start_line: int | None = Field(None, ge=1, description="起始行号（1-based，可选）")
+    end_line: int | None = Field(None, ge=1, description="结束行号（1-based，可选）")
     script_excerpt: str = Field(..., description="镜头对应的剧本摘录/文本")
 
     shot_name: str = Field("", description="镜头名称（分镜名/镜头标题）")
-    time_of_day: Optional[SceneTimeLoose] = Field(None, description="时间（日/夜/未知等，可选）")
+    time_of_day: str | None = Field(None, description="时间描述（自由文本，可选；不再参与强校验）")
+
+    @field_validator("script_excerpt", "shot_name", "time_of_day", mode="before")
+    @classmethod
+    def _coerce_optional_text_fields(cls, value: Any) -> str | None:
+        """模型偶尔把文本字段输出为数组/对象；这里统一转成文本，避免整单校验失败。"""
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return value
+        if isinstance(value, (list, dict)):
+            try:
+                import json
+
+                return json.dumps(value, ensure_ascii=False)
+            except Exception:
+                return str(value)
+        return str(value)
 
 
 class ScriptDivisionResult(BaseModel):
-    """剧本分镜结果：镜头列表（每镜起止行号+预览文本）。"""
+    """剧本分镜结果：镜头列表 + 总数。"""
 
     model_config = ConfigDict(extra="forbid")
 
     shots: List[ShotDivision] = Field(default_factory=list, description="分镜列表")
-    total_shots: int = Field(..., ge=0, description="总镜头数")
+    total_shots: int = Field(0, ge=0, description="总镜头数；缺省时由服务端按 shots 计算")
     notes: Optional[str] = Field(None, description="拆分说明或建议（可选）")
 
 
@@ -225,6 +243,47 @@ class ScriptOptimizationResult(BaseModel):
     optimized_script_text: str = Field(..., description="优化后的剧本文本")
     change_summary: str = Field(..., description="改动摘要（只围绕 issues）")
 
+    @field_validator("optimized_script_text", "change_summary", mode="before")
+    @classmethod
+    def _coerce_text_fields(cls, value: Any) -> str:
+        """将模型可能返回的非字符串结构（列表/对象）归一化为文本，避免输出校验失败。"""
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            return value
+        if isinstance(value, list):
+            parts: list[str] = []
+            for item in value:
+                if isinstance(item, str):
+                    parts.append(item)
+                elif isinstance(item, dict):
+                    # 优先提取常见摘要字段，避免把整段 JSON 直接暴露给前端
+                    issue_type = item.get("issue_type") or item.get("type")
+                    description = item.get("description") or item.get("summary") or item.get("change")
+                    suggestion = item.get("suggestion") or item.get("fix")
+                    text = "：".join(str(x) for x in (issue_type, description) if x)
+                    if suggestion:
+                        text = f"{text}（建议：{suggestion}）" if text else f"建议：{suggestion}"
+                    if not text:
+                        try:
+                            import json
+
+                            text = json.dumps(item, ensure_ascii=False)
+                        except Exception:
+                            text = str(item)
+                    parts.append(text)
+                else:
+                    parts.append(str(item))
+            return "\n".join(part for part in parts if part)
+        if isinstance(value, dict):
+            try:
+                import json
+
+                return json.dumps(value, ensure_ascii=False)
+            except Exception:
+                return str(value)
+        return str(value)
+
 
 class ScriptSimplificationResult(BaseModel):
     """剧本精简输出：在保留剧情主体与连续性的前提下压缩篇幅。"""
@@ -233,6 +292,25 @@ class ScriptSimplificationResult(BaseModel):
 
     simplified_script_text: str = Field(..., description="精简后的剧本文本")
     simplification_summary: str = Field(..., description="精简策略摘要（说明删改原则）")
+
+    @field_validator("simplified_script_text", "simplification_summary", mode="before")
+    @classmethod
+    def _coerce_text_fields(cls, value: Any) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            return value
+        if isinstance(value, list):
+            parts = [str(item) for item in value]
+            return "\n".join(part for part in parts if part)
+        if isinstance(value, dict):
+            try:
+                import json
+
+                return json.dumps(value, ensure_ascii=False)
+            except Exception:
+                return str(value)
+        return str(value)
 
 
 class ScriptShotExtraction(BaseModel):

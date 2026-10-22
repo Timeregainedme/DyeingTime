@@ -174,7 +174,7 @@ def _stub_extract_pipeline(monkeypatch, worker, captured: list[dict], rebuild_ca
 
     monkeypatch.setattr(worker, "_rebuild_script_division_from_shots", _fake_rebuild)
     monkeypatch.setattr(worker, "ElementExtractorAgent", _FakeAgent)
-    monkeypatch.setattr(worker, "build_default_text_llm_sync", lambda db, thinking=False: None)
+    monkeypatch.setattr(worker, "build_default_text_llm_sync", lambda db, thinking=False, **kwargs: None)
     monkeypatch.setattr(worker, "get_cached_script_extract", lambda key: None)
     monkeypatch.setattr(worker, "set_cached_script_extract", lambda key, result: None)
     monkeypatch.setattr(worker, "write_division_result_to_chapter_sync", _forbidden_write)
@@ -261,7 +261,7 @@ def test_batch_asset_image_tasks_route_returns_201_envelope(monkeypatch) -> None
     """D-12：HTTP 201 与响应体业务码必须一致（此前是 201 + code=200）。"""
     from app.api.v1.routes.studio import image_tasks as image_tasks_routes
 
-    async def _fake_service(db, *, asset_type, project_id, asset_ids=None):  # noqa: ANN001, ANN202
+    async def _fake_service(db, *, asset_type, project_id, asset_ids=None, **kwargs):  # noqa: ANN001, ANN202
         return {"tasks": [], "skipped": []}
 
     async def _fake_db():  # noqa: ANN202

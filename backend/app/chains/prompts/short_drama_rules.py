@@ -284,7 +284,107 @@ def build_reference_binding_line(token: str, name: str, kind: str) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# 8. 注入 LLM 的顶层纪律
+# 8. 图片提示词方法论
+# --------------------------------------------------------------------------- #
+
+# 图片提示词推荐分块（分镜帧使用完整四块；资产图可精简为三块）。
+IMAGE_BLOCK_NAMES: tuple[str, ...] = ("Scene", "Subject", "Details", "Constraints")
+IMAGE_ASSET_BLOCK_NAMES: tuple[str, ...] = ("Deliverable", "Subject", "Constraints")
+
+IMAGE_PROMPT_LENGTH_RANGE: tuple[int, int] = (200, 350)
+
+IMAGE_DELIVERABLE_RULES: tuple[str, ...] = (
+    "第一句先写清交付物：这张图是角色定妆照、场景图、道具图还是分镜首帧/关键帧/尾帧",
+    "交付物之后依次写主体、构图、光线与材质，保证生成后可以逐项核对",
+    "不写「电影感」「大师级光影」「8K」这类无法验收的形容词",
+)
+
+IMAGE_VISIBLE_DETAIL_RULES: tuple[str, ...] = (
+    "只写肉眼可见的物理细节：皮肤纹理、毛孔、皱纹、材质反射、布料褶皱、光源方向与阴影",
+    "相机与镜头参数只作为外观线索（景别、视角、景深），不承诺真实光学模拟",
+    "光线必须写清来源、软硬、色温与投影方向，避免无来源的环境光",
+)
+
+IMAGE_POSE_RULES: tuple[str, ...] = (
+    "人物写清构图范围、视线落点、左右站位、朝向、双手位置与双脚是否入画",
+    "动作写当前瞬间的真实状态，不把连续动作写成结果态",
+    "多人互动必须写明谁在左/右、谁看谁、谁持有什么，避免模型自行交换身份",
+)
+
+IMAGE_TEXT_RULES: tuple[str, ...] = (
+    "画面内不生成文字、字幕、水印、UI、贴纸或后期叠加",
+    "招牌、屏幕、包装、信件等剧情内实体不生成可读文字；参考资产已有文字时保持原样，不新增、不改写、不重绘",
+)
+
+IMAGE_EDIT_RULES: tuple[str, ...] = (
+    "编辑时先写「仅修改」的具体变量，再逐项写「保留」的身份、发型、服装、姿态、背景与光照",
+    "每一轮只改一个变量；上一轮已验收的内容不得顺带改动",
+    "非正面视角只改变视角，身份、服装、背景、光照与人物比例保持正面基准",
+)
+
+IMAGE_REFERENCE_ROLE_RULES: tuple[str, ...] = (
+    "每张参考图必须写明用途，不能只在开头罗列文件名或编号",
+    "角色图写明身份参考只约束长相、发型、服装，不改变本帧动作与构图",
+    "场景图写明空间与光照参考，只约束环境结构，不改变主体动作",
+    "道具/服装图写明结构、材质、颜色与形制参考",
+    "多参考图编辑时说明新物体继承哪张图的光源方向、投影与空间比例",
+)
+
+_IMAGE_REFERENCE_ROLE_SUFFIX: dict[str, str] = {
+    "character": "的身份与外观参考，只约束长相、发型、服装，不改变本帧动作与构图",
+    "scene": "的空间与光照参考，只约束环境结构，不改变主体动作",
+    "prop": "的外观与结构参考，只约束材质、颜色与形制",
+    "costume": "的服装形制与材质参考",
+    "frame": "的画面锚点参考",
+}
+
+
+def image_reference_role_suffix(kind: str) -> str:
+    """返回某类参考图在图片提示词中的职责说明。"""
+    return _IMAGE_REFERENCE_ROLE_SUFFIX.get(str(kind or "").strip().lower(), "的参考")
+
+
+def build_image_reference_role_block(mappings: Iterable[object], *, prefix: str = "") -> str:
+    """把有序参考图映射渲染成「图N：用途」段落。
+
+    入参只要求对象带 `token`、`name`、`type` 三个属性，兼容帧映射与资产映射。
+    """
+    lines: list[str] = []
+    for mapping in mappings:
+        token = str(getattr(mapping, "token", "") or "").strip()
+        name = str(getattr(mapping, "name", "") or "").strip()
+        kind = str(getattr(mapping, "type", "") or "").strip()
+        if not token:
+            continue
+        label = f"{token} 为「{name}」" if name else f"{token} 为"
+        lines.append(f"{label}{image_reference_role_suffix(kind)}。")
+    if not lines:
+        return ""
+    return "\n".join([*([prefix] if prefix else []), *lines])
+
+
+def image_prompt_length_warning(
+    text: str,
+    *,
+    low: int | None = None,
+    high: int | None = None,
+) -> str:
+    """图片提示词长度提示；空字符串表示在预算内。
+
+    默认只检查上限：最终渲染会追加参考图角色与统一约束，正文偏短不一定有问题；
+    需要检查下限时显式传 `low`。
+    """
+    length = len(str(text or "").strip())
+    upper = IMAGE_PROMPT_LENGTH_RANGE[1] if high is None else high
+    if length > upper:
+        return f"图片提示词约 {length} 字，超过建议上限 {upper} 字；优先删修饰词，不删关键物件与接触关系"
+    if low is not None and length and length < low:
+        return f"图片提示词约 {length} 字，低于建议下限 {low} 字；可能缺少可验收的构图、光线或材质细节"
+    return ""
+
+
+# --------------------------------------------------------------------------- #
+# 9. 注入 LLM 的顶层纪律
 # --------------------------------------------------------------------------- #
 
 SHORT_DRAMA_SYSTEM_GUIDELINES: tuple[str, ...] = (

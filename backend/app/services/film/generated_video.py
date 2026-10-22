@@ -124,15 +124,30 @@ async def preview_prompt_and_images(
     reference_mode: str,
     prompt: str | None,
     images: list[str] | None = None,
-) -> tuple[str, list[str], dict | None]:
+    reference_audio_file_ids: list[str] | None = None,
+) -> tuple[str, list[str], list[str], dict | None]:
+    """预览最终提示词、参考图与参考音频。
+
+    预览必须和真实生成使用同一套音频解析逻辑：否则用户看到的 `<Audio N>`
+    与实际提交给供应商的音频列表会错位。
+    """
     # 仅做校验（不满足时抛错），本函数用不到返回值。
     await validate_shot_and_duration(db, shot_id)
     base = build_video_base_draft(shot_id=shot_id, prompt=prompt)
+
+    audio_ids = await resolve_video_reference_audio_file_ids(
+        db,
+        shot_id=shot_id,
+        reference_mode=reference_mode,
+        explicit_file_ids=reference_audio_file_ids,
+    )
+
     context = await build_video_context(
         db,
         shot_id=shot_id,
         reference_mode=reference_mode,
         images=images,
+        reference_audio_file_ids=audio_ids,
     )
     submission = await build_video_submission_payload(db, base=base, context=context)
     if not submission.prompt:
@@ -140,8 +155,13 @@ async def preview_prompt_and_images(
     prompt_preview_payload = submission.extra.get("prompt_preview")
     if isinstance(prompt_preview_payload, dict):
         pack = prompt_preview_payload.get("pack")
-        return submission.prompt, submission.images, pack if isinstance(pack, dict) else None
-    return submission.prompt, submission.images, None
+        return (
+            submission.prompt,
+            submission.images,
+            audio_ids,
+            pack if isinstance(pack, dict) else None,
+        )
+    return submission.prompt, submission.images, audio_ids, None
 
 
 async def resolve_default_video_model(db: AsyncSession) -> Model:
@@ -270,30 +290,65 @@ async def resolve_effective_video_resolution(
     # 交给适配层用供应商默认值（不强行写入，避免覆盖各供应商自己的默认）
     return None
 
+async def resolve_shot_dialog_audio_references(
+    db: AsyncSession,
+    *,
+    shot_id: str,
+    limit: int = 3,
+) -> list[dict[str, str | int | None]]:
+    """取该镜头下「已生成配音」的台词，并按说话人去重。
+
+    为什么去重：H3 的 `<Audio N>` 要和 `(Sx)` 稳定对应；同一角色多句台词
+    只应占一个音色参考位，否则多角色镜头会很快用满 3 个音频名额。
+
+    返回字段：`file_id` / `speaker_name` / `speaker_id` / `line_index` / `line_mode`。
+    """
+    stmt = (
+        select(ShotDialogLine)
+        .where(
+            ShotDialogLine.shot_detail_id == shot_id,
+            ShotDialogLine.generated_audio_file_id.is_not(None),
+        )
+        .order_by(ShotDialogLine.index, ShotDialogLine.id)
+    )
+    rows = (await db.execute(stmt)).scalars().all()
+
+    seen_speakers: set[str] = set()
+    result: list[dict[str, str | int | None]] = []
+    for row in rows:
+        file_id = str(getattr(row, "generated_audio_file_id", "") or "").strip()
+        if not file_id:
+            continue
+        speaker_name = str(getattr(row, "speaker_name", "") or "").strip()
+        speaker_key = str(getattr(row, "speaker_character_id", "") or "").strip() or speaker_name
+        if not speaker_key:
+            speaker_key = f"line-{getattr(row, 'id', 0)}"
+        if speaker_key in seen_speakers:
+            continue
+        seen_speakers.add(speaker_key)
+        result.append(
+            {
+                "file_id": file_id,
+                "speaker_name": speaker_name or "角色",
+                "speaker_id": "",
+                "line_index": int(getattr(row, "index", 0) or 0),
+                "line_mode": str(getattr(row, "line_mode", "DIALOGUE") or "DIALOGUE"),
+            }
+        )
+        if len(result) >= max(1, limit):
+            break
+    return result
+
+
 async def resolve_shot_dialog_audio_file_ids(
     db: AsyncSession,
     *,
     shot_id: str,
     limit: int = 3,
 ) -> list[str]:
-    """取该镜头下「已生成配音」的台词文件 id（最多 limit 个）。
-
-    用途：视频生成时把对话配音作为参考音频自动传给供应商，避免用户逐条手动选择。
-    供应商硬约束：参考音频 ≤3 个，且不能单独使用（必须同时有参考图）。
-
-    排序：按台词行 index 升序，取前 limit 条已配音的。
-    """
-    stmt = (
-        select(ShotDialogLine.generated_audio_file_id)
-        .where(
-            ShotDialogLine.shot_detail_id == shot_id,
-            ShotDialogLine.generated_audio_file_id.is_not(None),
-        )
-        .order_by(ShotDialogLine.index)
-        .limit(limit)
-    )
-    rows = (await db.execute(stmt)).scalars().all()
-    return [str(x).strip() for x in rows if x and str(x).strip()]
+    """取该镜头下已生成配音的 file_id（按说话人去重后的前 limit 条）。"""
+    refs = await resolve_shot_dialog_audio_references(db, shot_id=shot_id, limit=limit)
+    return [str(item["file_id"]) for item in refs if item.get("file_id")]
 
 
 async def _project_use_dialog_audio_as_reference(db: AsyncSession, *, shot_id: str) -> bool:
@@ -311,6 +366,32 @@ async def _project_use_dialog_audio_as_reference(db: AsyncSession, *, shot_id: s
     if project is None:
         return True
     return bool(getattr(project, "use_dialog_audio_as_reference", True))
+
+
+async def resolve_video_reference_audio_file_ids(
+    db: AsyncSession,
+    *,
+    shot_id: str,
+    reference_mode: str,
+    explicit_file_ids: list[str] | None = None,
+) -> list[str]:
+    """解析本次视频生成实际使用的参考音频 file_id。
+
+    - 只有 reference 模式支持参考音频；
+    - 显式传入优先；未传时按项目开关自动带上该镜头已生成配音；
+    - 自动解析按说话人去重，避免同一角色占多个音频位；
+    - 最多 3 个。
+    """
+    if reference_mode != REFERENCE_MODE:
+        return []
+    audio_ids = [str(x).strip() for x in (explicit_file_ids or []) if str(x).strip()]
+    if not audio_ids:
+        project_use_audio = await _project_use_dialog_audio_as_reference(db, shot_id=shot_id)
+        if project_use_audio:
+            audio_ids = await resolve_shot_dialog_audio_file_ids(db, shot_id=shot_id, limit=3)
+    if len(audio_ids) > 3:
+        raise HTTPException(status_code=400, detail="参考音频最多 3 个")
+    return audio_ids
 
 
 async def build_run_args(
@@ -353,6 +434,20 @@ async def build_run_args(
             ratio=resolved_ratio,
         )
 
+    # 参考音频必须在构建提示词之前解析：提示词里的 <Audio N> 编号要和实际提交的
+    # 音频列表一一对应，否则预览与真实生成会不一致。
+    audio_ids = await resolve_video_reference_audio_file_ids(
+        db,
+        shot_id=shot_id,
+        reference_mode=reference_mode,
+        explicit_file_ids=reference_audio_file_ids,
+    )
+    if audio_ids and not images:
+        raise HTTPException(
+            status_code=400,
+            detail="参考音频不能单独使用：请同时提供至少一张参考图",
+        )
+
     context = await build_video_context(
         db,
         shot_id=shot_id,
@@ -361,6 +456,7 @@ async def build_run_args(
         provider=provider_cfg.provider,
         model=model.name,
         ratio=resolved_ratio,
+        reference_audio_file_ids=audio_ids,
     )
     submission = await build_video_submission_payload(db, base=base, context=context)
     validate_images_count(reference_mode, submission.images)
@@ -372,20 +468,6 @@ async def build_run_args(
     if reference_mode == REFERENCE_MODE:
         # 参考图模式：上传顺序即 IR 参考列表顺序，与提示词里的 <Picture N> 一一对应。
         # payload 只存 file_id，字节在派发期物化（materialize_input_references）。
-        audio_ids = [str(x).strip() for x in (reference_audio_file_ids or []) if str(x).strip()]
-        if not audio_ids:
-            # 未显式指定时，按项目开关决定是否自动带上该镜头台词已生成的配音（≤3 个）。
-            # 项目级开关见 projects.use_dialog_audio_as_reference（默认开启）。
-            project_use_audio = await _project_use_dialog_audio_as_reference(db, shot_id=shot_id)
-            if project_use_audio:
-                audio_ids = await resolve_shot_dialog_audio_file_ids(db, shot_id=shot_id, limit=3)
-        if audio_ids and not submission.images:
-            raise HTTPException(
-                status_code=400,
-                detail="参考音频不能单独使用：请同时提供至少一张参考图",
-            )
-        if len(audio_ids) > 3:
-            raise HTTPException(status_code=400, detail="参考音频最多 3 个")
         input_payload: dict = {
             "prompt": final_prompt,
             "reference_file_ids": list(submission.images),

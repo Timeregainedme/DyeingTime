@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +22,7 @@ from app.dependencies import (
 )
 from app.models.studio import Chapter, Project, Shot
 from app.schemas.common import ApiResponse, PaginatedData, created_response, empty_response, paginated_response, success_response
+from app.services.studio.chapter_production_status import build_chapter_production_status
 from app.services.common import (
     create_and_refresh,
     entity_already_exists,
@@ -109,6 +112,22 @@ async def create_chapter(
     await get_project_in_workspace(db, body.project_id, ctx)
     obj = await create_and_refresh(db, Chapter(**body.model_dump()))
     return created_response(ChapterRead.model_validate(obj))
+
+
+@router.get(
+    "/{chapter_id}/production-status",
+    response_model=ApiResponse[dict[str, Any]],
+    summary="获取章节制作阶段状态（分镜/候选/资产/提示词/图片计数）",
+)
+async def get_chapter_production_status(
+    chapter_id: str,
+    db: AsyncSession = Depends(get_db),
+    ctx: WorkspaceContext = Depends(require_viewer),
+) -> ApiResponse[dict[str, Any]]:
+    """四个独立制作按钮共用的轻量状态接口；不触发任何生成。"""
+    await get_chapter_in_workspace(db, chapter_id, ctx)
+    data = await build_chapter_production_status(db, chapter_id=chapter_id)
+    return success_response(data)
 
 
 @router.get(

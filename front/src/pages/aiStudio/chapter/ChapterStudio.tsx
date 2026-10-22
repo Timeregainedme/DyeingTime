@@ -154,6 +154,7 @@ type VideoReferenceMode =
 type VideoPromptDerived = {
   prompt: string
   images: string[]
+  audioFileIds: string[]
   pack: ShotVideoPromptPackRead | null
 }
 
@@ -3207,9 +3208,11 @@ function Inspector(props: {
       })
       const data = res.data ?? null
       const images = data?.images ?? []
+      const audioFileIds = data?.audio_file_ids ?? []
       return {
         prompt: typeof data?.prompt === 'string' ? data.prompt : '',
         images: Array.isArray(images) ? images.filter(Boolean) : [],
+        audioFileIds: Array.isArray(audioFileIds) ? audioFileIds.filter(Boolean) : [],
         pack: data?.pack ?? null,
       }
     },
@@ -3247,6 +3250,7 @@ function Inspector(props: {
   })
   const videoPromptPreviewDraft = videoPromptDraft.base.prompt
   const videoPromptPreviewImages = videoPromptDraft.context.images
+  const videoPromptPreviewAudioFileIds = videoPromptDraft.derived?.audioFileIds ?? []
   const videoReferenceMode = videoPromptDraft.context.referenceMode
   const videoPromptPreviewPack = videoPromptDraft.derived?.pack ?? null
   const videoActionBeatPhases = videoPromptPreviewPack?.action_beat_phases ?? []
@@ -6536,7 +6540,7 @@ function Inspector(props: {
                       </div>
                       <div className="mt-2 space-y-1 text-slate-500">
                         <div>1. 根据当前参考图顺序生成图1 / 图2映射</div>
-                        <div>2. 补充“## 图片内容说明”</div>
+                        <div>2. 补充参考图角色与统一约束</div>
                         <div>3. 生成最终提交给模型的提示词</div>
                       </div>
                     </div>
@@ -6680,6 +6684,20 @@ function Inspector(props: {
                         />
                       ))}
                     </Image.PreviewGroup>
+                  </div>
+                )}
+              </div>
+              <div>
+                <div className="text-xs text-gray-500 mb-2">关联音频（音色参考）</div>
+                {videoPromptPreviewAudioFileIds.length === 0 ? (
+                  <div className="text-xs text-gray-400">暂无关联音频</div>
+                ) : (
+                  <div className="space-y-1">
+                    {videoPromptPreviewAudioFileIds.map((fid, index) => (
+                      <div key={fid} className="text-xs text-slate-600">
+                        Audio {index + 1}：{fid}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

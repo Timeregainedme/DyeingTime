@@ -9,7 +9,8 @@
 这样新增或更换图片/视频模型时，只需要新增一个 renderer，上游构建逻辑保持不变。
 
 术语对齐 H3 官方规范：`references` 对应参考素材（内部统一用 `图N` 有序 token），
-`subjects` 对应 `<Subject N>` 定义的内容单元，`shots` 对应 `[Shot N]` 段落。
+`subjects` 对应 `<Subject N>` 定义的内容单元，`audio_references` 对应 `<Audio N>` 音色参考，
+`pictures` 对应首帧/尾帧/关键帧槽位，`shots` 对应 `[Shot N]` 段落。
 """
 
 from __future__ import annotations
@@ -22,11 +23,23 @@ from app.chains.prompts import short_drama_rules as rules
 from app.schemas.studio.shots import ShotVideoPromptPackRead
 
 IRReferenceKind = Literal["character", "scene", "prop", "costume", "frame"]
+IRReferenceMode = Literal[
+    "reference",
+    "first",
+    "last",
+    "key",
+    "first_last",
+    "first_last_key",
+    "text_only",
+]
+IRPictureRole = Literal["first_frame", "last_frame", "key_frame", "composition"]
 
 # H3 参考素材上限（图片 ≤9）。其它模型可在 renderer 里再收紧。
 MAX_REFERENCE_IMAGES = rules.MAX_REFERENCE_IMAGES
 
 DEFAULT_VIDEO_DURATION_SECONDS = 5.0
+
+_REFERENCE_MODES = {"reference", "first", "last", "key", "first_last", "first_last_key", "text_only"}
 
 
 class IRReference(BaseModel):
@@ -50,6 +63,31 @@ class IRDialogueInput(BaseModel):
     speaker_name: str = Field("", description="说话人名称")
     text: str = Field("", description="台词文本")
     emotion: str | None = Field(None, description="情绪/语气")
+    line_mode: str = Field("DIALOGUE", description="对白模式：DIALOGUE/VOICE_OVER/OFF_SCREEN/PHONE")
+    audio_file_id: str | None = Field(None, description="该台词已生成配音的文件 ID（用作音色参考）")
+
+
+class IRAudioReference(BaseModel):
+    """一条音频参考（当前只用于音色参考，不复用原声）。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    label: str = Field(..., description="H3 音频标签，如 Audio 1")
+    file_id: str = Field(..., description="音频文件 ID")
+    speaker_name: str = Field("", description="对应说话人名称")
+    speaker_id: str = Field("", description="稳定说话人编号，如 S1")
+    role: Literal["timbre"] = Field("timbre", description="参考用途：音色参考")
+    source_line_index: int | None = Field(None, description="来源台词行号，便于诊断")
+
+
+class IRPicture(BaseModel):
+    """首帧/尾帧/关键帧槽位；用于 I2VA/FL2VA/L2VA 的对齐句。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    label: str = Field(..., description="H3 图片标签，如 Picture 1")
+    role: IRPictureRole = Field(..., description="图片在视频中的角色")
+    source_token: str = Field("", description="内部 token（如 图1），无则为空")
 
 
 class IRDialogueLine(BaseModel):
@@ -63,6 +101,9 @@ class IRDialogueLine(BaseModel):
     language: str = Field("Chinese", description="台词语言（H3 需要显式语言标签）")
     emotion: str | None = Field(None, description="情绪/语气")
     start_seconds: float | None = Field(None, description="该台词在镜头内的起始秒数")
+    line_mode: str = Field("DIALOGUE", description="对白模式：DIALOGUE/VOICE_OVER/OFF_SCREEN/PHONE")
+    audio_file_id: str | None = Field(None, description="该台词已生成配音的文件 ID（内部映射用）")
+    audio_label: str | None = Field(None, description="该说话人对应的音频标签，如 Audio 1")
 
 
 class IRSubjectDefinition(BaseModel):
@@ -108,6 +149,7 @@ class IRPrompt(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     kind: Literal["video", "image"] = Field("video", description="提示词类别")
+    reference_mode: IRReferenceMode = Field("reference", description="输入模式，决定 H3 走参考六段还是基础三段")
     task_types: list[str] = Field(default_factory=lambda: ["reference generation"], description="任务类型前缀")
     duration_seconds: float = Field(DEFAULT_VIDEO_DURATION_SECONDS, description="目标时长（秒）")
     aspect_ratio: str | None = Field(None, description="画面比例")
@@ -115,6 +157,8 @@ class IRPrompt(BaseModel):
     genre: str = Field("", description="题材风格（如 真人都市）")
     visual_style: str = Field("", description="视觉风格（现实/动漫）")
     references: list[IRReference] = Field(default_factory=list, description="有序参考素材")
+    audio_references: list[IRAudioReference] = Field(default_factory=list, description="音频参考（音色参考）")
+    pictures: list[IRPicture] = Field(default_factory=list, description="首帧/尾帧/关键帧槽位")
     subjects: list[IRSubjectDefinition] = Field(default_factory=list, description="内容单元定义")
     shots: list[IRShot] = Field(default_factory=list, description="镜头段落")
     soundscape: str = Field("", description="全片环境音与物理音")
@@ -215,40 +259,71 @@ def _collect_asset_references(
     return references, warnings
 
 
+def _definition_rows(pack: ShotVideoPromptPackRead) -> list[tuple[str, str, str]]:
+    """列出上下文包里所有可用于内容单元定义的资产（不要求有参考图）。"""
+    rows: list[tuple[str, str, str]] = []
+    for item in pack.characters:
+        rows.append(("character", item.name, item.description or ""))
+    if pack.scene is not None:
+        rows.append(("scene", pack.scene.name, pack.scene.description or ""))
+    for item in pack.props:
+        rows.append(("prop", item.name, item.description or ""))
+    for item in pack.costumes:
+        rows.append(("costume", item.name, item.description or ""))
+    return rows
+
+
+def _appears_in(name: str, shots: list[IRShot]) -> list[int]:
+    """判断内容单元出现在哪些镜头；找不到时默认全镜头。"""
+    appears = [shot.index for shot in shots if name and name in shot.visual]
+    return appears or [shot.index for shot in shots]
+
+
 def _build_subjects(
     pack: ShotVideoPromptPackRead,
     *,
     references: list[IRReference],
     shots: list[IRShot],
+    include_without_reference: bool = False,
 ) -> list[IRSubjectDefinition]:
-    """把参考素材提升为可复用的内容单元定义。"""
+    """把参考素材（以及非参考模式下的资产描述）提升为内容单元定义。
+
+    参考模式只定义真正有参考图的单元；首尾帧/纯文本模式没有参考图编号，
+    但仍需要角色/场景描述供正文写作，因此按 `include_without_reference` 补齐。
+    """
+    descriptions = {(kind, name): description for kind, name, description in _definition_rows(pack)}
     subjects: list[IRSubjectDefinition] = []
-    descriptions: dict[tuple[str, str], str] = {}
+    referenced_names: set[str] = set()
 
-    for item in pack.characters:
-        descriptions[("character", item.name)] = item.description or ""
-    if pack.scene is not None:
-        descriptions[("scene", pack.scene.name)] = pack.scene.description or ""
-    for item in pack.props:
-        descriptions[("prop", item.name)] = item.description or ""
-    for item in pack.costumes:
-        descriptions[("costume", item.name)] = item.description or ""
-
-    for index, ref in enumerate(references, start=1):
-        appears_in = [shot.index for shot in shots if ref.name and ref.name in shot.visual]
-        if not appears_in:
-            appears_in = [shot.index for shot in shots]
+    for ref in references:
+        referenced_names.add(ref.name)
         subjects.append(
             IRSubjectDefinition(
-                label=f"Subject {index}",
+                label=f"Subject {len(subjects) + 1}",
                 name=ref.name,
                 kind=ref.kind,
                 definition=descriptions.get((ref.kind, ref.name), ""),
                 source_tokens=[ref.token],
                 retention="fully_preserved",
-                appears_in=appears_in,
+                appears_in=_appears_in(ref.name, shots),
             )
         )
+
+    if include_without_reference:
+        for kind, name, description in _definition_rows(pack):
+            if not name or name in referenced_names:
+                continue
+            subjects.append(
+                IRSubjectDefinition(
+                    label=f"Subject {len(subjects) + 1}",
+                    name=name,
+                    kind=kind,  # type: ignore[arg-type]
+                    definition=description,
+                    source_tokens=[],
+                    retention="fully_preserved",
+                    appears_in=_appears_in(name, shots),
+                )
+            )
     return subjects
 
 
@@ -275,6 +350,9 @@ def _build_dialogues(
                 speaker_id=speaker_ids[name],
                 text=text,
                 emotion=item.emotion,
+                line_mode=str(item.line_mode or "DIALOGUE").strip().upper() or "DIALOGUE",
+                audio_file_id=str(item.audio_file_id or "").strip() or None,
+                audio_label=None,
             )
         )
 
@@ -288,10 +366,123 @@ def _build_dialogues(
     return lines, warnings
 
 
+def _build_pictures(reference_mode: str) -> list[IRPicture]:
+    """按输入模式生成 H3 图片槽位；参考模式不使用独立 Picture 定义。"""
+    mode = str(reference_mode or "").strip().lower()
+    if mode in {"first", "key"}:
+        return [IRPicture(label="Picture 1", role="first_frame")]
+    if mode == "last":
+        return [IRPicture(label="Picture 1", role="last_frame")]
+    if mode == "first_last":
+        return [
+            IRPicture(label="Picture 1", role="first_frame"),
+            IRPicture(label="Picture 2", role="last_frame"),
+        ]
+    if mode == "first_last_key":
+        return [
+            IRPicture(label="Picture 1", role="first_frame"),
+            IRPicture(label="Picture 2", role="last_frame"),
+            IRPicture(label="Picture 3", role="key_frame"),
+        ]
+    return []
+
+
+def _build_audio_references(
+    dialogues: Sequence[IRDialogueLine],
+    *,
+    audio_file_ids: Sequence[str],
+) -> tuple[list[IRAudioReference], list[str]]:
+    """把实际提交的参考音频绑定到说话人。
+
+    规则：按台词顺序扫描，同一说话人只取第一条有配音的台词；最多 3 条。
+    这样 `<Audio N>` 与 `(Sx)` 才能稳定对应，不会让同一个角色占多个音频位。
+    """
+    wanted = [str(item).strip() for item in audio_file_ids if str(item).strip()]
+    if not wanted:
+        return [], []
+
+    warnings: list[str] = []
+    wanted_set = set(wanted)
+    seen_speakers: set[str] = set()
+    audio_refs: list[IRAudioReference] = []
+    matched_file_ids: set[str] = set()
+
+    for line in dialogues:
+        file_id = str(line.audio_file_id or "").strip()
+        if not file_id or file_id not in wanted_set:
+            continue
+        if line.speaker_id in seen_speakers:
+            continue
+        seen_speakers.add(line.speaker_id)
+        matched_file_ids.add(file_id)
+        label = f"Audio {len(audio_refs) + 1}"
+        line.audio_label = label
+        audio_refs.append(
+            IRAudioReference(
+                label=label,
+                file_id=file_id,
+                speaker_name=line.speaker_name,
+                speaker_id=line.speaker_id,
+                source_line_index=None,
+            )
+        )
+        if len(audio_refs) >= 3:
+            break
+
+    # 显式传入的音频可能没有回填到台词行（历史数据/手工选择）：
+    # 此时按台词顺序绑定到尚未占用的说话人，避免音频提交了却不在提示词里引用。
+    if not matched_file_ids and dialogues:
+        assigned_speakers: set[str] = set()
+        for file_id in wanted:
+            line = next(
+                (
+                    item
+                    for item in dialogues
+                    if item.speaker_id and item.speaker_id not in assigned_speakers
+                ),
+                None,
+            )
+            if line is None:
+                break
+            assigned_speakers.add(line.speaker_id)
+            matched_file_ids.add(file_id)
+            label = f"Audio {len(audio_refs) + 1}"
+            line.audio_label = label
+            audio_refs.append(
+                IRAudioReference(
+                    label=label,
+                    file_id=file_id,
+                    speaker_name=line.speaker_name,
+                    speaker_id=line.speaker_id,
+                    source_line_index=None,
+                )
+            )
+            if len(audio_refs) >= 3:
+                break
+        if audio_refs:
+            warnings.append("参考音频未回填到台词行，已按台词顺序绑定到说话人")
+
+    # 同一说话人的后续台词沿用同一个 <Audio N>，保证口型/音色引用稳定。
+    label_by_speaker = {item.speaker_id: item.label for item in audio_refs if item.speaker_id}
+    for line in dialogues:
+        if line.speaker_id in label_by_speaker:
+            line.audio_label = label_by_speaker[line.speaker_id]
+
+    missing = [file_id for file_id in wanted if file_id not in matched_file_ids]
+    if missing:
+        warnings.append(
+            f"{len(missing)} 条参考音频没有匹配到台词说话人，本次未写入 <Audio N>："
+            + "、".join(missing)
+        )
+    return audio_refs, warnings
+
+
 def build_video_prompt_ir(
     pack: ShotVideoPromptPackRead,
     *,
     dialogues: Sequence[IRDialogueInput] = (),
+    reference_mode: str = "reference",
+    audio_file_ids: Sequence[str] = (),
     duration_seconds: float | None = None,
     aspect_ratio: str | None = None,
     max_references: int = MAX_REFERENCE_IMAGES,
@@ -299,16 +490,26 @@ def build_video_prompt_ir(
     """把视频提示词上下文包整理成 IR。
 
     本函数是纯函数：不访问数据库、不发起网络请求。
+    参考模式把资产图转成 `<Subject N>` / `<Picture N>`；首尾帧与纯文本模式只保留
+    帧槽位和文字描述，避免把分镜帧误标成参考资产。
     """
     warnings: list[str] = []
+
+    mode = str(reference_mode or "reference").strip().lower()
+    if mode not in _REFERENCE_MODES:
+        warnings.append(f"未知 reference_mode={reference_mode!r}，已按 reference 处理")
+        mode = "reference"
 
     duration = float(duration_seconds or pack.camera.duration or DEFAULT_VIDEO_DURATION_SECONDS)
     if duration <= 0:
         duration = DEFAULT_VIDEO_DURATION_SECONDS
         warnings.append("镜头时长缺失或非法，已按默认 5 秒构建 IR")
 
-    references, ref_warnings = _collect_asset_references(pack, max_references=max_references)
-    warnings.extend(ref_warnings)
+    if mode == "reference":
+        references, ref_warnings = _collect_asset_references(pack, max_references=max_references)
+        warnings.extend(ref_warnings)
+    else:
+        references = []
 
     shot_description = str(getattr(pack, "shot_description", "") or "").strip()
     visual = shot_description or str(pack.script_excerpt or "").strip()
@@ -329,15 +530,38 @@ def build_video_prompt_ir(
         continuity=pack.continuity_guidance,
     )
 
-    subjects = _build_subjects(pack, references=references, shots=[shot])
+    subjects = _build_subjects(
+        pack,
+        references=references,
+        shots=[shot],
+        include_without_reference=(mode != "reference"),
+    )
     dialogue_lines, dialogue_warnings = _build_dialogues(dialogues, subjects=subjects)
     warnings.extend(dialogue_warnings)
     shot.dialogues = dialogue_lines
 
-    task_types = ["reference generation"] if references else []
+    # 首尾帧/纯文本模式不使用全参考标签，参考音频也就没有合法的 <Audio N> 位置。
+    audio_refs: list[IRAudioReference] = []
+    if mode == "reference":
+        audio_refs, audio_warnings = _build_audio_references(
+            dialogue_lines,
+            audio_file_ids=audio_file_ids,
+        )
+        warnings.extend(audio_warnings)
+    elif audio_file_ids:
+        warnings.append("当前输入模式不是 reference，参考音频不会写入提示词")
+
+    task_types: list[str] = []
+    if mode == "reference" and references:
+        task_types.append("reference generation")
+    if audio_refs:
+        task_types.append("audio reference")
+    if not task_types and mode != "text_only":
+        task_types.append("keyframe completion")
 
     return IRPrompt(
         kind="video",
+        reference_mode=mode,  # type: ignore[arg-type]
         task_types=task_types,
         duration_seconds=duration,
         aspect_ratio=aspect_ratio,
@@ -345,6 +569,8 @@ def build_video_prompt_ir(
         genre=pack.style,
         visual_style=pack.visual_style,
         references=references,
+        audio_references=audio_refs,
+        pictures=_build_pictures(mode),
         subjects=subjects,
         shots=[shot],
         soundscape=shot.sound,
@@ -356,7 +582,7 @@ def build_video_prompt_ir(
         source={
             "shot_id": pack.shot_id,
             "title": pack.title,
-            "reference_mode": "reference",
+            "reference_mode": mode,
             "duration_seconds": duration,
         },
     )
@@ -388,11 +614,15 @@ def dialogues_from_summary(summary: str) -> list[IRDialogueInput]:
 
 __all__ = [
     "DEFAULT_VIDEO_DURATION_SECONDS",
+    "IRAudioReference",
     "IRDialogueInput",
     "IRDialogueLine",
+    "IRPicture",
+    "IRPictureRole",
     "IRPrompt",
     "IRReference",
     "IRReferenceKind",
+    "IRReferenceMode",
     "IRShot",
     "IRSubjectDefinition",
     "MAX_REFERENCE_IMAGES",

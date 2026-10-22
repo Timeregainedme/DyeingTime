@@ -12,6 +12,10 @@ export type ModelSettingsRead = {
      */
     default_text_model_id?: (string | null);
     /**
+     * 文本模型失败时的备用模型 ID
+     */
+    fallback_text_model_id?: (string | null);
+    /**
      * 默认图片模型 ID
      */
     default_image_model_id?: (string | null);

@@ -115,6 +115,8 @@ class VideoGenerationContext(GenerationContext):
     model: str = ""
     # 生效后的视频比例（竖屏短剧通常是 9:16），用于提示词里的构图描述。
     ratio: str = ""
+    # 实际会提交给供应商的参考音频 file_id，顺序即 <Audio N> 编号顺序。
+    reference_audio_file_ids: list[str] = []
 
 
 async def build_video_context(
@@ -127,6 +129,7 @@ async def build_video_context(
     provider: str = "",
     model: str = "",
     ratio: str = "",
+    reference_audio_file_ids: list[str] | None = None,
 ) -> VideoGenerationContext:
     resolved_images = await resolve_video_reference_images(
         db,
@@ -142,5 +145,8 @@ async def build_video_context(
         provider=provider,
         model=model,
         ratio=ratio,
+        reference_audio_file_ids=[
+            str(item).strip() for item in (reference_audio_file_ids or []) if str(item).strip()
+        ],
     )
 

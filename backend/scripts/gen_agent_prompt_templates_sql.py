@@ -5,8 +5,10 @@
   手抄一份进 SQL 必然漂移；这里直接 import 常量，保证 SQL 与代码逐字一致。
 
 生成内容：
-1. `prompt_templates.published_at` 列（幂等：information_schema 判断后才 ALTER）；
-2. 12 条 agent_* 分类种子模板（同 category 已存在则 UPDATE，不存在则 INSERT）。
+1. 默认只生成 `029-update-h3-agent-prompt.sql`（更新未发布的 H3 Agent 默认提示词）；
+2. `--full` 时额外生成 `015-add-agent-prompt-templates.sql` 全量种子。
+
+迁移约定：`015` 是已应用的全量种子文件，不再修改；新 Agent 提示词变更写入新的迁移文件。
 
 语义约定：
 - `is_system = 0`：agent 模板允许编辑（用户需在模板页修改后手动「发布生效」）；
@@ -138,11 +140,32 @@ UPDATE `prompt_templates` SET `name` = '{esc_name}', `preview` = '{esc_preview}'
 INSERT INTO `prompt_templates` (`id`, `category`, `name`, `preview`, `content`, `variables`, `is_default`, `is_system`, `published_at`, `created_at`, `updated_at`) SELECT UUID(), '{category}', '{esc_name}', '{esc_preview}', '{esc_content}', CAST('[]' AS JSON), 0, 0, NULL, NOW(), NOW() FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `prompt_templates` WHERE `category` = '{category}');"""
 
 
-def main() -> None:
+def build_h3_update_sql() -> str:
+    """生成 029：只更新未发布的 H3 Agent 默认提示词。
+
+    为什么加 `published_at IS NULL`：已发布版本可能已被用户改过，
+    迁移不应静默覆盖用户内容；用户可在模板页「恢复默认」后重新发布。
+    """
+    content = _sql_escape(h3_video_prompt_agent._SYSTEM_PROMPT)
+    return f"""-- 029-update-h3-agent-prompt.sql
+-- 更新 H3 视频提示词 Agent 的默认系统提示词（仅未发布模板）。
+-- 已发布（published_at 非空）的模板可能包含用户自定义内容，本迁移不覆盖。
+-- 由 backend/scripts/gen_agent_prompt_templates_sql.py 生成，请勿手工编辑。
+
+SET NAMES utf8mb4;
+
+UPDATE `prompt_templates`
+SET `content` = '{content}', `updated_at` = NOW()
+WHERE `category` = 'agent_h3_video' AND `published_at` IS NULL;
+"""
+
+
+def _build_full_seed_sql() -> str:
+    """生成 015 全量种子；仅在显式 `--full` 时使用，避免误改已应用迁移。"""
     lines = [
         "-- 015-add-agent-prompt-templates.sql",
         "-- Agent 系统提示词模板化：12 个运行时 Agent 的提示词进入模板表，可在模板页编辑并手动发布生效。",
-        "-- 由 backend/scripts/gen_agent_prompt_templates_sql.py 生成，请勿手工编辑。",
+        "-- 由 backend/scripts/gen_agent_prompt_templates_sql.py --full 生成，请勿手工编辑。",
         "-- 幂等：published_at 列经 information_schema 判断；模板按 category UPDATE/INSERT。",
         "-- 发布语义：published_at 非空 = 已发布；未发布时运行时使用代码内置默认提示词。",
         "",
@@ -154,10 +177,75 @@ def main() -> None:
     for category, (name, preview, content) in AGENT_TEMPLATES.items():
         lines.append(_build_template_sql(category, name, preview, content))
         lines.append("")
+    return "\n".join(lines)
 
-    out = Path(BACKEND_DIR) / "sql" / "015-add-agent-prompt-templates.sql"
-    out.write_text("\n".join(lines), encoding="utf-8")
-    print(f"written: {out} ({len(AGENT_TEMPLATES)} templates)")
+
+def build_script_division_update_sql() -> str:
+    """生成 032：只更新未发布的分镜拆解 Agent 默认提示词。"""
+    content = _sql_escape(script_divider_agent._SCRIPT_DIVIDER_SYSTEM_PROMPT)
+    return f"""-- 032-update-script-division-agent-prompt.sql
+-- 更新分镜拆解 Agent 的默认系统提示词（仅未发布模板）。
+-- 已发布（published_at 非空）的模板可能包含用户自定义内容，本迁移不覆盖。
+-- 由 backend/scripts/gen_agent_prompt_templates_sql.py 生成，请勿手工编辑。
+
+SET NAMES utf8mb4;
+
+UPDATE `prompt_templates`
+SET `content` = '{content}', `updated_at` = NOW()
+WHERE `category` = 'agent_script_division' AND `published_at` IS NULL;
+"""
+
+
+def build_script_agents_update_sql() -> str:
+    """生成 033：更新未发布的剧本优化/精简 Agent 默认提示词。"""
+    updates: list[str] = []
+    for category, content in (
+        ("agent_script_optimize", script_optimizer_agent._SCRIPT_OPTIMIZER_SYSTEM_PROMPT),
+        ("agent_script_simplify", script_simplifier_agent._SCRIPT_SIMPLIFIER_SYSTEM_PROMPT),
+    ):
+        escaped = _sql_escape(content)
+        updates.append(
+            "UPDATE `prompt_templates`\n"
+            f"SET `content` = '{escaped}', `updated_at` = NOW()\n"
+            f"WHERE `category` = '{category}' AND `published_at` IS NULL;"
+        )
+    return (
+        "-- 033-update-script-agents-prompts.sql\n"
+        "-- 更新剧本优化/精简 Agent 的默认系统提示词（仅未发布模板）。\n"
+        "-- 由 backend/scripts/gen_agent_prompt_templates_sql.py 生成，请勿手工编辑。\n\n"
+        "SET NAMES utf8mb4;\n\n"
+        + "\n\n".join(updates)
+        + "\n"
+    )
+
+
+def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="额外生成 015 全量种子（默认只生成 029 H3 更新迁移）",
+    )
+    args = parser.parse_args()
+
+    if args.full:
+        full_out = Path(BACKEND_DIR) / "sql" / "015-add-agent-prompt-templates.sql"
+        full_out.write_text(_build_full_seed_sql(), encoding="utf-8")
+        print(f"written: {full_out} ({len(AGENT_TEMPLATES)} templates)")
+
+    h3_out = Path(BACKEND_DIR) / "sql" / "029-update-h3-agent-prompt.sql"
+    h3_out.write_text(build_h3_update_sql(), encoding="utf-8")
+    print(f"written: {h3_out}")
+
+    division_out = Path(BACKEND_DIR) / "sql" / "032-update-script-division-agent-prompt.sql"
+    division_out.write_text(build_script_division_update_sql(), encoding="utf-8")
+    print(f"written: {division_out}")
+
+    script_agents_out = Path(BACKEND_DIR) / "sql" / "033-update-script-agents-prompts.sql"
+    script_agents_out.write_text(build_script_agents_update_sql(), encoding="utf-8")
+    print(f"written: {script_agents_out}")
 
 
 if __name__ == "__main__":

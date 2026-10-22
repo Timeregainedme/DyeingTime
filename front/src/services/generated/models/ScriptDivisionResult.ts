@@ -4,7 +4,7 @@
 /* eslint-disable */
 import type { ShotDivision } from './ShotDivision';
 /**
- * 剧本分镜结果：镜头列表（每镜起止行号+预览文本）。
+ * 剧本分镜结果：镜头列表 + 总数。
  */
 export type ScriptDivisionResult = {
     /**
@@ -12,9 +12,9 @@ export type ScriptDivisionResult = {
      */
     shots?: Array<ShotDivision>;
     /**
-     * 总镜头数
+     * 总镜头数；缺省时由服务端按 shots 计算
      */
-    total_shots: number;
+    total_shots?: number;
     /**
      * 拆分说明或建议（可选）
      */

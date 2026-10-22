@@ -34,6 +34,7 @@ export default function SettingsTab() {
     if (settings) {
       form.setFieldsValue({
         default_text_model_id: settings.default_text_model_id,
+        fallback_text_model_id: settings.fallback_text_model_id,
         default_image_model_id: settings.default_image_model_id,
         default_video_model_id: settings.default_video_model_id,
         default_audio_model_id: settings.default_audio_model_id,
@@ -50,6 +51,7 @@ export default function SettingsTab() {
       await LlmService.updateModelSettingsApiV1LlmModelSettingsPut({
         requestBody: {
           default_text_model_id: values.default_text_model_id,
+          fallback_text_model_id: values.fallback_text_model_id,
           default_image_model_id: values.default_image_model_id,
           default_video_model_id: values.default_video_model_id,
           default_audio_model_id: values.default_audio_model_id,
@@ -85,6 +87,16 @@ export default function SettingsTab() {
             <Select
               allowClear
               placeholder="选择模型"
+              options={textModels.map((m) => ({ label: m.name, value: m.id }))}
+            />
+          </Form.Item>
+          <Form.Item
+            name="fallback_text_model_id"
+            label="备用文本模型（主模型超时/失败时自动降级）"
+          >
+            <Select
+              allowClear
+              placeholder="选择备用文本模型，如 minimax-m3"
               options={textModels.map((m) => ({ label: m.name, value: m.id }))}
             />
           </Form.Item>

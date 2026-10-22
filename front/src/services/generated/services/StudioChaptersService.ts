@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { ApiResponse_ChapterRead_ } from '../models/ApiResponse_ChapterRead_';
+import type { ApiResponse_dict_str__Any__ } from '../models/ApiResponse_dict_str__Any__';
 import type { ApiResponse_NoneType_ } from '../models/ApiResponse_NoneType_';
 import type { ApiResponse_PaginatedData_ChapterRead__ } from '../models/ApiResponse_PaginatedData_ChapterRead__';
 import type { ChapterCreate } from '../models/ChapterCreate';
@@ -74,6 +75,28 @@ export class StudioChaptersService {
             url: '/api/v1/studio/chapters',
             body: requestBody,
             mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * 获取章节制作阶段状态（分镜/候选/资产/提示词/图片计数）
+     * 四个独立制作按钮共用的轻量状态接口；不触发任何生成。
+     * @returns ApiResponse_dict_str__Any__ Successful Response
+     * @throws ApiError
+     */
+    public static getChapterProductionStatusApiV1StudioChaptersChapterIdProductionStatusGet({
+        chapterId,
+    }: {
+        chapterId: string,
+    }): CancelablePromise<ApiResponse_dict_str__Any__> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/studio/chapters/{chapter_id}/production-status',
+            path: {
+                'chapter_id': chapterId,
+            },
             errors: {
                 422: `Validation Error`,
             },

@@ -13,6 +13,8 @@ from app.chains.agents import (
     ShotLastFramePromptAgent,
 )
 from app.chains.agents.shot_frame_prompt_agents import FRAME_CATEGORY_BY_TYPE
+from app.chains.prompts import short_drama_rules as rules
+from app.chains.prompts.style_pack import negative_image_prompt, style_pack_line
 from app.core.db import async_session_maker
 from app.core.task_manager import SqlAlchemyTaskStore
 from app.core.task_manager.types import TaskStatus
@@ -35,6 +37,7 @@ from app.services.common import entity_not_found, invalid_choice
 from app.services.studio.action_beats import infer_action_beat_sequence, pick_action_beat_for_frame
 from app.services.studio.image_tasks import resolve_prompt_template
 from app.services.studio.shot_status import recompute_shot_status
+from app.services.studio.style_catalog import resolve_style_motif
 from app.services.worker.async_task_support import cancel_if_requested_async
 from app.services.worker.task_logging import log_task_event, log_task_failure
 
@@ -619,6 +622,11 @@ def _validate_generated_prompt(prompt: str, input_dict: dict[str, object]) -> li
         return ["生成结果为空"]
     if "## 图片内容说明" in text or "## 生成内容" in text or re.search(r"(^|\n)\s*图\d+\s*[:：]", text):
         issues.append("结果混入了图片映射说明，应只保留基础提示词")
+    missing_blocks = [
+        name for name in ("[Scene]", "[Subject]", "[Details]", "[Constraints]") if name not in text
+    ]
+    if missing_blocks:
+        issues.append("结果缺少分块段落：" + " ".join(missing_blocks))
     primary_characters = _extract_context_names(str(input_dict.get("character_context") or ""))
     if primary_characters:
         lead_names = primary_characters[:2]
@@ -683,6 +691,14 @@ async def build_run_args(
     visual_style = _enum_value(getattr(project, "visual_style", None))
     style = _enum_value(getattr(project, "style", None))
     unify_style = bool(getattr(project, "unify_style", True)) if project is not None else True
+    motif_override = await resolve_style_motif(db, style=style)
+    style_pack = style_pack_line(
+        visual_style=visual_style,
+        style=style,
+        motif_override=motif_override,
+    )
+    negative_prompt = negative_image_prompt(visual_style=visual_style, style=style)
+    avoid_items = list(rules.DEFAULT_AVOID_ITEMS)
 
     characters = [
         link.character
@@ -747,7 +763,12 @@ async def build_run_args(
             "title": shot.title or "",
             "visual_style": visual_style,
             "style": style,
+            "style_pack": style_pack,
+            "negative_prompt": negative_prompt,
+            "avoid_items": rules.summarize_rules(avoid_items, prefix=""),
+            "avoid_items_list": avoid_items,
             "unify_style": unify_style,
+            "word_budget": f"{rules.IMAGE_PROMPT_LENGTH_RANGE[0]}–{rules.IMAGE_PROMPT_LENGTH_RANGE[1]} 个中文字符",
             "camera_shot": _enum_value(detail.camera_shot),
             "angle": _enum_value(detail.angle),
             "movement": _enum_value(detail.movement),

@@ -24,6 +24,7 @@ router = APIRouter()
 class VideoPromptPreviewResponse(BaseModel):
     prompt: str = Field(..., description="最终用于视频生成的提示词")
     images: list[str] = Field(default_factory=list, description="关联参考图 file_id 列表")
+    audio_file_ids: list[str] = Field(default_factory=list, description="关联参考音频 file_id 列表（顺序即 <Audio N>）")
     pack: ShotVideoPromptPackRead | None = Field(None, description="视频提示词预览上下文包")
 
 
@@ -39,14 +40,22 @@ async def preview_video_generation_prompt(
     db: AsyncSession = Depends(get_db),
 ) -> ApiResponse[VideoPromptPreviewResponse]:
     """预览视频生成的提示词与自动关联参考图。"""
-    prompt, images, pack = await preview_prompt_and_images(
+    prompt, images, audio_file_ids, pack = await preview_prompt_and_images(
         db,
         shot_id=body.shot_id,
         reference_mode=body.reference_mode,
         prompt=body.prompt,
         images=body.images,
+        reference_audio_file_ids=body.reference_audio_file_ids,
     )
-    return success_response(VideoPromptPreviewResponse(prompt=prompt, images=images, pack=pack))
+    return success_response(
+        VideoPromptPreviewResponse(
+            prompt=prompt,
+            images=images,
+            audio_file_ids=audio_file_ids,
+            pack=pack,
+        )
+    )
 
 
 @router.post(

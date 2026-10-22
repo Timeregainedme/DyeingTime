@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Any, Callable
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -33,8 +34,18 @@ from app.services.script_extraction_cache import (
     get_cached_script_extract,
     set_cached_script_extract,
 )
-from app.services.llm.runtime import build_default_text_llm_sync
+from app.services.llm.runtime import (
+    build_default_text_llm_sync,
+    build_fallback_text_llm_sync,
+)
 from app.services.studio.script_division import write_division_result_to_chapter_sync
+from app.services.studio.script_division_chunking import (
+    DivideChunkError,
+    DivideChunksFailed,
+    ScriptChunk,
+    merge_chunk_shots,
+    split_script_for_division,
+)
 from app.services.studio.shot_extracted_candidates import (
     sync_from_extraction_draft_sync as sync_shot_extracted_candidates_from_draft_sync,
 )
@@ -51,19 +62,120 @@ from app.services.worker.task_executor import (
 
 logger = logging.getLogger(__name__)
 
+# 资产提取每批镜头数：单批太大时 LLM 容易漏镜/输出过长；太小则调用次数过多。
+EXTRACT_BATCH_SIZE = 8
+EXTRACT_BATCH_TIMEOUT_SECONDS = 180.0
+EXTRACT_MAX_PARALLEL_BATCHES = 2
+
 
 class DivideResultGenerator(AbstractLLMResultGenerator):
+    """分镜切分：分块并行 + 主模型超时 + 备用模型降级。"""
+
     thinking = False
+    # 单块单模型最多等 90 秒；超时后立刻切备用模型，避免整单干等几分钟。
+    chunk_timeout_seconds = 90.0
+    max_parallel_chunks = 3
 
     def generate_with_llm(self, llm, run_args: dict[str, Any]) -> ScriptDivisionResult:
         agent = ScriptDividerAgent(llm)
         return agent.divide_script(script_text=str(run_args.get("script_text") or ""))
 
+    def _divide_chunk(
+        self,
+        chunk: ScriptChunk,
+        primary_llm: Any,
+        fallback_llm: Any,
+    ) -> tuple[ScriptChunk, ScriptDivisionResult]:
+        """单块优先主模型，失败后立刻用备用模型重试一次。"""
+        try:
+            return chunk, self.generate_with_llm(primary_llm, {"script_text": chunk.text})
+        except Exception as primary_exc:  # noqa: BLE001 - 单块失败要转成可重试信息
+            if fallback_llm is None:
+                raise DivideChunkError(chunk.index, str(primary_exc)) from primary_exc
+            try:
+                return chunk, self.generate_with_llm(fallback_llm, {"script_text": chunk.text})
+            except Exception as fallback_exc:  # noqa: BLE001
+                raise DivideChunkError(
+                    chunk.index,
+                    f"主模型失败：{primary_exc}；备用模型失败：{fallback_exc}",
+                ) from fallback_exc
+
+    def generate(
+        self,
+        db: Session,
+        run_args: dict[str, Any],
+        *,
+        progress_cb: Callable[[int], None] | None = None,
+    ) -> ScriptDivisionResult:
+        script_text = str(run_args.get("script_text") or "")
+        chunks = split_script_for_division(script_text)
+        if not chunks:
+            raise ValueError("剧本文本为空，无法切分镜")
+
+        primary_llm = build_default_text_llm_sync(
+            db,
+            thinking=self.thinking,
+            timeout=self.chunk_timeout_seconds,
+            max_retries=0,
+        )
+        fallback_llm = build_fallback_text_llm_sync(
+            db,
+            thinking=self.thinking,
+            timeout=self.chunk_timeout_seconds,
+            max_retries=0,
+        )
+
+        # 单块不必开线程池，直接走一次；仍然享受主/备模型降级。
+        if len(chunks) == 1:
+            if progress_cb:
+                progress_cb(20)
+            result = self._divide_chunk(chunks[0], primary_llm, fallback_llm)[1]
+            if progress_cb:
+                progress_cb(80)
+            return result
+
+        results: list[tuple[ScriptChunk, ScriptDivisionResult]] = []
+        errors: list[DivideChunkError] = []
+        workers = min(self.max_parallel_chunks, len(chunks))
+        completed = 0
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            future_map = {
+                pool.submit(self._divide_chunk, chunk, primary_llm, fallback_llm): chunk
+                for chunk in chunks
+            }
+            for future in as_completed(future_map):
+                try:
+                    results.append(future.result())
+                except DivideChunkError as exc:
+                    errors.append(exc)
+                except Exception as exc:  # noqa: BLE001 - 兜底，避免线程异常直接吞掉
+                    errors.append(DivideChunkError(future_map[future].index, str(exc)))
+                completed += 1
+                if progress_cb:
+                    progress_cb(10 + int(70 * completed / len(chunks)))
+
+        if errors:
+            raise DivideChunksFailed(sorted(errors, key=lambda item: item.chunk_index))
+
+        results.sort(key=lambda item: item[0].index)
+        merged = merge_chunk_shots(results)
+        if merged.total_shots <= 0:
+            raise ValueError("分块切分完成后没有任何镜头")
+        if progress_cb:
+            progress_cb(85)
+        return merged
+
 
 class ExtractResultGenerator(AbstractLLMResultGenerator):
     thinking = False
 
-    def generate(self, db: Session, run_args: dict[str, Any]) -> tuple[Any, bool]:
+    def generate(
+        self,
+        db: Session,
+        run_args: dict[str, Any],
+        *,
+        progress_cb: Callable[[int], None] | None = None,
+    ) -> tuple[Any, bool]:
         return generate_extraction_result(
             db=db,
             project_id=str(run_args.get("project_id") or ""),
@@ -71,6 +183,7 @@ class ExtractResultGenerator(AbstractLLMResultGenerator):
             script_division=dict(run_args.get("script_division") or {}),
             consistency=dict(run_args.get("consistency") or {}) if run_args.get("consistency") else None,
             refresh_cache=bool(run_args.get("refresh_cache")),
+            progress_cb=progress_cb,
         )
 
     def generate_with_llm(self, llm, run_args: dict[str, Any]) -> Any:  # pragma: no cover - 不直接走这里
@@ -150,14 +263,19 @@ class ScriptSimplificationResultGenerator(AbstractLLMResultGenerator):
 
 class DivideTaskExecutor(AbstractWorkerTaskExecutor):
     task_kind = "script_divide"
-    timeout_seconds = 1800.0
+    # 分块并行后正常 1–3 分钟完成；10 分钟仍未完成视为异常。
+    timeout_seconds = 600.0
 
     def __init__(self) -> None:
         super().__init__(session_maker=sync_session_maker)
         self._generator = DivideResultGenerator()
 
     def execute(self, ctx: WorkerTaskContext, run_args: dict[str, Any]) -> ScriptDivisionResult:
-        return self._generator.generate(ctx.db, run_args)
+        def progress(value: int) -> None:
+            ctx.store.set_progress(ctx.task_id, value)
+            ctx.db.commit()
+
+        return self._generator.generate(ctx.db, run_args, progress_cb=progress)
 
     def should_apply(self, ctx: WorkerTaskContext, run_args: dict[str, Any], result: ScriptDivisionResult) -> bool:  # noqa: ARG002
         return bool(run_args.get("write_to_db"))
@@ -178,7 +296,11 @@ class ExtractTaskExecutor(AbstractWorkerTaskExecutor):
         self._generator = ExtractResultGenerator()
 
     def execute(self, ctx: WorkerTaskContext, run_args: dict[str, Any]) -> tuple[Any, bool]:
-        return self._generator.generate(ctx.db, run_args)
+        def progress(value: int) -> None:
+            ctx.store.set_progress(ctx.task_id, value)
+            ctx.db.commit()
+
+        return self._generator.generate(ctx.db, run_args, progress_cb=progress)
 
     def serialize_result(self, result: tuple[Any, bool]) -> dict[str, Any]:
         draft, from_cache = result
@@ -285,7 +407,9 @@ def _rebuild_script_division_from_shots(db: Session, chapter_id: str) -> dict[st
     """
 
     shots = db.execute(
-        select(Shot).where(Shot.chapter_id == chapter_id).order_by(Shot.index)
+        select(Shot)
+        .where(Shot.chapter_id == chapter_id, Shot.skip_extraction.is_(False))
+        .order_by(Shot.index)
     ).scalars().all()
     if not shots:
         return {"shots": [], "total_shots": 0}
@@ -349,6 +473,7 @@ def generate_extraction_result(
     script_division: dict[str, Any],
     consistency: dict[str, Any] | None,
     refresh_cache: bool,
+    progress_cb: Callable[[int], None] | None = None,
 ) -> tuple[Any, bool]:
     # 前端契约：script_division 可为空对象（ChapterPrep 恒传 {}），此时服务端从库内分镜重建。
     # 判定用「字段是否存在」而非「shots 是否为真值」：显式传 shots=[] 是调用方的明确意图
@@ -382,26 +507,88 @@ def generate_extraction_result(
         from_cache = result is not None
 
     if result is None:
-        llm = build_default_text_llm_sync(db, thinking=False)
-        agent = ElementExtractorAgent(llm)
-        result = agent.extract(
-            project_id=project_id,
-            chapter_id=chapter_id,
-            script_division_json=json.dumps(script_division, ensure_ascii=False),
-            consistency_json=json.dumps(consistency or {}, ensure_ascii=False),
+        division_shots = list(script_division.get("shots") or [])
+        batches = [
+            division_shots[index : index + EXTRACT_BATCH_SIZE]
+            for index in range(0, len(division_shots), EXTRACT_BATCH_SIZE)
+        ] or [[]]
+        primary_llm = build_default_text_llm_sync(
+            db,
+            thinking=False,
+            timeout=EXTRACT_BATCH_TIMEOUT_SECONDS,
+            max_retries=0,
         )
+        fallback_llm = build_fallback_text_llm_sync(
+            db,
+            thinking=False,
+            timeout=EXTRACT_BATCH_TIMEOUT_SECONDS,
+            max_retries=0,
+        )
+
+        def run_batch(batch_shots: list[dict[str, Any]]) -> Any:
+            payload = {"shots": batch_shots, "total_shots": len(batch_shots)}
+            try:
+                return ElementExtractorAgent(primary_llm).extract(
+                    project_id=project_id,
+                    chapter_id=chapter_id,
+                    script_division_json=json.dumps(payload, ensure_ascii=False),
+                    consistency_json=json.dumps(consistency or {}, ensure_ascii=False),
+                )
+            except Exception as primary_exc:  # noqa: BLE001 - 失败后切备用模型
+                if fallback_llm is None:
+                    raise
+                logger.warning(
+                    "资产提取单批失败，切备用模型重试：chapter_id=%s shots=%s error=%s",
+                    chapter_id,
+                    [item.get("index") for item in batch_shots],
+                    primary_exc,
+                )
+                return ElementExtractorAgent(fallback_llm).extract(
+                    project_id=project_id,
+                    chapter_id=chapter_id,
+                    script_division_json=json.dumps(payload, ensure_ascii=False),
+                    consistency_json=json.dumps(consistency or {}, ensure_ascii=False),
+                )
+
+        batch_errors: list[str] = []
+        drafts: list[Any] = []
+        if len(batches) == 1:
+            drafts.append(run_batch(batches[0]))
+            if progress_cb:
+                progress_cb(60)
+        else:
+            completed = 0
+            with ThreadPoolExecutor(max_workers=min(EXTRACT_MAX_PARALLEL_BATCHES, len(batches))) as pool:
+                future_map = {pool.submit(run_batch, batch): batch for batch in batches}
+                for future in as_completed(future_map):
+                    try:
+                        drafts.append(future.result())
+                    except Exception as exc:  # noqa: BLE001 - 单批失败不阻断其他批次
+                        indexes = [item.get("index") for item in future_map[future]]
+                        batch_errors.append(f"镜头 {indexes}: {exc}")
+                        logger.exception("资产提取批次失败：chapter_id=%s shots=%s", chapter_id, indexes)
+                    completed += 1
+                    if progress_cb:
+                        progress_cb(10 + int(55 * completed / len(batches)))
+
+        if not drafts:
+            raise RuntimeError("资产提取全部批次失败：" + "；".join(batch_errors))
+
+        result = drafts[0]
+        for draft in drafts[1:]:
+            result = _merge_extraction_drafts(result, draft)
 
         # --- 覆盖校验 ---
         # prompt 里已要求「shots.index 必须覆盖并对应输入分镜中的 index」，
         # 但实测 LLM 仍会偶发漏掉末尾镜头（现象：批量提取后某个镜头完全没有候选，
         # 必须再单独点一次「刷新并提取」才会出现）。
         # 这里做后置校验：缺哪个 index，就用只含这些镜头的 script_division 补跑一次。
-        division_shots = list(script_division.get("shots") or [])
         expected_indexes = {
-            int(s["index"]) for s in division_shots if isinstance(s, dict) and "index" in s
+            int(item["index"]) for item in division_shots if isinstance(item, dict) and "index" in item
         }
-        got_indexes = {int(s.index) for s in result.shots}
+        got_indexes = {int(shot.index) for shot in result.shots}
         missing = sorted(expected_indexes - got_indexes)
+        still_missing: list[int] = []
         if missing:
             logger.warning(
                 "提取结果缺少镜头 index=%s（期望 %d 个，实际 %d 个），自动补提取一次",
@@ -410,32 +597,27 @@ def generate_extraction_result(
                 len(got_indexes),
             )
             retry_shots = [
-                s
-                for s in division_shots
-                if isinstance(s, dict) and int(s.get("index", -1)) in missing
+                item
+                for item in division_shots
+                if isinstance(item, dict) and int(item.get("index", -1)) in missing
             ]
             try:
-                retry_result = agent.extract(
-                    project_id=project_id,
-                    chapter_id=chapter_id,
-                    script_division_json=json.dumps(
-                        {"shots": retry_shots, "total_shots": len(retry_shots)},
-                        ensure_ascii=False,
-                    ),
-                    consistency_json=json.dumps(consistency or {}, ensure_ascii=False),
-                )
+                retry_result = run_batch(retry_shots)
                 result = _merge_extraction_drafts(result, retry_result)
-                still_missing = sorted(
-                    expected_indexes - {int(s.index) for s in result.shots}
-                )
+                still_missing = sorted(expected_indexes - {int(shot.index) for shot in result.shots})
                 if still_missing:
                     logger.error("补提取后仍缺少镜头 index=%s，需人工重试", still_missing)
                 else:
                     logger.info("补提取成功，已补齐镜头 index=%s", missing)
             except Exception:  # noqa: BLE001 - 补提取失败不应让整个任务失败
+                still_missing = missing
                 logger.exception("补提取失败（缺少镜头 index=%s），保留首轮结果", missing)
 
-        set_cached_script_extract(cache_key, result)
+        if progress_cb:
+            progress_cb(85)
+        # 只有全部批次成功且镜头覆盖完整时才写缓存；部分失败留待下次重试。
+        if not batch_errors and not still_missing:
+            set_cached_script_extract(cache_key, result)
 
     return result, from_cache
 

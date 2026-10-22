@@ -340,6 +340,7 @@ def test_preview_shot_video_prompt_returns_success_envelope(client: TestClient, 
         template_id = "tpl-1"
         template_name = "视频模板"
         rendered_prompt = "视频提示词"
+        audio_file_ids = []
         warnings = []
         pack = {
             "shot_id": "shot-1",

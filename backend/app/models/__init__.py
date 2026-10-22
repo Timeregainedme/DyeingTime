@@ -14,6 +14,7 @@ from app.models.workspace import Workspace, WorkspaceMember
 from app.models.studio import (
     Actor,
     ActorImage,
+    AssetPromptSnapshot,
     Chapter,
     Character,
     CharacterImage,
@@ -66,6 +67,7 @@ __all__ = [
     "CharacterImage",
     "CharacterPropLink",
     "ActorImage",
+    "AssetPromptSnapshot",
     "Scene",
     "SceneImage",
     "Prop",

@@ -61,7 +61,7 @@ def test_preview_video_generation_prompt_returns_success_envelope(client: TestCl
     db = _FakeDB()
 
     async def _fake_preview(*_args, **_kwargs):
-        return "视频预览提示词", ["file-1", "file-2"], {
+        return "视频预览提示词", ["file-1", "file-2"], ["audio-1"], {
             "shot_id": "shot-1",
             "title": "镜头一",
             "script_excerpt": "主角转身看向门口。",

@@ -44,7 +44,9 @@ weight: 9
 - 已确认动作拍点（`action_beats`）
 - 项目级 `visual_style`
 - 项目级 `style`
+- 项目级 `style_pack`（题材包 + 表现形式包的可见质感描述）
 - 项目级 `unify_style`
+- 统一负面词 `negative_prompt` 与 `DEFAULT_AVOID_ITEMS`
 - 镜头已确认角色及其描述
 - 镜头已确认场景及其描述
 - 镜头已确认道具及其描述
@@ -175,6 +177,47 @@ weight: 9
   - 同场景镜头的左右轴线
   - 对话关系中的视线连续
   - 推进镜头中的构图重心
+
+## 分块输出与最终渲染
+
+基础提示词现在统一输出四个段落名，模型不得改写：
+
+```text
+[Scene] 地点、时段、天气、空间层次、光源方向
+[Subject] 主体身份锚点、画面位置、朝向、视线、手脚、当前动作状态
+[Details] 服装、道具、材质、前景/中景/后景、氛围
+[Constraints] 必须保持的身份/空间/光照、定向规避项
+```
+
+基础提示词仍然**不写** `图1 / 图2`，也不写 `## 图片内容说明`。最终提交给图片模型的提示词由 `generation/frame/derive_preview.py` 拼装：
+
+```text
+[参考图角色]
+图1 为「林晚」的身份与外观参考，只约束长相、发型、服装，不改变本帧动作与构图。
+图2 为「公寓客厅」的空间与光照参考，只约束环境结构，不改变主体动作。
+
+[Scene] ...
+[Subject] ...
+[Details] ...
+[Constraints] ...
+
+[统一约束]
+保持图1的人物身份、发型与服装不变
+保持图2的空间结构与光照方向
+画面内不生成文字、字幕、水印、UI
+避免出现：...
+```
+
+基础提示词链路还会注入：
+
+- 项目级 `style_pack`；
+- `negative_image_prompt()`；
+- `DEFAULT_AVOID_ITEMS`；
+- `word_budget = 200–350 个中文字符`。
+
+任务质量闸新增一项：结果缺少 `[Scene]/[Subject]/[Details]/[Constraints]` 时，会带着修正要求自动重试一次。
+
+> 已落库的 `first_frame_prompt` / `last_frame_prompt` / `key_frame_prompt` 不会自动更新。修改模板后，需要重新生成对应帧提示词才会用上新结构。
 
 ## 任务结果可观察性
 

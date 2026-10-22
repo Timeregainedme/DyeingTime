@@ -189,7 +189,7 @@ async def test_run_shot_frame_prompt_task_persists_debug_context(monkeypatch, tm
             pass
 
         async def aextract(self, **_kwargs):
-            return type("Result", (), {"prompt": "中景，主角警惕地回头。", "model_dump": lambda self: {"prompt": "中景，主角警惕地回头。"}})()
+            return type("Result", (), {"prompt": "[Scene] 走廊\n[Subject] 主角警惕地回头\n[Details] 中景，紧张\n[Constraints] 保持服装与光线", "model_dump": lambda self: {"prompt": "[Scene] 走廊\n[Subject] 主角警惕地回头\n[Details] 中景，紧张\n[Constraints] 保持服装与光线"}})()
 
     monkeypatch.setattr("app.services.film.shot_frame_prompt_tasks.async_session_maker", session_local)
     monkeypatch.setattr("app.services.film.shot_frame_prompt_tasks.build_default_text_llm_sync", lambda *_args, **_kwargs: object())
@@ -210,13 +210,13 @@ async def test_run_shot_frame_prompt_task_persists_debug_context(monkeypatch, tm
         assert row is not None
         assert row.status == GenerationTaskStatus.succeeded
         assert isinstance(row.result, dict)
-        assert row.result["prompt"] == "中景，主角警惕地回头。"
+        assert row.result["prompt"] == "[Scene] 走廊\n[Subject] 主角警惕地回头\n[Details] 中景，紧张\n[Constraints] 保持服装与光线"
         assert row.result["debug_context"]["visual_style"] == "现实"
         assert row.result["debug_context"]["character_context"] == "- 主角：警惕"
         assert row.result["quality_checks"]["passed"] is True
         assert row.result["quality_checks"]["issues"] == []
         assert detail is not None
-        assert detail.first_frame_prompt == "中景，主角警惕地回头。"
+        assert detail.first_frame_prompt == "[Scene] 走廊\n[Subject] 主角警惕地回头\n[Details] 中景，紧张\n[Constraints] 保持服装与光线"
 
     await engine.dispose()
 
@@ -286,7 +286,7 @@ async def test_run_shot_frame_prompt_task_retries_when_result_contains_mapping_t
                     "Result",
                     (),
                     {
-                        "prompt": "## 图片内容说明\n图1: 主角\n## 生成内容\n图1警惕地回头。",
+                        "prompt": "## 图片内容说明\n图1: 主角\n## 生成内容\n[Scene] 走廊\n[Subject] 图1警惕地回头\n[Details] 中景\n[Constraints] 保持服装",
                         "model_dump": lambda self: {"prompt": self.prompt},
                     },
                 )()
@@ -294,7 +294,7 @@ async def test_run_shot_frame_prompt_task_retries_when_result_contains_mapping_t
                 "Result",
                 (),
                 {
-                    "prompt": "中景，主角警惕地回头。",
+                    "prompt": "[Scene] 走廊\n[Subject] 主角警惕地回头\n[Details] 中景，紧张\n[Constraints] 保持服装与光线",
                     "model_dump": lambda self: {"prompt": self.prompt},
                 },
             )()
@@ -318,12 +318,12 @@ async def test_run_shot_frame_prompt_task_retries_when_result_contains_mapping_t
         assert row is not None
         assert row.status == GenerationTaskStatus.succeeded
         assert isinstance(row.result, dict)
-        assert row.result["prompt"] == "中景，主角警惕地回头。"
+        assert row.result["prompt"] == "[Scene] 走廊\n[Subject] 主角警惕地回头\n[Details] 中景，紧张\n[Constraints] 保持服装与光线"
         assert row.result["debug_context"]["retry_guidance"]
         assert row.result["quality_checks"]["passed"] is True
         assert row.result["quality_checks"]["issues"] == []
         assert detail is not None
-        assert detail.first_frame_prompt == "中景，主角警惕地回头。"
+        assert detail.first_frame_prompt == "[Scene] 走廊\n[Subject] 主角警惕地回头\n[Details] 中景，紧张\n[Constraints] 保持服装与光线"
 
     assert len(_FakeAgent.calls) == 2
     assert _FakeAgent.calls[1]["retry_guidance"]

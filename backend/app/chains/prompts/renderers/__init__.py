@@ -10,17 +10,23 @@ from typing import Any, Callable
 
 from app.chains.prompts.ir import IRPrompt
 from app.chains.prompts.renderers.h3 import (
+    BASE_SECTION_ORDER,
     H3Prose,
     H3RenderResult,
+    REFERENCE_SECTION_ORDER,
+    build_h3_alignment_instruction,
     render_h3,
     render_h3_base,
     render_h3_reference,
+    validate_h3_base,
+    validate_h3_reference,
+    word_range_for_duration,
 )
 
 VideoRenderer = Callable[..., H3RenderResult]
 
 # 走 H3 官方英文正文的模型标识（provider 名 / 模型名前缀）。
-_H3_PROVIDER_NAMES = {"compshare", "compshare_model_api", "modelverse", "minimax"}
+_H3_PROVIDER_NAMES = {"compshare", "compshare_model_api", "modelverse", "minimax", "pix"}
 _H3_MODEL_KEYWORDS = ("minimax", "h3", "hailuo")
 
 
@@ -48,19 +54,26 @@ def render_video_prompt(
     provider: str = "",
     model: str = "",
     prose: H3Prose | None = None,
+    reference_mode: str | None = None,
 ) -> H3RenderResult:
     """渲染视频提示词 IR。"""
     renderer: Any = get_video_renderer(provider=provider, model=model)
-    return renderer(ir, prose=prose)
+    return renderer(ir, prose=prose, reference_mode=reference_mode)
 
 
 __all__ = [
+    "BASE_SECTION_ORDER",
     "H3Prose",
     "H3RenderResult",
+    "REFERENCE_SECTION_ORDER",
+    "build_h3_alignment_instruction",
     "get_video_renderer",
     "render_h3",
     "render_h3_base",
     "render_h3_reference",
     "render_video_prompt",
     "uses_h3_prompt_format",
+    "validate_h3_base",
+    "validate_h3_reference",
+    "word_range_for_duration",
 ]
