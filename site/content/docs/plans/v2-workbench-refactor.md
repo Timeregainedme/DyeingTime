@@ -1,0 +1,362 @@
+---
+title: "V2 树状工作台重构计划"
+description: "把 DyeingTime 从「章节+分镜两段式」重构为「项目→剧集→场次→镜头」树状工作台的分阶段实施计划、依赖关系与风险清单。当前处于 P0 审计完成状态。"
+weight: 2
+---
+
+> 本文是**仍在推进中的计划**，不是已生效架构。
+> 当前真实生效的架构见 [项目结构](/docs/architecture/project-structure/)、
+> [视频提示词链路与参考图](/docs/architecture/video-prompt-pipeline/)、
+> [视频抽卡与版本切换](/docs/architecture/video-version-redraw/)、
+> [分镜状态流转说明](/docs/architecture/shot-status-flow/)。
+>
+> 阶段边界与验收口径来自产品侧重构需求（单人主导的内部 AI 短剧生产系统）。
+> 落地过程中若与既有架构文档冲突，以本文的阶段结论为准，并同步回写对应架构文档。
+
+## 目标形态
+
+```text
+项目
+├── 项目配置（模型快照 / 风格锁定 / 比例 / 分辨率 / 并发 / 音频参考开关）
+├── 世界观与剧本（项目级设定文件 + 每集独立剧本文件）
+├── 风格圣经（风格目录 + 锁定快照）
+├── 全局资产（角色 / 场景资产 / 道具 / 服装）
+├── 第 1 集
+│   ├── 场次 1（剧集内剧情分组）
+│   │   ├── 镜头 1
+│   │   └── 镜头 2
+│   └── 场次 2
+├── 第 2 集
+└── 导出
+```
+
+**不做无限画布。** 默认交互是树状层级管理，不是节点图。
+
+## 硬约束（贯穿所有阶段）
+
+1. 保留三种状态语义，不得合并：
+   - `shot.status`：信息提取确认状态（`pending` / `ready`）。
+   - video-readiness：是否具备视频生成条件。
+   - task status：任务运行状态（`GenerationTask.status`）。
+2. 数据库变更只做可审查、可回滚的迁移，**不删除旧业务数据**。
+3. API 变更后必须执行 `pnpm run openapi:update` 同步前端 generated client。
+4. 新增/改动的函数与类必须补注释，说明「做什么」与「为什么」。
+5. 当前阶段实行为改动同步 `architecture/`，计划变更同步本文。
+6. 真实供应商调用受额度门禁约束（见「额度与安全」）。
+
+---
+
+## P0 审计结论（已完成）
+
+### 复用基线：已具备、无需重建
+
+| 能力 | 现状位置 | 结论 |
+|---|---|---|
+| 项目 / 章节 / 分镜主链路 | `projects` → `chapters` → `shots` → `shot_details` | 直接复用 |
+| 分镜状态机 | `backend/app/services/studio/shot_status.py` | 复用，语义不变 |
+| 视频生成准备度 | `services/studio/shot_video_readiness.py`（8 项检查） | 复用并扩展 |
+| 视频提示词 IR | `chains/prompts/ir.py` | 复用，修与显式绑定的不一致 |
+| H3 渲染器 | `chains/prompts/renderers/h3.py`（7000 字符上限） | 复用 |
+| 参考图有序解析 | `services/studio/generation/frame/build_context.py`（character→scene→prop→costume） | 复用为「自动推荐」 |
+| H3 供应商能力 | `core/integrations/compshare/video_capabilities.py` | 复用 |
+| 任务系统 | `GenerationTask` + `GenerationTaskLink` + Celery | 复用 |
+| 视频抽卡与采纳 | `services/studio/shot_video_versions.py`（零新增表） | 复用 |
+| 生成准备四层架构 | `services/studio/generation/{frame,video,asset_image}` | 复用 |
+| 风格目录 | `project_styles` + `chains/prompts/style_pack.py` | 扩展，不另建体系 |
+| 角色音色两级 | `characters.voice_*` → `actors.voice_*` 回退 | 复用 |
+| 章节四阶段 | 提取分镜 / 提取资产 / 生成提示词 / 生成图片 | 复用 |
+| 片段 ZIP 导出 | `services/studio/timeline.py::build_clips_archive` | 扩展 |
+| 多租户隔离 | `projects.workspace_id` + `api/scoping.py` | 复用 |
+| 提示词模板发布机制 | `prompt_templates` + `published_at` | 复用 |
+
+### 缺口清单（重构必须补齐）
+
+| # | 缺口 | 证据 | 影响阶段 |
+|---|---|---|---|
+| G1 | **无「场次」实体**，剧集直接挂镜头 | `shots.chapter_id` 直连，无 scene_group 表 | P5 |
+| G2 | **参考绑定无持久化**：无显式绑定表、无目的、无人工锁定、无自定义排序 | `resolve_reference_mode_file_ids` 服务端按 IR 排序现算 | P6 |
+| G3 | **无视频批量生成端点** | `film/` 下只有单镜 `/tasks/video`；`batch` 仅存在于资产图片 | P6 |
+| G4 | **无并发控制**：无项目级并发配置，Celery 无 worker 并发/信号量约束 | 全仓无 `concurrency` 语义代码 | P2 / P6 |
+| G5 | **无项目模型配置快照**：视频模型硬取 `ModelSettings.default_video_model_id` | `build_run_args` → `resolve_default_video_model` | P2 |
+| G6 | **无剧本文件导入**：章节原文只是 `chapters.raw_text` 文本字段，无 `.docx` / `.md` 解析 | `schemas/studio/projects.py:91` | P3 |
+| G7 | **无世界观/设定文件**与项目级解析版本 | 无对应表与端点 | P3 |
+| G8 | **无增量差异分析**（改剧本后提示受影响场次/镜头/资产） | 无对应服务 | P3 |
+| G9 | **无风格锁定与快照**；风格无参考图、无测试样张确认流程 | `project_styles` 仅目录 + `prompt_pack` 文本 | P2 |
+| G10 | **无角色身份版本/视觉锁定**；无资产基础版本 + 衍生版本模型 | 资产图挂在 `*_images` 平铺表，无版本概念 | P4 |
+| G11 | **导出不支持选择筛选与规范命名**：整项目打包，命名为 `{集}-{镜}-{标题}.mp4` | `timeline.py:445-465` | P7 |
+| G12 | **无测试额度门禁**：无 quota/usage 持久化与拦截 | 全仓无 quota 语义 | P6（前置于真实调用验收） |
+| G13 | **无树状工作台**：前端为扁平侧边栏导航 | `front/src/App.tsx` + `app/shell/navConfig.ts` | P1 |
+| G14 | **无受影响镜头提示**：改被引用资产不提示、不阻断 | 无对应服务 | P4 |
+| G15 | **配音无前端入口** | 后端 API 齐备，前端未接入 | 记录项 |
+
+### 已核实的事实（与需求假设的偏差）
+
+| 需求假设 | 代码事实 | 处理 |
+|---|---|---|
+| H3 单镜头 4–15 秒 | 优云智算 H3 声明 `min_seconds=4, max_seconds=30`（`compshare/video_capabilities.py`） | P6 按供应商实际能力校验，不写死 15 |
+| 推荐每镜 3–7 张参考图 | H3 硬上限参考图 9、参考视频 3、参考音频 3、总数 ≤12；参考音频不可单独使用 | P6 采用「软推荐 + 硬上限」 |
+| 风格参考图不默认进镜头参考 | 现状参考图仅来自 character/scene/prop/costume 资产图，风格图本就不入列 | 与目标一致，无需改 |
+| 每集独立剧本文件 | 现状是每集一个 `chapter` + `raw_text` | P3 在 chapter 上挂文件与解析版本 |
+
+---
+
+## 实施阶段与文件级清单
+
+### P1 — 树状工作台骨架
+
+目标：新增路由与布局，展示真实项目 / 剧集 / 镜头 / 资产数据；保留旧路径与兼容跳转。
+
+新增：
+- `front/src/app/shell/WorkbenchLayout.tsx` — 左树 + 中编辑器 + 右属性 + 底任务中心布局
+- `front/src/app/shell/workbenchTree.ts` — 树节点数据源（读章节/镜头/资产真实数据）
+- `front/src/pages/aiStudio/workbench/WorkbenchPage.tsx` — 工作台容器页
+- `front/src/pages/aiStudio/workbench/panels/ProjectConfigPanel.tsx`
+- `front/src/pages/aiStudio/workbench/panels/ScriptPanel.tsx`（P3 前先只读章节原文）
+- `front/src/pages/aiStudio/workbench/panels/StylePanel.tsx`
+- `front/src/pages/aiStudio/workbench/panels/AssetTreePanel.tsx`
+- `front/src/pages/aiStudio/workbench/panels/ChapterTreePanel.tsx`
+- `front/src/pages/aiStudio/workbench/panels/ShotPanel.tsx`
+- `front/src/pages/aiStudio/workbench/panels/ExportPanel.tsx`
+
+修改：
+- `front/src/App.tsx` — 注册 `/projects/:projectId/workbench/*` 路由组
+- `front/src/app/shell/AppShell.tsx` — 工作台内切换为专用布局
+- `front/src/app/shell/navConfig.ts` — 增加工作台入口
+
+验收：刷新 / 切换节点 / 深链接 / 返回正常；不丢已有项目；旧页面路径继续可用。
+
+### P2 — 项目初始化与风格
+
+目标：模型选择、风格锁定、比例分辨率、默认并发 4、音频参考默认关闭。
+
+迁移（新增编号，接 034）：
+- `backend/sql/034-add-project-generation-config.sql` — 项目级模型快照字段、`max_concurrency`、风格锁定字段
+
+修改：
+- `backend/app/models/studio_projects.py` — `Project` 增字段
+- `backend/app/schemas/studio/projects.py` — 对应 DTO
+- `backend/app/api/v1/routes/studio/projects.py` — 增项目配置读写端点
+- `backend/app/services/studio/project_generation_config.py`（新增）— 项目配置快照服务
+- `backend/app/services/studio/project_production_readiness.py` — 纳入并发与快照检查
+- `backend/app/services/studio/style_catalog.py` — 风格锁定校验
+- `backend/app/services/studio/generation/video/build_base.py` — 优先用项目快照取模型
+- `backend/sql/035-default-audio-reference-off.sql` — 存量项目音频参考开关回填为关闭
+
+验收：项目参数正确传递到生成预览；风格锁定后不可直接改；无 API Key 泄露。
+
+### P3 — 剧本导入与统一审核
+
+目标：世界观文件与每集剧本文件导入、异步解析、统一审核、增量差异提示。
+
+迁移：
+- `backend/sql/036-add-script-documents.sql` — 文档表（项目级世界观 / 剧集剧本）、原始内容、上传时间、解析版本
+- `backend/sql/037-add-script-parse-runs.sql` — 解析任务与候选结果
+- `backend/sql/038-add-script-diff-reports.sql` — 差异报告
+
+新增：
+- `backend/app/services/studio/script_documents.py` — 文档存取与版本
+- `backend/app/services/studio/script_parsers/docx.py`、`markdown.py` — 解析器
+- `backend/app/services/studio/script_parsers/__init__.py` — 按扩展名分派
+- `backend/app/services/studio/script_parse_review.py` — 候选审核服务（确认前不落正式资产）
+- `backend/app/services/studio/script_diff.py` — 增量差异分析
+- `backend/app/chains/agents/script_structure_agent.py` — 角色/场景/道具/服装/对白/场次结构解析
+- `backend/app/api/v1/routes/studio/script_documents.py` — 上传、解析、审核、差异端点
+- `front/src/pages/aiStudio/workbench/panels/ScriptReviewPanel.tsx` — 原文与解析结果并排审核
+
+修改：
+- `backend/app/models/` — 新增模型
+- `backend/app/api/v1/routes/studio/chapters.py` — 章节挂载文档与解析版本
+
+验收：Word/Markdown 导入正确；解析重试不覆盖人工确认数据。
+
+### P4 — 角色与资产版本
+
+目标：双候选图、身份锁定、多视角、音色绑定、资产衍生版本。
+
+迁移：
+- `backend/sql/039-add-asset-identity-versions.sql` — 资产基础版本 + 衍生版本
+- `backend/sql/040-add-character-identity-lock.sql` — 角色身份锁定与版本指针
+- `backend/sql/041-add-asset-impact-refs.sql` — 受影响镜头索引
+
+新增：
+- `backend/app/services/studio/asset_versions.py` — 基础版本 / 衍生版本服务
+- `backend/app/services/studio/character_identity.py` — 角色身份锁定与版本演进
+- `backend/app/services/studio/asset_impact.py` — 受影响镜头提示
+- `backend/app/services/studio/generation/asset_image/build_base.py` — 双候选与多视角参数
+- `front/src/pages/aiStudio/workbench/panels/CharacterPanel.tsx`
+
+修改：
+- `backend/app/api/v1/routes/studio/entities.py` — 版本与锁定端点
+- `backend/app/services/studio/shot_video_readiness.py` — 锁定状态纳入准备度
+
+验收：锁定资产跨剧集复用；变更不破坏既有视频。
+
+### P5 — 场次与分镜
+
+目标：AI 划分场次、合理镜头拆解、树状管理、排序、剧本定位。
+
+迁移：
+- `backend/sql/042-add-scenes.sql` — 场次表（剧集内剧情分组），`shots.scene_id` 可空回填
+
+新增：
+- `backend/app/models/studio_scenes.py` — `SceneGroup` 模型
+- `backend/app/services/studio/scene_grouping.py` — 场次划分服务
+- `backend/app/chains/agents/scene_divider_agent.py` — 按地点/时间/事件划分场次
+- `backend/app/api/v1/routes/studio/scene_groups.py` — 场次 CRUD 与排序
+- `backend/app/services/studio/script_division.py` — 镜头数量参考范围与节奏参数
+- `front/src/pages/aiStudio/workbench/panels/ScenePanel.tsx`
+
+修改：
+- `backend/app/models/studio_shots.py` — `Shot.scene_id`
+- `backend/app/services/studio/script_division_chunking.py` — 分块策略接入节奏参数
+
+约束：**场次（剧集内剧情分组）与场景资产（`scenes` 表）必须严格区分命名与语义**，不得复用同一实体。
+
+验收：分镜数不硬编码；场次与镜头顺序稳定；镜头可定位到剧本原文。
+
+### P6 — 多参考与视频生产
+
+目标：显式参考绑定、自动推荐排序、H3 预览、准备度、批量任务、抽卡、版本采纳。
+
+迁移：
+- `backend/sql/043-add-shot-reference-bindings.sql` — 有序参考绑定（素材文件、资产类型与对象、绑定版本、目的、排序、是否人工锁定、来源）
+- `backend/sql/044-add-generation-usage-quota.sql` — 真实调用额度与用量持久化
+
+新增：
+- `backend/app/services/studio/shot_reference_bindings.py` — 绑定 CRUD、排序、超限裁剪规则
+- `backend/app/services/studio/shot_reference_recommend.py` — 自动推荐（角色→场景→道具→服装→辅助）
+- `backend/app/services/studio/shot_video_batch.py` — 批量生成任务（持久化、并发、取消、重试）
+- `backend/app/services/generation_usage_quota.py` — 额度门禁（图片/视频/音频分别累计，耗尽即拦截）
+- `backend/app/api/v1/routes/studio/shot_references.py` — 参考绑定与推荐端点
+- `backend/app/api/v1/routes/studio/shot_video_batches.py` — 批量任务端点
+- `front/src/pages/aiStudio/workbench/panels/ShotReferencePanel.tsx` — 参考列表排序/锁定/替换
+- `front/src/pages/aiStudio/workbench/panels/ShotBatchPanel.tsx` — 批量参数与预估
+- `front/src/pages/aiStudio/workbench/panels/ShotReviewPanel.tsx` — 候选比较、问题标记、采纳
+
+修改：
+- `backend/app/chains/prompts/ir.py` — 参考来源改为「显式绑定优先，缺失时回落自动推荐」
+- `backend/app/services/studio/generation/video/build_context.py` — 消费绑定列表并执行裁剪规则
+- `backend/app/services/studio/shot_video_readiness.py` — 绑定完整性、数量、时长校验
+- `backend/app/api/v1/routes/film/generated_video.py` — 提交前快照一致性校验
+- `backend/app/core/integrations/compshare/video_capabilities.py` — 时长按供应商实际能力
+- `backend/app/services/studio/shot_video_versions.py` — 记录问题标记与批次来源
+
+约束：
+- 参考图片、提示词编号与实际提交 payload 必须由同一份快照生成。
+- 超出上限优先剔除低优先级自动推荐项；不得静默删除人工锁定项；无法满足时阻止生成并提示。
+- 提交状态不确定时先查询供应商任务，不直接重建（防重复计费）。
+
+验收：提交内容与预览完全一致；数量与时长校验正确；并发控制生效；额度耗尽被拦截。
+
+### P7 — 导出与端到端验收
+
+目标：选择镜头、轻量 ZIP 导出、规范命名，跑通真实链路。
+
+修改：
+- `backend/app/services/studio/timeline.py` — 支持选择筛选、`E01_SC02_SH003.mp4` 命名
+- `backend/app/api/v1/routes/studio/timeline.py` — 导出参数化
+- `front/src/pages/aiStudio/workbench/panels/ExportPanel.tsx` — 筛选与下载
+
+新增：
+- `scripts/e2e_single_episode.py` — 单集端到端验收脚本（结构全量真实、真实视频不超过 4 镜）
+- `docs/test-scripts/` — 三类空白剧本模板（`.docx` + `.md`）
+
+验收：单集约 12 镜结构可完整生产；真实视频调用数严格不超过 4；导出命名与顺序正确。
+
+### P8 — 全站迁移
+
+第一里程碑稳定后执行：迁移剩余老页面、统一设计语言与组件库、删除确认废弃的兼容代码、完善响应式布局。
+
+---
+
+## 阶段依赖关系
+
+```text
+P1 树状骨架（前端，可与后端并行起步）
+ ├─> P2 项目配置与风格锁定
+ │     ├─> P4 角色与资产版本
+ │     │     └─> P6 多参考与视频生产
+ │     └─> P5 场次与分镜
+ │           └─> P6（依赖场次归属）
+ └─> P3 剧本导入与统一审核
+       └─> P5（场次划分依赖解析结果）
+P6 ──> P7 导出与端到端验收 ──> P8 全站迁移
+```
+
+关键串行点：
+- P6 依赖 P2（模型快照）、P4（资产版本）、P5（场次）。
+- P7 必须在 P6 之后，因为额度门禁与批量任务是验收前提。
+- P8 必须最后，且第一里程碑验收通过前不开始大面积删旧页面。
+
+---
+
+## 风险清单
+
+| 风险 | 说明 | 缓解 |
+|---|---|---|
+| R1 场次与场景资产概念混淆 | 现有 `scenes` 表是场景资产；新增场次极易重名误用 | 新模型命名 `SceneGroup`，表名 `scene_groups`，代码与文档强制区分 |
+| R2 参考绑定与 IR 双源不一致 | 显式绑定与自动推荐并存时可能编号错位 | 单一快照生成：绑定列表 → IR → payload 一次成型 |
+| R3 改全局默认模型影响进行中项目 | 现模型硬取全局默认 | 项目快照优先，缺失时才回落全局 |
+| R4 批量任务重复计费 | 超时重试可能重复提交 | 提交状态不确定时先查询供应商任务；额度门禁累计 |
+| R5 现有 3 状态语义被合并 | 树状 UI 容易把「生成中」写回 `shot.status` | 保持三状态分离，树节点只做聚合展示 |
+| R6 时区依赖 | Python `datetime.timestamp()` 按本地时区解释，非 UTC 与 Go 不等价 | 迁移与任务时间戳统一 UTC |
+| R7 Go 控制面已切流部分只读路径 | 若新增树状读接口需同步 Go 或绕过 | 新接口先只落 Python，Go 侧按需跟进 |
+| R8 无独立测试环境 | 生产库直接迁移风险高 | 迁移全部幂等 + 备份表 + 先在测试库验证 |
+| R9 存量数据字符集 | 存量表为 `utf8mb4_unicode_ci`，MySQL 8/9 默认不同会导致外键失败 | 所有新迁移显式指定字符集 |
+
+---
+
+## 建议提交拆分
+
+| 提交 | 类型 | 内容 |
+|---|---|---|
+| C1 | `[docs]` | P0 审计结论与本计划文档 |
+| C2 | `[feat]` | P1：树状工作台骨架与路由 |
+| C3 | `[feat]` | P2：项目生成配置快照与并发配置 |
+| C4 | `[feat]` | P2：风格锁定与快照 |
+| C5 | `[feat]` | P3：剧本文档存储与解析器 |
+| C6 | `[feat]` | P3：统一审核与增量差异 |
+| C7 | `[feat]` | P4：资产版本与角色身份锁定 |
+| C8 | `[feat]` | P4：受影响镜头提示 |
+| C9 | `[feat]` | P5：场次实体与划分服务 |
+| C10 | `[feat]` | P5：分镜节奏参数与树状管理 |
+| C11 | `[feat]` | P6：镜头参考绑定与自动推荐 |
+| C12 | `[feat]` | P6：额度门禁 |
+| C13 | `[feat]` | P6：批量视频生成任务与并发控制 |
+| C14 | `[feat]` | P6：抽卡审核与问题标记 |
+| C15 | `[feat]` | P7：选择导出与规范命名 |
+| C16 | `[test]` | P7：端到端验收脚本与测试剧本模板 |
+| C17 | `[refactor]` | P8：老页面迁移与兼容代码清理 |
+
+每个提交必须自带迁移文件与回滚说明，不跨阶段混提。
+
+---
+
+## 额度与安全约束
+
+一次重构验收的累计额度上限：
+
+| 类型 | 上限 |
+|---|---|
+| 图片 | 20 张 |
+| 视频 | 4 次 |
+| 音频 | 500 字 |
+
+- 额度必须持久化，耗尽即阻止新的真实生成（P6 的 C12 交付）。
+- 自动重试同样计入可能产生费用的调用。
+- 对未确定是否计费的超时提交，采取保守计数，先查询任务再考虑重试。
+- 单集 12 镜验收：结构、引用与状态用真实业务数据全量验证；最多 4 镜真实生成；其余用 Mock 或历史结果。
+- 凭据只存服务端，禁止出现在源码、日志、测试快照与 Git 提交中。
+- 无独立测试环境时，不得直接在生产库执行破坏性迁移。
+
+---
+
+## 阶段通用执行纪律
+
+1. 明确影响文件、数据模型与 API。
+2. 列出复用能力与新增功能。
+3. 实现最小可运行闭环。
+4. 执行测试并修复（后端 pytest、前端 `pnpm exec tsc --noEmit`、相关契约与交互测试）。
+5. 更新架构与计划文档。
+6. 提交独立、可回滚的变更。
+7. 输出本阶段验收报告（必须有证据，不允许只写「已完成」）。
