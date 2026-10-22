@@ -8,7 +8,12 @@ AI Studio/影视制作相关的数据库模型（聚合导出器）。
 """
 
 from app.models.studio_assets import Actor, Character, CharacterPropLink, Costume, Prop, Scene
-from app.models.studio_asset_versions import AssetImageCandidate, AssetVersion, CharacterAlias
+from app.models.studio_asset_versions import (
+    AssetImageCandidate,
+    AssetVersion,
+    AssetVersionImpactRef,
+    CharacterAlias,
+)
 from app.models.studio_asset_prompt_snapshots import AssetPromptSnapshot
 from app.models.studio_asset_images import (
     ActorImage,
@@ -96,6 +101,7 @@ __all__ = [
     "CharacterAlias",
     "AssetVersion",
     "AssetImageCandidate",
+    "AssetVersionImpactRef",
     "ScriptParseRun",
     "ScriptParseCandidate",
     "ScriptDiffReport",

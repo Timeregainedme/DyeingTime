@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.scoping import get_project_in_workspace
 from app.dependencies import WorkspaceContext, get_db, require_editor, require_viewer
-from app.models.studio import AssetImageCandidate
+from app.models.studio import AssetImageCandidate, AssetVersion
 from app.schemas.common import ApiResponse, created_response, success_response
 from app.schemas.studio.asset_versions import (
     AssetImageCandidateRead,
@@ -52,6 +52,7 @@ from app.services.studio.character_aliases import (
     delete_alias,
     update_alias,
 )
+from app.services.studio.asset_impact import record_version_impact
 from app.services.studio.character_identity import (
     get_voice_binding,
     lock_identity,
@@ -336,6 +337,16 @@ async def switch_asset_version_api(
     )
     if body.version_id != version_id:
         raise HTTPException(status_code=400, detail="version_id 不一致")
+    asset = await get_asset(db, asset_type=normalized, asset_id=asset_id)
+    target_version = await db.get(AssetVersion, version_id)
+    from_version_id = None
+    if asset is not None and target_version is not None:
+        if normalized == "character" and target_version.version_kind == "identity":
+            from_version_id = asset.identity_version_id
+        elif normalized == "character":
+            from_version_id = asset.current_appearance_version_id
+        else:
+            from_version_id = asset.current_version_id
     try:
         await switch_current_version(
             db,
@@ -344,6 +355,16 @@ async def switch_asset_version_api(
             body=body,
             switched_by=ctx.user_id,
         )
+        if from_version_id and from_version_id != version_id:
+            await record_version_impact(
+                db,
+                project_id=project_id,
+                asset_type=normalized,
+                asset_id=asset_id,
+                from_version_id=from_version_id,
+                to_version_id=version_id,
+                created_by=ctx.user_id,
+            )
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return success_response(

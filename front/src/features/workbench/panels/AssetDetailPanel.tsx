@@ -43,6 +43,7 @@ import {
 import { LegacyLink, PanelHeader } from '../components/PanelHeader'
 import { PanelError, PanelLoading } from '../components/PanelStates'
 import { legacyAssetEditPath } from './legacyPaths'
+import { AssetImpactPanel } from './AssetImpactPanel'
 
 const ANGLE_OPTIONS = [
   { value: 'front', label: '正面' },
@@ -129,6 +130,10 @@ function CandidateCard({
 }) {
   const [showPrompt, setShowPrompt] = useState(false)
   const pending = candidate.status === 'pending'
+  const generationParams = candidate.generation_params ?? {}
+  const referenceWarnings = Array.isArray(generationParams.reference_warnings)
+    ? (generationParams.reference_warnings as unknown[]).map(String)
+    : []
   return (
     <div className="overflow-hidden rounded-md border border-border">
       <div className="relative flex h-36 items-center justify-center bg-muted/40">
@@ -157,9 +162,14 @@ function CandidateCard({
           </span>
           {statusBadge(candidate.status)}
         </div>
-        {candidate.generation_params?.model_name ? (
+        {generationParams.model_name ? (
           <p className="truncate text-[10px] text-muted-foreground">
-            模型：{String(candidate.generation_params.model_name)}
+            模型：{String(generationParams.model_name)}
+          </p>
+        ) : null}
+        {referenceWarnings.length > 0 ? (
+          <p className="rounded bg-state-pending/10 px-1.5 py-1 text-[10px] text-state-pending">
+            参考图提示：{referenceWarnings.join('；')}
           </p>
         ) : null}
         <div className="flex flex-wrap gap-1">
@@ -202,6 +212,7 @@ function CandidateCard({
           </p>
         ) : null}
       </div>
+
     </div>
   )
 }
@@ -868,6 +879,8 @@ export function AssetDetailPanel({
           </Card>
         </div>
       </div>
+
+      <AssetImpactPanel projectId={projectId} assetType={assetType} assetId={assetId} />
     </div>
   )
 }

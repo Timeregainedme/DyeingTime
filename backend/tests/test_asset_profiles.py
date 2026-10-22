@@ -54,6 +54,7 @@ from app.services.common.workspace import resolve_workspace_id
 from app.services.studio.project_generation_config import (
     resolve_project_id_for_image_relation,
 )
+from app.services.studio.entity_crud import list_entities_paginated
 from app.services.studio.character_identity import (
     get_voice_binding,
     lock_identity,
@@ -393,4 +394,64 @@ async def test_existing_alias_prematches_p3_character_candidate() -> None:
         )
         result = accumulator.result()
         assert result.characters[0].matched_character_id == character.id
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_project_level_asset_query_filters_without_cross_project_leak() -> None:
+    db, engine = await _build_session()
+    async with db:
+        project, character, scene = await _seed(db)
+        other = Project(
+            id="p4-project-2",
+            workspace_id="ws-p4",
+            name="另一项目",
+            description="",
+            style=ProjectStyle.real_people_city,
+            visual_style=ProjectVisualStyle.live_action,
+        )
+        other_scene = Scene(
+            id="scene-other",
+            name="另一办公室",
+            description="",
+            style=project.style,
+            visual_style=project.visual_style,
+        )
+        db.add_all(
+            [
+                other,
+                other_scene,
+                ProjectSceneLink(project_id=other.id, scene_id=other_scene.id),
+            ]
+        )
+        await db.commit()
+
+        chars, char_total = await list_entities_paginated(
+            db,
+            entity_type="character",
+            q=None,
+            style=None,
+            visual_style=None,
+            order="name",
+            is_desc=False,
+            page=1,
+            page_size=100,
+            workspace_id="ws-p4",
+            project_id=project.id,
+        )
+        scenes, scene_total = await list_entities_paginated(
+            db,
+            entity_type="scene",
+            q=None,
+            style=None,
+            visual_style=None,
+            order="name",
+            is_desc=False,
+            page=1,
+            page_size=100,
+            workspace_id="ws-p4",
+            project_id=project.id,
+        )
+        assert char_total == 1 and chars[0]["id"] == character.id
+        assert scene_total == 1 and scenes[0]["id"] == scene.id
     await engine.dispose()

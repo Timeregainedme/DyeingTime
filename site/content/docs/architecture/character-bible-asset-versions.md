@@ -5,7 +5,7 @@ weight: 27
 ---
 
 > 本文属于“当前架构”，描述 P4 / C7 已落地的实现。
-> 受影响镜头分析由 C8 在同一阶段继续补充。
+> 受影响镜头分析见 [资产变更影响分析](/docs/architecture/asset-impact-analysis/)。
 > P3 剧本确认产生的资产见 [剧本结构化解析与统一审核](/docs/architecture/script-parse-review/)。
 
 ## 1. 概念边界

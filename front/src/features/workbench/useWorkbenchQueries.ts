@@ -23,6 +23,7 @@ import {
   loadAllChapters,
   loadAllShots,
   loadAssetDetail,
+  loadAssetImpact,
   loadAssetProfile,
   loadAvailableVoices,
   loadCharacterVoice,
@@ -314,6 +315,19 @@ export function useAssetProfile(
   })
 }
 
+export function useAssetImpact(
+  projectId: string,
+  assetType: WorkbenchAssetType,
+  assetId: string | undefined,
+) {
+  return useQuery({
+    queryKey: queryKeys.workbenchAssetImpact(projectId, assetType, assetId ?? ''),
+    queryFn: () => loadAssetImpact(projectId, assetType, assetId as string),
+    enabled: Boolean(projectId) && Boolean(assetType) && Boolean(assetId),
+    staleTime: 15_000,
+  })
+}
+
 export function useCharacterVoice(projectId: string, characterId: string | undefined) {
   return useQuery({
     queryKey: ['workbench', projectId, 'character-voice', characterId ?? ''],
@@ -341,6 +355,9 @@ export function useAssetProfileActions(
   const invalidate = () => {
     void queryClient.invalidateQueries({
       queryKey: queryKeys.workbenchAssetProfile(projectId, assetType, assetId),
+    })
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.workbenchAssetImpact(projectId, assetType, assetId),
     })
     void queryClient.invalidateQueries({
       queryKey: queryKeys.workbenchAssets(projectId, assetType),

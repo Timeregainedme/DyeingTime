@@ -229,10 +229,11 @@ weight: 2
 - 资产身份版本、音色绑定仍属 P4；
 - 差异第一版不做语义向量 Diff，也不自动覆盖正式数据。
 
-### P4 — 角色与资产版本（进行中）
+### P4 — 角色与资产版本（已完成）
 
-状态：C7 已完成并提交；C8 受影响镜头分析本轮继续。当前实现见
-[角色圣经与资产版本](/docs/architecture/character-bible-asset-versions/)。
+状态：C7 / C8 已完成并提交；当前实现见
+[角色圣经与资产版本](/docs/architecture/character-bible-asset-versions/) 与
+[资产变更影响分析](/docs/architecture/asset-impact-analysis/)。
 
 目标：双候选图、身份锁定、多视角、音色绑定、资产衍生版本、受影响镜头提示。
 
@@ -261,11 +262,12 @@ C7 约束：
 - Actor 共享语义不变；
 - 真正图片生成测试使用 Mock，不消耗真实额度。
 
-C8 待完成：
-- 受影响镜头 API 与前端提示；
-- 区分确定资产引用与可能影响；
-- 版本切换影响审计；
-- 历史视频不删除/不自动重拍。
+C8 已实现：
+- `backend/app/services/studio/asset_impact.py` — 确定引用/可能影响分析与版本切换快照
+- `backend/app/api/v1/routes/studio/asset_impact.py` — impact 与 impact-history API
+- `backend/sql/041-add-asset-impact-refs.sql` — 版本切换影响审计
+- `front/src/features/workbench/panels/AssetImpactPanel.tsx` — 受影响镜头提示
+- 区分显式关联与章节/项目/文本推断；历史视频不删除、不自动重拍
 
 后续边界：
 - 正式场次与镜头拆分仍属 P5；
@@ -396,8 +398,8 @@ P6 ──> P7 导出与端到端验收 ──> P8 全站迁移
 | C4 | `[feat]` | P2：风格锁定与快照（✅ 已完成） |
 | C5 | `[feat]` | P3：剧本文档导入与版本管理（✅ 已完成 `6e3cf7d`） |
 | C6 | `[feat]` | P3：AI 解析、统一审核与增量差异（✅ 已完成） |
-| C7 | `[feat]` | P4：角色圣经与资产版本（✅ 已完成） |
-| C8 | `[feat]` | P4：资产变更影响分析（进行中） |
+| C7 | `[feat]` | P4：角色圣经与资产版本（✅ 已完成 `e5f14d6`） |
+| C8 | `[feat]` | P4：资产变更影响分析（✅ 已完成） |
 | C9 | `[feat]` | P5：场次实体与划分服务 |
 | C10 | `[feat]` | P5：分镜节奏参数与树状管理 |
 | C11 | `[feat]` | P6：镜头参考绑定与自动推荐 |

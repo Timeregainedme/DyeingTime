@@ -10849,6 +10849,168 @@
         }
       }
     },
+    "/api/v1/studio/projects/{project_id}/assets/{asset_type}/{asset_id}/impact": {
+      "get": {
+        "tags": [
+          "studio/asset-impact"
+        ],
+        "summary": "资产引用与受影响镜头",
+        "operationId": "get_asset_impact_api_api_v1_studio_projects__project_id__assets__asset_type___asset_id__impact_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Type"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          },
+          {
+            "name": "from_version_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From Version Id"
+            }
+          },
+          {
+            "name": "to_version_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To Version Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_AssetImpactRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/projects/{project_id}/assets/{asset_type}/{asset_id}/impact-history": {
+      "get": {
+        "tags": [
+          "studio/asset-impact"
+        ],
+        "summary": "资产版本切换影响历史",
+        "operationId": "list_asset_impact_history_api_api_v1_studio_projects__project_id__assets__asset_type___asset_id__impact_history_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "asset_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Type"
+            }
+          },
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_list_AssetVersionImpactRefRead__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/studio/files/{file_id}/download": {
       "get": {
         "tags": [
@@ -12008,6 +12170,48 @@
         ],
         "title": "ActionBeatPhaseRead",
         "description": "动作拍点的轻量阶段推断结果。"
+      },
+      "ApiResponse_AssetImpactRead_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssetImpactRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[AssetImpactRead]"
       },
       "ApiResponse_AssetProfileRead_": {
         "properties": {
@@ -15875,6 +16079,52 @@
         "type": "object",
         "title": "ApiResponse[list[AssetImageCandidateRead]]"
       },
+      "ApiResponse_list_AssetVersionImpactRefRead__": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AssetVersionImpactRefRead"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[list[AssetVersionImpactRefRead]]"
+      },
       "ApiResponse_list_AssetVersionRead__": {
         "properties": {
           "code": {
@@ -16596,6 +16846,159 @@
         ],
         "title": "AssetImageCandidateRead"
       },
+      "AssetImpactRead": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "asset_type": {
+            "type": "string",
+            "title": "Asset Type"
+          },
+          "asset_id": {
+            "type": "string",
+            "title": "Asset Id"
+          },
+          "from_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Version Id"
+          },
+          "to_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Version Id"
+          },
+          "chapters": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Chapters"
+          },
+          "shots": {
+            "items": {
+              "$ref": "#/components/schemas/AssetImpactShot"
+            },
+            "type": "array",
+            "title": "Shots"
+          },
+          "summary": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Summary"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "asset_type",
+          "asset_id"
+        ],
+        "title": "AssetImpactRead"
+      },
+      "AssetImpactShot": {
+        "properties": {
+          "shot_id": {
+            "type": "string",
+            "title": "Shot Id"
+          },
+          "chapter_id": {
+            "type": "string",
+            "title": "Chapter Id"
+          },
+          "chapter_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Index"
+          },
+          "chapter_title": {
+            "type": "string",
+            "title": "Chapter Title",
+            "default": ""
+          },
+          "shot_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shot Index"
+          },
+          "shot_title": {
+            "type": "string",
+            "title": "Shot Title",
+            "default": ""
+          },
+          "certainty": {
+            "type": "string",
+            "title": "Certainty",
+            "default": "possible"
+          },
+          "reference_kind": {
+            "type": "string",
+            "title": "Reference Kind",
+            "default": "possible"
+          },
+          "version_precision": {
+            "type": "string",
+            "title": "Version Precision",
+            "default": "asset_level"
+          },
+          "has_video": {
+            "type": "boolean",
+            "title": "Has Video",
+            "default": false
+          },
+          "video_file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video File Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "shot_id",
+          "chapter_id"
+        ],
+        "title": "AssetImpactShot"
+      },
       "AssetProfileRead": {
         "properties": {
           "project_id": {
@@ -16948,6 +17351,93 @@
         ],
         "title": "AssetPromptSnapshotUpdateRequest",
         "description": "更新资产提示词审核稿。"
+      },
+      "AssetVersionImpactRefRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "asset_type": {
+            "type": "string",
+            "title": "Asset Type"
+          },
+          "asset_id": {
+            "type": "string",
+            "title": "Asset Id"
+          },
+          "from_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Version Id"
+          },
+          "to_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Version Id"
+          },
+          "shot_id": {
+            "type": "string",
+            "title": "Shot Id"
+          },
+          "chapter_id": {
+            "type": "string",
+            "title": "Chapter Id"
+          },
+          "certainty": {
+            "type": "string",
+            "title": "Certainty"
+          },
+          "reference_kind": {
+            "type": "string",
+            "title": "Reference Kind"
+          },
+          "had_video": {
+            "type": "boolean",
+            "title": "Had Video",
+            "default": false
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "asset_type",
+          "asset_id",
+          "shot_id",
+          "chapter_id",
+          "certainty",
+          "reference_kind"
+        ],
+        "title": "AssetVersionImpactRefRead"
       },
       "AssetVersionRead": {
         "properties": {

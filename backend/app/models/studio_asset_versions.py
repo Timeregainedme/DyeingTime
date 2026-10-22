@@ -213,4 +213,62 @@ class AssetImageCandidate(Base, TimestampMixin):
     )
 
 
-__all__ = ["CharacterAlias", "AssetVersion", "AssetImageCandidate"]
+__all__ = ["CharacterAlias", "AssetVersion", "AssetImageCandidate", "AssetVersionImpactRef"]
+
+
+class AssetVersionImpactRef(Base, TimestampMixin):
+    """版本切换时记录的受影响镜头快照。
+
+    只记录「当时数据库里明确/可能关联」的镜头，不声称镜头已引用具体版本；
+    P6 建立镜头级有序参考绑定后，才能升级为精确版本依赖图。
+    """
+
+    __tablename__ = "asset_version_impact_refs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[str] = mapped_column(
+        String(64),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    asset_type: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    asset_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    from_version_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("asset_versions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    to_version_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("asset_versions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    shot_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("shots.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    chapter_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("chapters.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    certainty: Mapped[str] = mapped_column(
+        String(24), nullable=False, default="possible", comment="explicit / possible"
+    )
+    reference_kind: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="possible", comment="引用来源说明"
+    )
+    had_video: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_by: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "from_version_id",
+            "to_version_id",
+            "shot_id",
+            name="uq_asset_version_impact_pair_shot",
+        ),
+        Index("ix_asset_version_impact_scope", "project_id", "asset_type", "asset_id"),
+    )

@@ -8,6 +8,7 @@
  *   3. 提供统一的错误文案。
  */
 import {
+  StudioAssetImpactService,
   StudioAssetProfilesService,
   StudioAudioTasksService,
   StudioChaptersService,
@@ -22,6 +23,7 @@ import {
   StudioTimelineService,
 } from '../../services/generated'
 import type {
+  AssetImpactRead,
   AssetImageCandidateRead,
   AssetProfileRead,
   AssetProfileUpdate,
@@ -790,6 +792,28 @@ export async function loadAvailableVoices(modelId?: string | null): Promise<Voic
     kind: 'preset',
   })
   return response.data ?? []
+}
+
+/** P4 / C8：资产显式引用与可能影响镜头。 */
+export async function loadAssetImpact(
+  projectId: string,
+  assetType: WorkbenchAssetType,
+  assetId: string,
+  fromVersionId?: string | null,
+  toVersionId?: string | null,
+): Promise<AssetImpactRead> {
+  const response =
+    await StudioAssetImpactService.getAssetImpactApiApiV1StudioProjectsProjectIdAssetsAssetTypeAssetIdImpactGet(
+      {
+        projectId,
+        assetType,
+        assetId,
+        fromVersionId: fromVersionId || undefined,
+        toVersionId: toVersionId || undefined,
+      },
+    )
+  if (!response.data) throw new Error('服务端没有返回影响分析')
+  return response.data
 }
 
 export async function loadShot(shotId: string): Promise<ShotRead> {

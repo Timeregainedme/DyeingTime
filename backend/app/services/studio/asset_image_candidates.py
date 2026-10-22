@@ -230,6 +230,9 @@ async def generate_candidates(
                 "target_ratio": ratio,
                 "resolution_profile": resolution,
                 "view_angle": view_angle,
+                # 现有资产图链路的参考图缺失/视角不一致提示必须随候选保存，
+                # 前端据此提示用户，不能把「没有可靠参考图」伪装成身份一致。
+                "reference_warnings": list(getattr(derived, "reference_warnings", []) or []),
             },
             status="pending",
             format="png",
