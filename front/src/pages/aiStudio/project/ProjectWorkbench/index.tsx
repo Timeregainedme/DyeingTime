@@ -6,6 +6,7 @@ import {
   EllipsisOutlined,
   ArrowLeftOutlined,
   VideoCameraFilled,
+  ApartmentOutlined,
 } from '@ant-design/icons'
 import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { TAB_CONFIG, type TabKey, isTabKey, DEFAULT_TAB } from './constants'
@@ -204,6 +205,12 @@ const ProjectWorkbench: React.FC = () => {
             }))}
           />
           <Space size="small" wrap className="shrink-0">
+            <Button
+              icon={<ApartmentOutlined />}
+              onClick={() => projectId && navigate(`/projects/${projectId}/workbench`)}
+            >
+              树状工作台
+            </Button>
             <Button
               type="primary"
               icon={primaryCta.icon}

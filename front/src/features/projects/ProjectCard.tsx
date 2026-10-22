@@ -1,4 +1,4 @@
-import { ArrowRight, Pencil, Trash2 } from 'lucide-react'
+import { ArrowRight, FolderTree, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { Card } from '../../components/ui/card'
 import { cn } from '../../lib/utils'
@@ -12,6 +12,7 @@ interface ProjectCardProps {
   /** 摘要是否仍在加载，用于把「下一步」区域显示成骨架而不是「待推进」。 */
   summaryLoading?: boolean
   onOpen: () => void
+  onOpenWorkbench: () => void
   onEdit: () => void
   onDelete: () => void
 }
@@ -59,6 +60,7 @@ export function ProjectCard({
   summary,
   summaryLoading = false,
   onOpen,
+  onOpenWorkbench,
   onEdit,
   onDelete,
 }: ProjectCardProps) {
@@ -141,6 +143,18 @@ export function ProjectCard({
           >
             {actionLabel}
             <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="打开树状工作台"
+            title="打开树状工作台"
+            onClick={(event) => {
+              event.stopPropagation()
+              onOpenWorkbench()
+            }}
+          >
+            <FolderTree className="h-3.5 w-3.5" />
           </Button>
           <Button
             variant="ghost"

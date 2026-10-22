@@ -119,6 +119,10 @@ const shotsList = shots.map((s) => ({
   status: s.status,
   skip_extraction: false,
   script_excerpt: s.scriptExcerpt,
+  // 已就绪镜头在 mock 里视为已有采用的视频，供时间线与导出口径使用
+  generated_video_file_id: s.status === 'ready' ? `mock-video-${s.id}` : null,
+  generated_audio_file_id: null,
+  last_extracted_at: null,
   // 待确认镜头模拟「已提取、各剩 1 条待确认」，让批量确认向导有真实分组可展示
   extraction:
     s.status === 'ready'
@@ -802,6 +806,96 @@ export const handlers = [
     const pageSize = Number(url.searchParams.get('page_size') ?? '10') || 10
     const list = shotsList.filter((s) => s.chapter_id === chapterId)
     return ok(makePagination(list, page, pageSize))
+  }),
+
+  /** 单镜头读取：工作台镜头面板需要，旧页面大多直接用列表结果所以此前没 mock。 */
+  http.get('/api/v1/studio/shots/:shot_id', ({ params }) => {
+    const { shot_id } = params as { shot_id: string }
+    const shot = shotsList.find((s) => s.id === shot_id)
+    if (!shot) return notFound('镜头不存在')
+    return ok(shot)
+  }),
+
+  // ====== 工作台实体列表（角色 / 场景 / 道具 / 服装）======
+  http.get('/api/v1/studio/entities/:entity_type', ({ params, request }) => {
+    const { entity_type } = params as { entity_type: string }
+    const url = new URL(request.url)
+    const page = Number(url.searchParams.get('page') ?? '1') || 1
+    const pageSize = Number(url.searchParams.get('page_size') ?? '10') || 10
+    // mock 数据只有全局资产，没有 project 级角色；返回空列表而不是伪造角色
+    const list =
+      entity_type === 'character'
+        ? []
+        : assets
+            .filter((asset) => asset.type === entity_type)
+            .map((asset) => ({
+              id: asset.id,
+              name: asset.name,
+              description: asset.description,
+              tags: asset.tags,
+              style: '真人都市',
+              visual_style: '现实',
+              thumbnail: asset.thumbnail,
+            }))
+    return ok(makePagination(list, page, pageSize))
+  }),
+
+  http.get('/api/v1/studio/entities/:entity_type/:entity_id', ({ params }) => {
+    const { entity_type, entity_id } = params as { entity_type: string; entity_id: string }
+    const asset = assets.find((item) => item.id === entity_id && item.type === entity_type)
+    if (!asset) return notFound('资产不存在')
+    return ok({
+      id: asset.id,
+      name: asset.name,
+      description: asset.description,
+      tags: asset.tags,
+      style: '真人都市',
+      visual_style: '现实',
+      thumbnail: asset.thumbnail,
+    })
+  }),
+
+  // ====== 工作台时间线（导出面板）======
+  http.get('/api/v1/studio/timeline/projects/:project_id', ({ params }) => {
+    const { project_id } = params as { project_id: string }
+    const project = projectsList.find((item) => item.id === project_id)
+    const projectChapters = chaptersList.filter((chapter) => chapter.projectId === project_id)
+    const clips = projectChapters.flatMap((chapter) =>
+      shotsList
+        .filter((shot) => shot.chapter_id === chapter.id)
+        .map((shot) => ({
+          shot_id: shot.id,
+          chapter_id: chapter.id,
+          chapter_index: chapter.index,
+          chapter_title: chapter.title,
+          index: shot.index,
+          title: shot.title,
+          status: shot.status,
+          duration: 5,
+          start: 0,
+          end: 5,
+          video_file_id: shot.generated_video_file_id,
+          audio_file_id: null,
+          thumbnail: shot.thumbnail,
+          frames: [],
+          dialogs: [],
+        })),
+    )
+    const withVideo = clips.filter((clip) => clip.video_file_id).length
+    return ok({
+      project_id,
+      project_name: project?.name ?? project_id,
+      video_ratio: '9:16',
+      clips,
+      stats: {
+        clip_count: clips.length,
+        total_duration: clips.length * 5,
+        clips_with_video: withVideo,
+        clips_missing_video: clips.length - withVideo,
+        clips_with_audio: 0,
+        exportable: clips.length > 0 && withVideo === clips.length,
+      },
+    })
   }),
 
   http.get('/api/v1/studio/shots/:shot_id/video-readiness', ({ params }) => {

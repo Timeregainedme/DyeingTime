@@ -291,6 +291,7 @@ export function ProjectListPage() {
                 summary={summaries[project.id]}
                 summaryLoading={summariesLoading}
                 onOpen={() => openProject(project)}
+                onOpenWorkbench={() => navigate(`/projects/${project.id}/workbench`)}
                 onEdit={() => openEdit(project)}
                 onDelete={() => {
                   setDeleteError(null)

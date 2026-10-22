@@ -23,6 +23,7 @@ import './App.css'
  * 注意：ChapterShotsPage / ChapterShotEditPage 是具名导出，需要显式映射 default。
  */
 const ProjectWorkbench = lazy(() => import('./pages/aiStudio/project/ProjectWorkbench'))
+const WorkbenchPage = lazy(() => import('./features/workbench/WorkbenchPage'))
 const RoleDetailPage = lazy(() => import('./pages/aiStudio/project/ProjectWorkbench/RoleDetailPage'))
 const ChapterStudio = lazy(() => import('./pages/aiStudio/chapter/ChapterStudio'))
 const ChapterReviewPage = lazy(() =>
@@ -90,6 +91,12 @@ const App: React.FC = () => {
             <Route index element={<Navigate to="/projects" replace />} />
             <Route path="projects" element={<ProjectListPage />} />
             <Route path="projects/:projectId" element={<ProjectWorkbench />} />
+            {/*
+              树状工作台：用 splat 路由 + pathname 解析选中节点。
+              这样 /workbench/episodes/:cid/shots/:sid 这类深链接不需要为每层
+              再注册一次路由，刷新与前进后退也天然由浏览器处理。
+            */}
+            <Route path="projects/:projectId/workbench/*" element={<WorkbenchPage />} />
             <Route path="projects/:projectId/roles/:characterId/edit" element={<RoleDetailPage />} />
             <Route path="projects/:projectId/chapters/:chapterId/prep/*" element={<Navigate to="../shots" replace />} />
             <Route path="projects/:projectId/chapters/:chapterId/studio" element={<ChapterStudio />} />

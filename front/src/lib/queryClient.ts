@@ -37,4 +37,32 @@ export const queryKeys = {
   shots: (chapterId: string) => ['shots', chapterId] as const,
   shot: (shotId: string) => ['shot', shotId] as const,
   tasks: ['tasks'] as const,
+
+  /**
+   * 树状工作台的查询键。
+   *
+   * 统一挂在 `['workbench', projectId, ...]` 下：
+   * 切项目时旧数据自然隔离，也让「刷新整个工作台」可以按前缀失效。
+   */
+  workbenchProject: (projectId: string) => ['workbench', projectId, 'project'] as const,
+  workbenchChapters: (projectId: string) => ['workbench', projectId, 'chapters'] as const,
+  workbenchShots: (projectId: string, chapterId: string) =>
+    ['workbench', projectId, 'shots', chapterId] as const,
+  workbenchRuntime: (projectId: string, chapterId: string) =>
+    ['workbench', projectId, 'runtime', chapterId] as const,
+  workbenchAssets: (projectId: string, assetType: string) =>
+    ['workbench', projectId, 'assets', assetType] as const,
+  workbenchAsset: (projectId: string, assetType: string, assetId: string) =>
+    ['workbench', projectId, 'asset', assetType, assetId] as const,
+  workbenchShot: (projectId: string, shotId: string) =>
+    ['workbench', projectId, 'shot', shotId] as const,
+  workbenchShotDetail: (projectId: string, shotId: string) =>
+    ['workbench', projectId, 'shot-detail', shotId] as const,
+  workbenchShotPreparation: (projectId: string, shotId: string) =>
+    ['workbench', projectId, 'shot-preparation', shotId] as const,
+  workbenchShotReadiness: (projectId: string, shotId: string) =>
+    ['workbench', projectId, 'shot-readiness', shotId] as const,
+  workbenchTimeline: (projectId: string) => ['workbench', projectId, 'timeline'] as const,
+  workbenchStyleOptions: ['workbench', 'style-options'] as const,
+  workbenchStyleCatalog: ['workbench', 'style-catalog'] as const,
 }

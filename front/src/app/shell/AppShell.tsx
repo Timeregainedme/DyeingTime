@@ -30,6 +30,7 @@ import { useAuthStore } from '../../store/useAuthStore'
 import { useThemeStore } from '../../store/useThemeStore'
 import { TaskCenter } from '../../pages/aiStudio/components/TaskCenter'
 import { TaskRuntimeProvider } from '../../pages/aiStudio/components/TaskRuntimeProvider'
+import { isWorkbenchPath } from '../../features/workbench/routes'
 import { getActiveEntryKey, isPathActive, NAV_ENTRIES, type NavLeaf } from './navConfig'
 import { resolveBreadcrumbs } from './breadcrumbs'
 
@@ -148,6 +149,20 @@ export default function AppShell() {
 
   const toggleGroup = (key: string) => {
     setOpenGroups((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]))
+  }
+
+  /**
+   * 工作台使用自己的三栏布局与顶部栏。
+   *
+   * 这里直接跳过旧侧边栏与全局浮窗（任务栏改由工作台底部常驻），
+   * 避免同一屏出现两套导航。任务轮询仍复用同一个 Provider。
+   */
+  if (isWorkbenchPath(location.pathname)) {
+    return (
+      <TaskRuntimeProvider>
+        <Outlet />
+      </TaskRuntimeProvider>
+    )
   }
 
   return (
