@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS project_style_snapshots (
   COMMENT='项目视觉风格锁定快照';
 
 -- 三个内置模板（稳定 ID；ON DUPLICATE KEY 只更新模板字段，不碰用户自建风格）
-INSERT INTO project_styles
+INSERT IGNORE INTO project_styles
   (id, visual_style, name, description, prompt_pack, structured_profile, reference_file_ids, sample_file_ids, analysis_status, is_builtin, sort_order)
 VALUES
   (
@@ -191,12 +191,4 @@ VALUES
     'draft',
     1,
     102
-  )
-ON DUPLICATE KEY UPDATE
-  visual_style = VALUES(visual_style),
-  name = VALUES(name),
-  description = VALUES(description),
-  prompt_pack = VALUES(prompt_pack),
-  structured_profile = VALUES(structured_profile),
-  is_builtin = VALUES(is_builtin),
-  sort_order = VALUES(sort_order);
+  );
