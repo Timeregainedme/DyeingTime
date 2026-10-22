@@ -182,30 +182,52 @@ weight: 2
 
 验收：项目参数正确传递到生成预览；风格锁定后不可直接改；无 API Key 泄露。
 
-### P3 — 剧本导入与统一审核
+### P3 — 剧本导入与统一审核（已完成）
+
+状态：C5 / C6 已完成并提交；当前实现见
+[剧本文档与版本](/docs/architecture/script-documents/) 与
+[剧本结构化解析与统一审核](/docs/architecture/script-parse-review/)。
 
 目标：世界观文件与每集剧本文件导入、异步解析、统一审核、增量差异提示。
 
 迁移：
-- `backend/sql/036-add-script-documents.sql` — 文档表（项目级世界观 / 剧集剧本）、原始内容、上传时间、解析版本
-- `backend/sql/037-add-script-parse-runs.sql` — 解析任务与候选结果
-- `backend/sql/038-add-script-diff-reports.sql` — 差异报告
+- `backend/sql/036-add-script-documents.sql` — 剧本文档与版本（原始文件、提取原文、哈希、生效指针）
+- `backend/sql/037-add-script-parse-runs.sql` — 解析运行与可审核候选
+- `backend/sql/038-add-script-diff-reports.sql` — 版本差异报告与人工决策
 
-新增：
-- `backend/app/services/studio/script_documents.py` — 文档存取与版本
-- `backend/app/services/studio/script_parsers/docx.py`、`markdown.py` — 解析器
-- `backend/app/services/studio/script_parsers/__init__.py` — 按扩展名分派
-- `backend/app/services/studio/script_parse_review.py` — 候选审核服务（确认前不落正式资产）
-- `backend/app/services/studio/script_diff.py` — 增量差异分析
-- `backend/app/chains/agents/script_structure_agent.py` — 角色/场景/道具/服装/对白/场次结构解析
-- `backend/app/api/v1/routes/studio/script_documents.py` — 上传、解析、审核、差异端点
-- `front/src/pages/aiStudio/workbench/panels/ScriptReviewPanel.tsx` — 原文与解析结果并排审核
+已实现（以实际代码路径为准）：
+- `backend/app/services/studio/script_document_parser.py` — DOCX / Markdown 提取、大小/格式/内容校验
+- `backend/app/services/studio/script_documents.py` — 上传、版本、重复检测、显式启用
+- `backend/app/services/studio/script_parse.py` — 解析运行创建、候选编辑/合并、确认落库
+- `backend/app/services/studio/script_parse_runner.py` — 复用 Celery/任务体系的分块解析执行与跨块合并
+- `backend/app/services/studio/script_parse_chunking.py` — 长文按行分块与上下文重叠
+- `backend/app/services/studio/script_diff.py` — 行级文本差异、结构化差异、影响范围
+- `backend/app/chains/agents/episode_script_parser_agent.py` — 单集结构化解析 Agent
+- `backend/app/schemas/skills/script_parse.py` — `ScriptParseResult` 严格 Schema
+- `backend/app/api/v1/routes/studio/script_documents.py`、`script_parse.py` — 上传/解析/审核/差异端点
+- `front/src/features/workbench/panels/ScriptPanel.tsx` — 原文、版本与解析入口
+- `front/src/features/workbench/panels/ScriptReviewPanel.tsx` — 统一审核、合并、忽略、关联与确认
+- `front/src/features/workbench/panels/ScriptDiffPanel.tsx` — 差异与影响范围查看
 
 修改：
-- `backend/app/models/` — 新增模型
-- `backend/app/api/v1/routes/studio/chapters.py` — 章节挂载文档与解析版本
+- `backend/app/models/types.py` — `FileType.document`、`FileUsageKind.script_document`
+- `backend/app/services/studio/files.py` — DOCX/Markdown 文件类型识别与下载 media type
+- `backend/app/services/worker/task_registry.py` — 注册 `script_parse` 任务执行器
+- `backend/app/models/studio.py`、`backend/app/models/studio_script_documents.py`、`studio_script_parse.py`
+- `front/src/features/workbench/api.ts`、`useWorkbenchQueries.ts` — 生成客户端调用与解析/审核 hooks
 
-验收：Word/Markdown 导入正确；解析重试不覆盖人工确认数据。
+验收结果：
+- DOCX/Markdown、中文文件名、表格、空文档、非法格式、重复上传、Unicode、长文分块均有测试；
+- Mock LLM 端到端跑通上传→解析→修改/合并/忽略→确认→差异→增量确认；
+- 确认幂等、重复确认不重复创建资产；
+- 未修改的角色人工描述在再次解析确认后保留；
+- 历史镜头与视频标记在差异/增量确认后保留；
+- 未调用真实图片/视频/音频模型。
+
+后续边界：
+- 正式场次与镜头拆分仍属 P5；
+- 资产身份版本、音色绑定仍属 P4；
+- 差异第一版不做语义向量 Diff，也不自动覆盖正式数据。
 
 ### P4 — 角色与资产版本
 
@@ -352,8 +374,8 @@ P6 ──> P7 导出与端到端验收 ──> P8 全站迁移
 | C2 | `[feat]` | P1：树状工作台骨架与路由（✅ 已完成） |
 | C3 | `[feat]` | P2：项目生成配置快照与并发配置（✅ 已完成） |
 | C4 | `[feat]` | P2：风格锁定与快照（✅ 已完成） |
-| C5 | `[feat]` | P3：剧本文档存储与解析器 |
-| C6 | `[feat]` | P3：统一审核与增量差异 |
+| C5 | `[feat]` | P3：剧本文档导入与版本管理（✅ 已完成 `6e3cf7d`） |
+| C6 | `[feat]` | P3：AI 解析、统一审核与增量差异（✅ 已完成） |
 | C7 | `[feat]` | P4：资产版本与角色身份锁定 |
 | C8 | `[feat]` | P4：受影响镜头提示 |
 | C9 | `[feat]` | P5：场次实体与划分服务 |

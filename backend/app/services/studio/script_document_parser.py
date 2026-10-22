@@ -30,6 +30,7 @@ class ParsedScriptDocument:
 
 
 def normalize_suffix(filename: str) -> str:
+    """统一扩展名；.markdown 归一为 .md。"""
     suffix = Path(filename or "").suffix.lower()
     if suffix == ".markdown":
         return ".md"
@@ -37,6 +38,7 @@ def normalize_suffix(filename: str) -> str:
 
 
 def _decode_markdown(content: bytes, filename: str) -> ParsedScriptDocument:
+    """UTF-8 解码 Markdown 并统一换行；拒绝二进制内容。"""
     if b"\x00" in content[:4096]:
         raise ValueError(f"Markdown 文件包含二进制内容，无法按文本解析：{filename}")
     try:
@@ -76,6 +78,7 @@ def _heading_prefix(paragraph) -> str:
 
 
 def _parse_docx(content: bytes, filename: str) -> ParsedScriptDocument:
+    """按 body 顺序提取 DOCX 段落/表格，并统计图片告警。"""
     if not content.startswith(b"PK\x03\x04"):
         raise ValueError("DOCX 文件头无效，可能不是真正的 Word 文档")
     try:

@@ -11,6 +11,7 @@ from app.api.v1.routes.studio import (
     projects,
     prompts,
     script_documents,
+    script_parse,
     shots,
     styles,
     timeline,
@@ -39,4 +40,5 @@ router.include_router(styles.router, prefix="/styles", tags=["studio/styles"])
 router.include_router(
     script_documents.router, tags=["studio/script-documents"]
 )
+router.include_router(script_parse.router, tags=["studio/script-parse"])
 

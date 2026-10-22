@@ -44,6 +44,16 @@ import {
   uploadEpisodeDocument,
   uploadWorldbuildingDocument,
   activateScriptDocumentVersion,
+  addScriptParseCandidate,
+  confirmScriptParseRun,
+  createScriptDiffReport,
+  deleteScriptParseCandidate,
+  decideScriptDiffReport,
+  listDocumentParseRuns,
+  loadScriptParseRun,
+  mergeScriptParseCandidates,
+  startScriptParse,
+  updateScriptParseCandidate,
 } from './api'
 
 /** 工作台默认缓存时间：与全局 QueryClient 的 30s 对齐，避免切节点就重拉。 */
@@ -394,4 +404,115 @@ export function useWorkbenchTimeline(projectId: string) {
     enabled: Boolean(projectId),
     staleTime: STALE_MS,
   })
+}
+
+
+export function useScriptParseRun(runId: string | null | undefined) {
+  return useQuery({
+    queryKey: queryKeys.workbenchScriptParseRun(runId ?? ''),
+    queryFn: () => loadScriptParseRun(runId as string),
+    enabled: Boolean(runId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      return status === 'pending' || status === 'running' ? 2000 : false
+    },
+  })
+}
+
+export function useDocumentParseRuns(documentId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.workbenchScriptParseRuns(documentId ?? ''),
+    queryFn: () => listDocumentParseRuns(documentId as string),
+    enabled: Boolean(documentId),
+    staleTime: 10_000,
+  })
+}
+
+/** 解析/审核/确认/差异动作统一失效脚本相关缓存。 */
+export function useScriptParseActions(
+  projectId: string,
+  documentId?: string,
+) {
+  const queryClient = useQueryClient()
+  const invalidate = (runId?: string) => {
+    if (runId) {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.workbenchScriptParseRun(runId),
+      })
+    }
+    if (documentId) {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.workbenchScriptParseRuns(documentId),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.workbenchScriptDocument(documentId),
+      })
+    }
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchScriptDocuments(projectId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchChapters(projectId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchProject(projectId) })
+  }
+
+  const start = useMutation({
+    mutationFn: (payload: { versionId: string; force?: boolean; modelId?: string | null }) =>
+      startScriptParse(payload.versionId, {
+        force: payload.force ?? false,
+        model_id: payload.modelId ?? null,
+      }),
+    onSuccess: (data) => invalidate(data.run.id),
+  })
+  const updateCandidate = useMutation({
+    mutationFn: (payload: {
+      runId: string
+      candidateId: string
+      body: Parameters<typeof updateScriptParseCandidate>[2]
+    }) => updateScriptParseCandidate(payload.runId, payload.candidateId, payload.body),
+    onSuccess: (_data, variables) => invalidate(variables.runId),
+  })
+  const addCandidate = useMutation({
+    mutationFn: (payload: {
+      runId: string
+      candidateType: string
+      payload: Record<string, unknown>
+    }) =>
+      addScriptParseCandidate(payload.runId, {
+        candidate_type: payload.candidateType,
+        payload: payload.payload,
+        evidence: [],
+      }),
+    onSuccess: (_data, variables) => invalidate(variables.runId),
+  })
+  const deleteCandidate = useMutation({
+    mutationFn: (payload: { runId: string; candidateId: string }) =>
+      deleteScriptParseCandidate(payload.runId, payload.candidateId),
+    onSuccess: (_data, variables) => invalidate(variables.runId),
+  })
+  const merge = useMutation({
+    mutationFn: (payload: { runId: string; sourceId: string; targetId: string }) =>
+      mergeScriptParseCandidates(payload.runId, payload.sourceId, payload.targetId),
+    onSuccess: (_data, variables) => invalidate(variables.runId),
+  })
+  const confirm = useMutation({
+    mutationFn: (runId: string) => confirmScriptParseRun(runId),
+    onSuccess: (_data, runId) => invalidate(runId),
+  })
+  const diff = useMutation({
+    mutationFn: (payload: { documentId: string; oldVersionId?: string | null }) =>
+      createScriptDiffReport(payload.documentId, payload.oldVersionId),
+  })
+  const decideDiff = useMutation({
+    mutationFn: (payload: { reportId: string; status: 'accepted' | 'ignored' }) =>
+      decideScriptDiffReport(payload.reportId, payload.status),
+  })
+
+  return {
+    start,
+    updateCandidate,
+    addCandidate,
+    deleteCandidate,
+    merge,
+    confirm,
+    diff,
+    decideDiff,
+  }
 }

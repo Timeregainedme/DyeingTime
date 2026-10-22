@@ -129,8 +129,8 @@ async def test_upload_creates_version_and_duplicate_is_idempotent() -> None:
         )
         assert first.created is True
         assert first.version.version_no == 1
-        assert first.version.status == "active"
-        assert first.document.active_version_id == first.version.id
+        assert first.version.status == "candidate"
+        assert first.document.active_version_id is None
         # 上传阶段不覆盖正式章节正文
         assert chapter.raw_text == "旧正文"
 

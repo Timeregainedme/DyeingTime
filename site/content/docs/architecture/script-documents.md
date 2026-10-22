@@ -5,7 +5,7 @@ weight: 25
 ---
 
 > 本文属于“当前架构”文档，描述 P3 / C5 已落地的剧本文档基础设施。
-> AI 解析、统一审核与差异分析见 [剧本解析与统一审核](/docs/architecture/script-parse-review/)。
+> AI 解析、统一审核与差异分析见 [剧本结构化解析与统一审核](/docs/architecture/script-parse-review/)。
 
 ## 两类文档
 
@@ -29,14 +29,15 @@ script_document_versions
   file_name / file_type / content_hash
   raw_text / text_length
   status               ← candidate / active / superseded
-  parse_status         ← not_parsed / parsing / parsed / failed（C6 使用）
+  parse_status         ← not_parsed / parsing / parsed / failed
   metadata             ← 提取告警、表格/图片统计
 ```
 
 `current_version_id` 与 `active_version_id` 分离的原因：
 
 - 上传新文件只更新 current，旧 active 继续作为正式内容；
-- 用户显式“启用版本”或 C6 审核确认后，才把 active 指向新版本；
+- 世界观首次上传可直接成为 active；
+- 每集剧本首次上传仍是 candidate，用户显式“启用版本”或 C6 审核确认后才成为 active；
 - 历史版本永不删除，可回看与追溯。
 
 `chapters.raw_text` 仍是正式章节正文。只有启用版本时才会同步，
@@ -81,7 +82,7 @@ DOCX 宏、外部引用不会执行；只读取文档 XML。
 
 ## 当前边界
 
-- 不自动解析文档内容（C6）；
-- 不自动覆盖章节正文、分镜或资产；
+- 文件上传/版本管理本身不自动解析；AI 解析是独立任务（见 [剧本结构化解析与统一审核](/docs/architecture/script-parse-review/)）；
+- 上传不自动覆盖章节正文、分镜或资产；只有启用版本或解析确认后同步；
 - 不创建场次实体（P5）；
 - 文件大小上限 10MB；更大的剧本需拆分或后续调整。

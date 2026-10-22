@@ -23,6 +23,7 @@ from app.services.script_processing_worker import (
 )
 from app.services.studio.audio_task_runner import run_audio_generation_task
 from app.services.studio.image_task_runner import run_image_generation_task
+from app.services.studio.script_parse_runner import run_script_parse_task
 from app.services.worker.task_executor import AbstractAsyncDelegatingExecutor, AbstractWorkerTaskExecutor
 
 
@@ -81,5 +82,13 @@ task_executor_registry.register(
         task_kind="shot_frame_prompt",
         runner=run_shot_frame_prompt_task,
         timeout_seconds=600.0,
+    ),
+)
+task_executor_registry.register(
+    "script_parse",
+    AbstractAsyncDelegatingExecutor(
+        task_kind="script_parse",
+        runner=run_script_parse_task,
+        timeout_seconds=1800.0,
     ),
 )

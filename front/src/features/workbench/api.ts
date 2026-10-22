@@ -13,6 +13,7 @@ import {
   StudioFilesService,
   StudioProjectsService,
   StudioScriptDocumentsService,
+  StudioScriptParseService,
   StudioShotDetailsService,
   StudioShotsService,
   StudioStylesService,
@@ -30,9 +31,15 @@ import type {
   ProjectStyleOptionsRead,
   ProjectStyleStateRead,
   ProjectTimelineRead,
+  ScriptDiffReportRead,
   ScriptDocumentRead,
   ScriptDocumentUploadRead,
   ScriptDocumentVersionDetailRead,
+  ScriptParseCandidateCreate,
+  ScriptParseCandidateRead,
+  ScriptParseCandidateUpdate,
+  ScriptParseRunRead,
+  ScriptParseTaskRead,
   ShotDetailRead,
   ShotPreparationStateRead,
   ShotRead,
@@ -310,6 +317,134 @@ export async function activateScriptDocumentVersion(
       { documentId, versionId },
     )
   if (!response.data) throw new Error('服务端没有返回启用结果')
+  return response.data
+}
+
+export async function startScriptParse(
+  versionId: string,
+  payload: { model_id?: string | null; force?: boolean } = {},
+): Promise<ScriptParseTaskRead> {
+  const response =
+    await StudioScriptParseService.startScriptParseApiApiV1StudioScriptDocumentVersionsVersionIdParsePost(
+      { versionId, requestBody: payload },
+    )
+  if (!response.data) throw new Error('服务端没有返回解析任务')
+  return response.data
+}
+
+export async function loadScriptParseRun(runId: string): Promise<ScriptParseRunRead> {
+  const response =
+    await StudioScriptParseService.getScriptParseRunApiApiV1StudioScriptParseRunsRunIdGet({
+      runId,
+    })
+  if (!response.data) throw new Error('服务端没有返回解析运行')
+  return response.data
+}
+
+export async function listDocumentParseRuns(
+  documentId: string,
+): Promise<ScriptParseRunRead[]> {
+  const response =
+    await StudioScriptParseService.listScriptParseRunsApiApiV1StudioScriptDocumentsDocumentIdParseRunsGet(
+      { documentId },
+    )
+  return response.data ?? []
+}
+
+export async function updateScriptParseCandidate(
+  runId: string,
+  candidateId: string,
+  body: ScriptParseCandidateUpdate,
+): Promise<ScriptParseCandidateRead> {
+  const response =
+    await StudioScriptParseService.updateScriptParseCandidateApiApiV1StudioScriptParseRunsRunIdCandidatesCandidateIdPatch(
+      { runId, candidateId, requestBody: body },
+    )
+  if (!response.data) throw new Error('服务端没有返回候选')
+  return response.data
+}
+
+export async function addScriptParseCandidate(
+  runId: string,
+  body: ScriptParseCandidateCreate,
+): Promise<ScriptParseCandidateRead> {
+  const response =
+    await StudioScriptParseService.createScriptParseCandidateApiApiV1StudioScriptParseRunsRunIdCandidatesPost(
+      { runId, requestBody: body },
+    )
+  if (!response.data) throw new Error('服务端没有返回新增候选')
+  return response.data
+}
+
+export async function deleteScriptParseCandidate(
+  runId: string,
+  candidateId: string,
+): Promise<ScriptParseRunRead> {
+  const response =
+    await StudioScriptParseService.deleteScriptParseCandidateApiApiV1StudioScriptParseRunsRunIdCandidatesCandidateIdDelete(
+      { runId, candidateId },
+    )
+  if (!response.data) throw new Error('服务端没有返回删除后的解析运行')
+  return response.data
+}
+
+export async function mergeScriptParseCandidates(
+  runId: string,
+  sourceCandidateId: string,
+  targetCandidateId: string,
+): Promise<ScriptParseRunRead> {
+  const response =
+    await StudioScriptParseService.mergeScriptParseCandidatesApiApiV1StudioScriptParseRunsRunIdMergePost(
+      {
+        runId,
+        requestBody: {
+          source_candidate_id: sourceCandidateId,
+          target_candidate_id: targetCandidateId,
+        },
+      },
+    )
+  if (!response.data) throw new Error('服务端没有返回合并结果')
+  return response.data
+}
+
+export async function confirmScriptParseRun(
+  runId: string,
+): Promise<{ run: ScriptParseRunRead; applied_summary: Record<string, unknown> }> {
+  const response =
+    await StudioScriptParseService.confirmScriptParseRunApiApiV1StudioScriptParseRunsRunIdConfirmPost(
+      { runId },
+    )
+  if (!response.data) throw new Error('服务端没有返回确认结果')
+  return {
+    run: response.data.run,
+    applied_summary: (response.data.applied_summary ?? {}) as Record<string, unknown>,
+  }
+}
+
+export async function createScriptDiffReport(
+  documentId: string,
+  oldVersionId?: string | null,
+): Promise<ScriptDiffReportRead> {
+  const response =
+    await StudioScriptParseService.createScriptDiffApiApiV1StudioScriptDocumentsDocumentIdDiffPost(
+      {
+        documentId,
+        requestBody: { old_version_id: oldVersionId || null },
+      },
+    )
+  if (!response.data) throw new Error('服务端没有返回差异报告')
+  return response.data
+}
+
+export async function decideScriptDiffReport(
+  reportId: string,
+  statusValue: 'accepted' | 'ignored',
+): Promise<ScriptDiffReportRead> {
+  const response =
+    await StudioScriptParseService.decideScriptDiffReportApiApiV1StudioScriptDiffReportsReportIdStatusPost(
+      { reportId, requestBody: { status: statusValue, decisions: {} } },
+    )
+  if (!response.data) throw new Error('服务端没有返回差异决策')
   return response.data
 }
 

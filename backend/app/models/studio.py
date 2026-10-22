@@ -29,6 +29,11 @@ from app.models.studio_projects import (
     ProjectStyleSnapshot,
 )
 from app.models.studio_script_documents import ScriptDocument, ScriptDocumentVersion
+from app.models.studio_script_parse import (
+    ScriptDiffReport,
+    ScriptParseCandidate,
+    ScriptParseRun,
+)
 from app.models.studio_shots import (
     Shot,
     ShotExtractedCandidate,
@@ -87,6 +92,9 @@ __all__ = [
     "ProjectStyleSnapshot",
     "ScriptDocument",
     "ScriptDocumentVersion",
+    "ScriptParseRun",
+    "ScriptParseCandidate",
+    "ScriptDiffReport",
     "Chapter",
     "Scene",
     "Prop",

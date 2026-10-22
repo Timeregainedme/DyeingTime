@@ -89,6 +89,7 @@ async def _load_document(db: AsyncSession, *, document_id: str) -> ScriptDocumen
 async def list_project_documents(
     db: AsyncSession, *, project_id: str
 ) -> ScriptDocumentListRead:
+    """返回项目世界观与各集剧本文档，世界观置顶。"""
     rows = (
         await db.execute(
             select(ScriptDocument)
@@ -109,6 +110,7 @@ async def _find_document(
     chapter_id: str | None,
     doc_type: str,
 ) -> ScriptDocument | None:
+    """按项目/章节/类型查找文档；世界观用 chapter_id IS NULL。"""
     stmt = select(ScriptDocument).options(selectinload(ScriptDocument.versions)).where(
         ScriptDocument.project_id == project_id,
         ScriptDocument.doc_type == doc_type,
@@ -219,7 +221,9 @@ async def upload_script_document(
         source_ref=version_id,
     )
 
-    is_first = document.active_version_id is None
+    # 世界观首次上传即可生效；每集剧本首次上传仍是候选，必须显式启用或 C6 审核确认，
+    # 避免上传动作直接覆盖已有 chapters.raw_text。
+    is_first = document.active_version_id is None and normalized_type == DOC_TYPE_WORLD
     version = ScriptDocumentVersion(
         id=version_id,
         document_id=document.id,
@@ -256,6 +260,7 @@ async def upload_script_document(
 
 
 async def get_document_detail(db: AsyncSession, *, document_id: str) -> ScriptDocumentRead:
+    """读取文档详情与所有版本摘要。"""
     document = await _load_document(db, document_id=document_id)
     return document_to_read(document)
 
@@ -263,6 +268,7 @@ async def get_document_detail(db: AsyncSession, *, document_id: str) -> ScriptDo
 async def get_version_detail(
     db: AsyncSession, *, document_id: str, version_id: str
 ) -> ScriptDocumentVersionDetailRead:
+    """读取指定版本的完整原文，供预览与审核。"""
     document = await _load_document(db, document_id=document_id)
     version = next((item for item in (document.versions or []) if item.id == version_id), None)
     if version is None:

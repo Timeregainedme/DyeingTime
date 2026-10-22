@@ -78,4 +78,8 @@ export const queryKeys = {
     ['workbench', 'script-document', documentId] as const,
   workbenchScriptVersion: (documentId: string, versionId: string) =>
     ['workbench', 'script-version', documentId, versionId] as const,
+  workbenchScriptParseRun: (runId: string) =>
+    ['workbench', 'script-parse-run', runId] as const,
+  workbenchScriptParseRuns: (documentId: string) =>
+    ['workbench', 'script-parse-runs', documentId] as const,
 }
