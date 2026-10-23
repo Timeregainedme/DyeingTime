@@ -18,3 +18,5 @@ description: "记录当前正在推进的开发计划、改造方案与阶段性
 - [任务异步化与取消方案](/docs/plans/task-async-cancellation-plan/)
 
 - [P7 真实供应商验证计划（待批准）](/docs/plans/p7-real-provider-validation/)
+
+- [V2 交付就绪检查](/docs/plans/v2-release-readiness/)
