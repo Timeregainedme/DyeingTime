@@ -12,6 +12,7 @@ from app.api.v1.routes.studio import (
     image_tasks,
     projects,
     prompts,
+    scene_groups,
     script_documents,
     script_parse,
     shots,
@@ -45,4 +46,5 @@ router.include_router(
 router.include_router(script_parse.router, tags=["studio/script-parse"])
 router.include_router(asset_profiles.router, tags=["studio/asset-profiles"])
 router.include_router(asset_impact.router, tags=["studio/asset-impact"])
+router.include_router(scene_groups.router, tags=["studio/scene-groups"])
 

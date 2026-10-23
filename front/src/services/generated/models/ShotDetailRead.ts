@@ -44,6 +44,10 @@ export type ShotDetailRead = {
      */
     atmosphere?: string;
     /**
+     * 分镜整体描述
+     */
+    description?: string;
+    /**
      * 是否沿用氛围
      */
     follow_atmosphere?: boolean;
@@ -75,5 +79,9 @@ export type ShotDetailRead = {
      * 镜头分镜关键帧提示词
      */
     key_frame_prompt?: string;
+    /**
+     * P5 视频提示词草稿
+     */
+    video_prompt_draft?: string;
 };
 

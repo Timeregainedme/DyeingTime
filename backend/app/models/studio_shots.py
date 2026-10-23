@@ -39,6 +39,13 @@ class Shot(Base,TimestampMixin):
         index=True,
         comment="所属章节 ID",
     )
+    scene_group_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("scene_groups.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="所属正式场次 ID；为空表示未分配场次",
+    )
     index: Mapped[int] = mapped_column(Integer, nullable=False, comment="镜头序号（章节内唯一）")
     title: Mapped[str] = mapped_column(String(255), nullable=False, comment="镜头标题")
     thumbnail: Mapped[str] = mapped_column(String(1024), nullable=False, default="", comment="缩略图 URL/路径")
@@ -77,6 +84,7 @@ class Shot(Base,TimestampMixin):
     )
 
     chapter: Mapped["Chapter"] = relationship(back_populates="shots")
+    scene_group: Mapped["SceneGroup | None"] = relationship(back_populates="shots")
     generated_video_file: Mapped["FileItem | None"] = relationship(
         foreign_keys=[generated_video_file_id]
     )
@@ -225,6 +233,9 @@ class ShotDetail(Base,TimestampMixin):
     )
     key_frame_prompt: Mapped[str] = mapped_column(
         Text, nullable=False, default="", comment="镜头分镜关键帧提示词",
+    )
+    video_prompt_draft: Mapped[str] = mapped_column(
+        Text, nullable=False, default="", comment="P5 分镜规划产生的自然语言视频提示词草稿",
     )
 
     shot: Mapped["Shot"] = relationship(back_populates="detail")

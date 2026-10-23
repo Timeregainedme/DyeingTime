@@ -9,7 +9,7 @@
  * 分页拉全的策略在 `api.ts`；这里的职责只是声明查询键与生命周期。
  */
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { ShotRead } from '../../services/generated'
+import type { SceneGroupRead, ShotRead } from '../../services/generated'
 import { queryKeys } from '../../lib/queryClient'
 import type { WorkbenchAssetType } from './routes'
 import {
@@ -35,6 +35,10 @@ import {
   loadProjectStyleState,
   loadProjectTimeline,
   loadRuntimeSummary,
+  loadSceneGroup,
+  loadSceneGroups,
+  loadSceneGroupShots,
+  loadSceneGroupSuggestions,
   loadScriptDocument,
   loadScriptDocuments,
   loadScriptDocumentVersion,
@@ -64,6 +68,12 @@ import {
   loadScriptParseRun,
   mergeScriptParseCandidates,
   startScriptParse,
+  createSceneGroup,
+  deleteSceneGroup,
+  importSceneGroupSuggestions,
+  reorderChapterShots,
+  reorderSceneGroups,
+  updateSceneGroup,
   updateScriptParseCandidate,
   updateAssetProfile,
   updateCharacterVoice,
@@ -299,6 +309,105 @@ export function useWorkbenchAssetDetail(
   })
 }
 
+/** 按已展开剧集加载正式场次；未展开剧集不发请求。 */
+export function useWorkbenchSceneGroupQueries(projectId: string, chapterIds: string[]) {
+  return useQueries({
+    queries: chapterIds.map((chapterId) => ({
+      queryKey: queryKeys.workbenchSceneGroups(projectId, chapterId),
+      queryFn: () => loadSceneGroups(chapterId),
+      staleTime: STALE_MS,
+    })),
+  })
+}
+
+export function useWorkbenchSceneGroups(projectId: string, chapterId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.workbenchSceneGroups(projectId, chapterId ?? ''),
+    queryFn: () => loadSceneGroups(chapterId as string),
+    enabled: Boolean(projectId) && Boolean(chapterId),
+    staleTime: STALE_MS,
+  })
+}
+
+export function useWorkbenchSceneGroup(
+  projectId: string,
+  chapterId: string | undefined,
+  groupId: string | undefined,
+) {
+  return useQuery({
+    queryKey: queryKeys.workbenchSceneGroup(projectId, groupId ?? ''),
+    queryFn: () => loadSceneGroup(groupId as string),
+    enabled: Boolean(projectId) && Boolean(chapterId) && Boolean(groupId),
+    staleTime: STALE_MS,
+  })
+}
+
+export function useWorkbenchSceneGroupShots(projectId: string, groupId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.workbenchSceneGroupShots(projectId, groupId ?? ''),
+    queryFn: () => loadSceneGroupShots(groupId as string),
+    enabled: Boolean(projectId) && Boolean(groupId),
+    staleTime: STALE_MS,
+  })
+}
+
+export function useSceneGroupSuggestions(projectId: string, chapterId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.workbenchSceneGroupSuggestions(projectId, chapterId ?? ''),
+    queryFn: () => loadSceneGroupSuggestions(chapterId as string),
+    enabled: Boolean(projectId) && Boolean(chapterId),
+    staleTime: 10_000,
+  })
+}
+
+/** 场次/镜头顺序变更后统一失效章节镜头、场次与工作台树缓存。 */
+export function useSceneGroupActions(projectId: string, chapterId: string) {
+  const queryClient = useQueryClient()
+  const invalidate = () => {
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.workbenchSceneGroups(projectId, chapterId),
+    })
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.workbenchSceneGroupSuggestions(projectId, chapterId),
+    })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchShots(projectId, chapterId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchSceneGroup(projectId, '') })
+    void queryClient.invalidateQueries({ queryKey: ['workbench', projectId, 'scene-group'] })
+    void queryClient.invalidateQueries({ queryKey: ['workbench', projectId, 'scene-group-shots'] })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchProject(projectId) })
+    void queryClient.invalidateQueries({ queryKey: ['workbench', projectId, 'scene-groups'] })
+  }
+  const create = useMutation({
+    mutationFn: (body: Parameters<typeof createSceneGroup>[1]) =>
+      createSceneGroup(chapterId, body),
+    onSuccess: invalidate,
+  })
+  const update = useMutation({
+    mutationFn: (payload: { groupId: string; body: Parameters<typeof updateSceneGroup>[1] }) =>
+      updateSceneGroup(payload.groupId, payload.body),
+    onSuccess: invalidate,
+  })
+  const remove = useMutation({
+    mutationFn: (groupId: string) => deleteSceneGroup(groupId),
+    onSuccess: invalidate,
+  })
+  const reorder = useMutation({
+    mutationFn: (groupIds: string[]) => reorderSceneGroups(chapterId, groupIds),
+    onSuccess: invalidate,
+  })
+  const reorderShots = useMutation({
+    mutationFn: (items: Array<{ shot_id: string; scene_group_id: string | null }>) =>
+      reorderChapterShots(chapterId, items),
+    onSuccess: invalidate,
+  })
+  const importSuggestions = useMutation({
+    mutationFn: (body: Parameters<typeof importSceneGroupSuggestions>[1]) =>
+      importSceneGroupSuggestions(chapterId, body),
+    onSuccess: invalidate,
+  })
+  return { create, update, remove, reorder, reorderShots, importSuggestions }
+}
+
 /** P4 资产档案；有 pending 候选时自动轮询任务结果。 */
 export function useAssetProfile(
   projectId: string,
@@ -495,6 +604,18 @@ export function useWorkbenchRuntimeQueries(projectId: string, chapterIds: string
  * 只保留成功结果；加载中/失败交给 tree 的占位节点表达，
  * 避免把「还没拿到」误写成「0 个镜头」。
  */
+export function collectSceneGroupsByChapter(
+  chapterIds: string[],
+  results: Array<{ data?: SceneGroupRead[] }>,
+): Record<string, SceneGroupRead[]> {
+  const map: Record<string, SceneGroupRead[]> = {}
+  results.forEach((result, index) => {
+    const chapterId = chapterIds[index]
+    if (chapterId && result.data) map[chapterId] = result.data
+  })
+  return map
+}
+
 export function collectShotsByChapter(
   chapterIds: string[],
   results: Array<{ data?: ShotRead[] }>,
@@ -557,6 +678,7 @@ export function useWorkbenchShotDetail(projectId: string, shotId: string | undef
     staleTime: STALE_MS,
   })
 }
+
 
 export function useWorkbenchShotPreparation(projectId: string, shotId: string | undefined) {
   return useQuery({

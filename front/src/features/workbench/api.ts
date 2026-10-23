@@ -15,6 +15,7 @@ import {
   StudioEntitiesService,
   StudioFilesService,
   StudioProjectsService,
+  StudioSceneGroupsService,
   StudioScriptDocumentsService,
   StudioScriptParseService,
   StudioShotDetailsService,
@@ -50,6 +51,12 @@ import type {
   ScriptParseCandidateUpdate,
   ScriptParseRunRead,
   ScriptParseTaskRead,
+  SceneGroupCreate,
+  SceneGroupImportRead,
+  SceneGroupImportRequest,
+  SceneGroupRead,
+  SceneGroupSuggestionRead,
+  SceneGroupUpdate,
   ShotDetailRead,
   ShotPreparationStateRead,
   ShotRead,
@@ -792,6 +799,106 @@ export async function loadAvailableVoices(modelId?: string | null): Promise<Voic
     kind: 'preset',
   })
   return response.data ?? []
+}
+
+/** P5：剧集正式场次列表。 */
+export async function loadSceneGroups(chapterId: string): Promise<SceneGroupRead[]> {
+  const response =
+    await StudioSceneGroupsService.listSceneGroupsApiApiV1StudioChaptersChapterIdSceneGroupsGet({
+      chapterId,
+    })
+  return response.data ?? []
+}
+
+export async function loadSceneGroup(groupId: string): Promise<SceneGroupRead> {
+  const response =
+    await StudioSceneGroupsService.getSceneGroupApiApiV1StudioSceneGroupsGroupIdGet({ groupId })
+  if (!response.data) throw new Error('服务端没有返回场次')
+  return response.data
+}
+
+export async function createSceneGroup(
+  chapterId: string,
+  body: SceneGroupCreate,
+): Promise<SceneGroupRead> {
+  const response =
+    await StudioSceneGroupsService.createSceneGroupApiApiV1StudioChaptersChapterIdSceneGroupsPost({
+      chapterId,
+      requestBody: body,
+    })
+  if (!response.data) throw new Error('服务端没有返回场次')
+  return response.data
+}
+
+export async function updateSceneGroup(
+  groupId: string,
+  body: SceneGroupUpdate,
+): Promise<SceneGroupRead> {
+  const response =
+    await StudioSceneGroupsService.updateSceneGroupApiApiV1StudioSceneGroupsGroupIdPatch({
+      groupId,
+      requestBody: body,
+    })
+  if (!response.data) throw new Error('服务端没有返回场次')
+  return response.data
+}
+
+export async function deleteSceneGroup(groupId: string): Promise<void> {
+  await StudioSceneGroupsService.deleteSceneGroupApiApiV1StudioSceneGroupsGroupIdDelete({ groupId })
+}
+
+export async function reorderSceneGroups(
+  chapterId: string,
+  groupIds: string[],
+): Promise<SceneGroupRead[]> {
+  const response =
+    await StudioSceneGroupsService.reorderSceneGroupsApiApiV1StudioChaptersChapterIdSceneGroupsReorderPost(
+      { chapterId, requestBody: { group_ids: groupIds } },
+    )
+  return response.data ?? []
+}
+
+export async function loadSceneGroupShots(groupId: string): Promise<ShotRead[]> {
+  const response =
+    await StudioSceneGroupsService.listSceneGroupShotsApiApiV1StudioSceneGroupsGroupIdShotsGet({
+      groupId,
+    })
+  return response.data ?? []
+}
+
+export async function reorderChapterShots(
+  chapterId: string,
+  items: Array<{ shot_id: string; scene_group_id: string | null }>,
+): Promise<ShotRead[]> {
+  const response =
+    await StudioSceneGroupsService.reorderChapterShotsApiApiV1StudioChaptersChapterIdShotsReorderPost(
+      { chapterId, requestBody: { items } },
+    )
+  return response.data ?? []
+}
+
+export async function loadSceneGroupSuggestions(
+  chapterId: string,
+  parseRunId?: string | null,
+): Promise<SceneGroupSuggestionRead> {
+  const response =
+    await StudioSceneGroupsService.getSceneGroupSuggestionsApiApiV1StudioChaptersChapterIdSceneGroupSuggestionsGet(
+      { chapterId, parseRunId: parseRunId || undefined },
+    )
+  if (!response.data) throw new Error('服务端没有返回场次建议')
+  return response.data
+}
+
+export async function importSceneGroupSuggestions(
+  chapterId: string,
+  body: SceneGroupImportRequest,
+): Promise<SceneGroupImportRead> {
+  const response =
+    await StudioSceneGroupsService.importSceneGroupSuggestionsApiApiV1StudioChaptersChapterIdSceneGroupsImportPost(
+      { chapterId, requestBody: body },
+    )
+  if (!response.data) throw new Error('服务端没有返回导入结果')
+  return response.data
 }
 
 /** P4 / C8：资产显式引用与可能影响镜头。 */

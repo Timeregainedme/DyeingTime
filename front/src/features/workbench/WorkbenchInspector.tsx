@@ -14,6 +14,7 @@ import { WORKBENCH_ASSET_LABELS, type WorkbenchAssetType, type WorkbenchSelectio
 import {
   useWorkbenchAssetDetail,
   useWorkbenchRuntimeQueries,
+  useWorkbenchSceneGroup,
   useWorkbenchShot,
   useWorkbenchShotDetail,
   useWorkbenchShotPreparation,
@@ -80,6 +81,12 @@ export function WorkbenchInspector({
             assetType={selection.assetType}
             assetId={selection.assetId}
             assetCount={assetCounts[selection.assetType]}
+          />
+        ) : selection.kind === 'scene-group' ? (
+          <SceneGroupInspector
+            projectId={projectId}
+            chapterId={selection.chapterId}
+            sceneGroupId={selection.sceneGroupId}
           />
         ) : selection.kind === 'episode' ? (
           <EpisodeInspector chapter={chapters.find((item) => item.id === selection.chapterId)} />
@@ -148,8 +155,47 @@ function EpisodeInspector({ chapter }: { chapter?: ChapterRead }) {
         <Row label="摘要" value={chapter.summary} />
       </Section>
       <p className="text-[10px] leading-4 text-muted-foreground">
-        场次层属于 P5。当前剧集直接包含镜头，不会显示虚构场次。
+        场次（SceneGroup）是剧集内剧情分组，场景（Scene）是可复用资产；P5 已把两者分开。
       </p>
+    </>
+  )
+}
+
+function SceneGroupInspector({
+  projectId,
+  chapterId,
+  sceneGroupId,
+}: {
+  projectId: string
+  chapterId: string
+  sceneGroupId: string
+}) {
+  const query = useWorkbenchSceneGroup(projectId, chapterId, sceneGroupId)
+  if (query.isLoading) return <PanelLoading lines={4} />
+  if (query.isError || !query.data) {
+    return (
+      <p className="text-xs text-destructive">
+        场次读取失败：{query.error instanceof Error ? query.error.message : '不存在'}
+      </p>
+    )
+  }
+  const group = query.data
+  return (
+    <>
+      <Section title="场次">
+        <Row label="序号" value={`场次 ${String(group.index).padStart(2, '0')}`} />
+        <Row label="标题" value={group.title} />
+        <Row label="地点" value={group.location} />
+        <Row label="时间" value={group.time_of_day} />
+        <Row label="主场景" value={group.primary_scene_name ?? '未指定'} />
+        <Row label="镜头数" value={group.shot_count ?? 0} />
+        <Row label="预计时长" value={`${group.total_duration ?? 0}s`} />
+      </Section>
+      <Separator />
+      <Section title="剧情">
+        <Row label="关键事件" value={group.story_event} />
+        <Row label="描述" value={group.description} />
+      </Section>
     </>
   )
 }
@@ -296,7 +342,7 @@ function AssetInspector({
       </Section>
       <Separator />
       <p className="text-[10px] leading-4 text-muted-foreground">
-        资产生成、候选确认与版本管理仍在旧版资产编辑页；P4 会迁入工作台并引入身份版本。
+        资产详情支持候选图、身份锁定、造型/衍生版本和影响分析；旧版编辑页仍保留。
       </p>
     </>
   )

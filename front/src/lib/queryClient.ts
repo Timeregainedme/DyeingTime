@@ -48,6 +48,14 @@ export const queryKeys = {
   workbenchChapters: (projectId: string) => ['workbench', projectId, 'chapters'] as const,
   workbenchShots: (projectId: string, chapterId: string) =>
     ['workbench', projectId, 'shots', chapterId] as const,
+  workbenchSceneGroups: (projectId: string, chapterId: string) =>
+    ['workbench', projectId, 'scene-groups', chapterId] as const,
+  workbenchSceneGroupSuggestions: (projectId: string, chapterId: string) =>
+    ['workbench', projectId, 'scene-group-suggestions', chapterId] as const,
+  workbenchSceneGroup: (projectId: string, groupId: string) =>
+    ['workbench', projectId, 'scene-group', groupId] as const,
+  workbenchSceneGroupShots: (projectId: string, groupId: string) =>
+    ['workbench', projectId, 'scene-group-shots', groupId] as const,
   workbenchRuntime: (projectId: string, chapterId: string) =>
     ['workbench', projectId, 'runtime', chapterId] as const,
   workbenchAssets: (projectId: string, assetType: string) =>

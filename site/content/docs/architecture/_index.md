@@ -27,4 +27,5 @@ description: "记录当前真实生效的系统结构、状态流转、页面边
 - [剧本结构化解析与统一审核](/docs/architecture/script-parse-review/)
 - [角色圣经与资产版本](/docs/architecture/character-bible-asset-versions/)
 - [资产变更影响分析](/docs/architecture/asset-impact-analysis/)
+- [正式场次（SceneGroup）](/docs/architecture/scene-groups/)
 - [分镜页面职责边界](/docs/architecture/shot-page-boundary/)

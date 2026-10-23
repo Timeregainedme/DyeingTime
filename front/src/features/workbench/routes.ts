@@ -17,6 +17,7 @@
  *   /workbench/assets/:type         某类资产列表（character/scene/prop/costume）
  *   /workbench/assets/:type/:id     单个资产
  *   /workbench/episodes/:chapterId  某一集
+ *   /workbench/episodes/:chapterId/scenes/:sceneGroupId  某个正式场次
  *   /workbench/episodes/:chapterId/shots/:shotId  某个镜头
  *   /workbench/export               导出
  *
@@ -46,6 +47,7 @@ export type WorkbenchSelection =
   | { kind: 'style' }
   | { kind: 'assets'; assetType: WorkbenchAssetType; assetId?: string }
   | { kind: 'episode'; chapterId: string }
+  | { kind: 'scene-group'; chapterId: string; sceneGroupId: string }
   | { kind: 'shot'; chapterId: string; shotId: string }
   | { kind: 'export' }
   | { kind: 'unknown'; path: string }
@@ -95,6 +97,14 @@ export function workbenchAssetDetailPath(
 
 export function workbenchEpisodePath(projectId: string, chapterId: string): string {
   return `${workbenchPath(projectId)}/episodes/${encodeURIComponent(chapterId)}`
+}
+
+export function workbenchSceneGroupPath(
+  projectId: string,
+  chapterId: string,
+  sceneGroupId: string,
+): string {
+  return `${workbenchEpisodePath(projectId, chapterId)}/scenes/${encodeURIComponent(sceneGroupId)}`
 }
 
 export function workbenchShotPath(
@@ -168,6 +178,15 @@ export function parseWorkbenchSelection(
       kind: 'assets',
       assetType: assetMatch[1],
       assetId: assetMatch[2] ? safeDecode(assetMatch[2]) : undefined,
+    }
+  }
+
+  const sceneGroupMatch = /^episodes\/([^/]+)\/scenes\/([^/]+)$/.exec(rest)
+  if (sceneGroupMatch) {
+    return {
+      kind: 'scene-group',
+      chapterId: safeDecode(sceneGroupMatch[1]),
+      sceneGroupId: safeDecode(sceneGroupMatch[2]),
     }
   }
 

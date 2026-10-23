@@ -11,6 +11,7 @@ from app.api.utils import apply_keyword_filter, apply_order, paginate
 from app.models.studio import (
     Chapter,
     Project,
+    SceneGroup,
     Shot,
     ShotCandidateStatus,
     ShotDialogueCandidateStatus,
@@ -126,6 +127,7 @@ def _build_shot_read(
     return ShotRead(
         id=shot.id,
         chapter_id=shot.chapter_id,
+        scene_group_id=shot.scene_group_id,
         index=shot.index,
         title=shot.title,
         thumbnail=shot.thumbnail or "",
@@ -214,6 +216,16 @@ async def list_paginated(
     )
 
 
+async def _validate_scene_group(
+    db: AsyncSession, *, scene_group_id: str | None, chapter_id: str
+) -> None:
+    if scene_group_id is None:
+        return
+    group = await db.get(SceneGroup, scene_group_id)
+    if group is None or group.chapter_id != chapter_id:
+        raise ValueError("场次不属于当前章节")
+
+
 async def create(
     db: AsyncSession,
     *,
@@ -226,6 +238,14 @@ async def create(
     """
     await ensure_not_exists(db, Shot, body.id, detail=entity_already_exists("Shot"))
     await require_entity(db, Chapter, body.chapter_id, detail=entity_not_found("Chapter"), status_code=400)
+    try:
+        await _validate_scene_group(
+            db, scene_group_id=body.scene_group_id, chapter_id=body.chapter_id
+        )
+    except ValueError as exc:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     shot = await create_and_refresh(db, Shot(**body.model_dump()))
     db.add(build_default_shot_detail(shot.id))
     await db.flush()
@@ -250,6 +270,7 @@ async def update(
     """更新镜头。"""
     obj = await get_or_404(db, Shot, shot_id, detail=entity_not_found("Shot"))
     update_data = body.model_dump(exclude_unset=True)
+    effective_chapter_id = update_data.get("chapter_id", obj.chapter_id)
     if "chapter_id" in update_data:
         await require_entity(
             db,
@@ -258,6 +279,20 @@ async def update(
             detail=entity_not_found("Chapter"),
             status_code=400,
         )
+    if "scene_group_id" in update_data:
+        try:
+            await _validate_scene_group(
+                db,
+                scene_group_id=update_data["scene_group_id"],
+                chapter_id=effective_chapter_id,
+            )
+        except ValueError as exc:
+            from fastapi import HTTPException
+
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    elif "chapter_id" in update_data:
+        # 章节变化但未显式指定场次时，旧场次不再适用；清空而不是制造跨章节错挂。
+        obj.scene_group_id = None
     patch_model(obj, update_data)
     return await flush_and_refresh(db, obj)
 

@@ -5,6 +5,7 @@
 import type { ShotStatus } from './ShotStatus';
 export type ShotUpdate = {
     chapter_id?: (string | null);
+    scene_group_id?: (string | null);
     index?: (number | null);
     title?: (string | null);
     thumbnail?: (string | null);

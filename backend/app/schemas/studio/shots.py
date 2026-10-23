@@ -25,6 +25,7 @@ from app.models.studio import (
 class ShotBase(BaseModel):
     id: str = Field(..., description="镜头 ID")
     chapter_id: str = Field(..., description="所属章节 ID")
+    scene_group_id: str | None = Field(None, description="所属正式场次 ID；为空表示未分配")
     index: int = Field(..., description="镜头序号（章节内唯一）")
     title: str = Field(..., description="镜头标题")
     thumbnail: str = Field("", description="缩略图 URL/路径")
@@ -63,6 +64,7 @@ class ShotCreate(ShotBase):
 
 class ShotUpdate(BaseModel):
     chapter_id: str | None = None
+    scene_group_id: str | None = None
     index: int | None = None
     title: str | None = None
     thumbnail: str | None = None
@@ -157,6 +159,7 @@ class ShotDetailBase(BaseModel):
     override_video_ratio: str | None = Field(None, description="分镜级视频比例覆盖；为空表示继承项目默认")
     mood_tags: list[str] = Field(default_factory=list, description="情绪标签")
     atmosphere: str = Field("", description="氛围描述")
+    description: str = Field("", description="分镜整体描述")
     follow_atmosphere: bool = Field(True, description="是否沿用氛围")
     has_bgm: bool = Field(False, description="是否包含 BGM")
     vfx_type: VFXType = Field(VFXType.none, description="视效类型")
@@ -174,6 +177,7 @@ class ShotDetailBase(BaseModel):
         "",
         description="镜头分镜关键帧提示词",
     )
+    video_prompt_draft: str = Field("", description="P5 视频提示词草稿")
 
 
 class ShotDetailCreate(ShotDetailBase):
@@ -189,6 +193,7 @@ class ShotDetailUpdate(BaseModel):
     override_video_ratio: str | None = None
     mood_tags: list[str] | None = None
     atmosphere: str | None = None
+    description: str | None = None
     follow_atmosphere: bool | None = None
     has_bgm: bool | None = None
     vfx_type: VFXType | None = None
@@ -197,6 +202,7 @@ class ShotDetailUpdate(BaseModel):
     first_frame_prompt: str | None = None
     last_frame_prompt: str | None = None
     key_frame_prompt: str | None = None
+    video_prompt_draft: str | None = None
 
 
 class ShotDetailRead(ShotDetailBase):

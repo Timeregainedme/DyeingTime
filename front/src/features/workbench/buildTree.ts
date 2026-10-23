@@ -14,6 +14,7 @@ import {
   workbenchEpisodePath,
   workbenchExportPath,
   workbenchScriptPath,
+  workbenchSceneGroupPath,
   workbenchShotPath,
   workbenchStylePath,
   workbenchPath,
@@ -96,26 +97,74 @@ function assetChildren(
   }
 }
 
-/** 剧集子节点：镜头已加载则给出真实节点，否则给出明确的加载/失败占位。 */
+/**
+ * 单个镜头节点。
+ *
+ * 镜头在树中只出现一次；P5 后归属场次只影响父节点，不复制镜头数据。
+ */
+function shotNode(input: BuildWorkbenchTreeInput, chapterId: string, shot: ShotRead): WorkbenchTreeNode {
+  const runtime = input.runtimeByChapter[chapterId] ?? {}
+  return {
+    id: `shot:${shot.id}`,
+    kind: 'shot',
+    label: shotLabel(shot.index),
+    hint: shot.title,
+    selectable: true,
+    expandable: false,
+    to: workbenchShotPath(input.projectId, chapterId, shot.id),
+    meta: { chapterId, shotId: shot.id, sceneGroupId: shot.scene_group_id ?? undefined },
+    status: shotStatus(shot, runtime[shot.id] ?? 0),
+    children: [],
+  }
+}
+
+/** 剧集子节点：正式场次 → 镜头；无场次历史镜头进入「未分配场次」。 */
 function episodeChildren(
   input: BuildWorkbenchTreeInput,
   chapterId: string,
 ): WorkbenchTreeNode[] {
   const shots = input.shotsByChapter[chapterId]
   if (shots) {
-    const runtime = input.runtimeByChapter[chapterId] ?? {}
-    return sortByIndex(shots).map((shot) => ({
-      id: `shot:${shot.id}`,
-      kind: 'shot',
-      label: shotLabel(shot.index),
-      hint: shot.title,
+    const groups = [...(input.sceneGroupsByChapter?.[chapterId] ?? [])].sort(
+      (a, b) => a.index - b.index,
+    )
+    const knownGroupIds = new Set(groups.map((group) => group.id))
+    const shotsByGroup = new Map<string, ShotRead[]>()
+    const unassigned: ShotRead[] = []
+    for (const shot of sortByIndex(shots)) {
+      const groupId = shot.scene_group_id ?? ''
+      if (!groupId || !knownGroupIds.has(groupId)) {
+        unassigned.push(shot)
+        continue
+      }
+      const rows = shotsByGroup.get(groupId) ?? []
+      rows.push(shot)
+      shotsByGroup.set(groupId, rows)
+    }
+    const groupNodes: WorkbenchTreeNode[] = groups.map((group) => ({
+      id: `scene-group:${group.id}`,
+      kind: 'scene-group',
+      label: `场次 ${String(group.index).padStart(2, '0')} · ${group.title}`,
+      hint: [group.location, group.time_of_day].filter(Boolean).join(' · ') || undefined,
       selectable: true,
-      expandable: false,
-      to: workbenchShotPath(input.projectId, chapterId, shot.id),
-      meta: { chapterId, shotId: shot.id },
-      status: shotStatus(shot, runtime[shot.id] ?? 0),
-      children: [],
+      expandable: true,
+      to: workbenchSceneGroupPath(input.projectId, chapterId, group.id),
+      meta: { chapterId, sceneGroupId: group.id },
+      children: (shotsByGroup.get(group.id) ?? []).map((shot) => shotNode(input, chapterId, shot)),
     }))
+    if (unassigned.length > 0) {
+      groupNodes.push({
+        id: `scene-group:unassigned:${chapterId}`,
+        kind: 'scene-group',
+        label: '未分配场次',
+        hint: `${unassigned.length} 个镜头`,
+        selectable: false,
+        expandable: true,
+        meta: { chapterId, unassigned: true },
+        children: unassigned.map((shot) => shotNode(input, chapterId, shot)),
+      })
+    }
+    return groupNodes
   }
 
   const state = input.chapterLoadState[chapterId]
@@ -124,7 +173,7 @@ function episodeChildren(
       {
         id: `error:shots:${chapterId}`,
         kind: 'error',
-        label: '镜头加载失败',
+        label: '场次/镜头加载失败',
         hint: '在中央面板点击重试',
         selectable: false,
         expandable: false,
@@ -137,7 +186,7 @@ function episodeChildren(
       {
         id: `loading:shots:${chapterId}`,
         kind: 'loading',
-        label: '正在加载镜头…',
+        label: '正在加载场次与镜头…',
         selectable: false,
         expandable: false,
         children: [],
@@ -258,6 +307,8 @@ export function getSelectionNodeId(selection: WorkbenchSelection): string | null
         : `assets:${selection.assetType}`
     case 'episode':
       return `episode:${selection.chapterId}`
+    case 'scene-group':
+      return `scene-group:${selection.sceneGroupId}`
     case 'shot':
       return `shot:${selection.shotId}`
     case 'export':
@@ -286,8 +337,10 @@ export function getSelectionAncestorIds(selection: WorkbenchSelection): string[]
         ? ['root', 'assets', `assets:${selection.assetType}`]
         : ['root', 'assets']
     case 'episode':
-      // 选中剧集时同时展开它：用户点一集通常就是想看这一集的镜头。
+      // 选中剧集时同时展开它：用户点一集通常就是想看这一集的场次。
       return ['root', `episode:${selection.chapterId}`]
+    case 'scene-group':
+      return ['root', `episode:${selection.chapterId}`, `scene-group:${selection.sceneGroupId}`]
     case 'shot':
       return ['root', `episode:${selection.chapterId}`]
     default:

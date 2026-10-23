@@ -31,12 +31,14 @@ import {
 import {
   collectChapterLoadState,
   collectRuntimeByChapter,
+  collectSceneGroupsByChapter,
   collectShotsByChapter,
   useWorkbenchChapters,
   useWorkbenchCharacters,
   useWorkbenchGlobalAssets,
   useWorkbenchProject,
   useWorkbenchRuntimeQueries,
+  useWorkbenchSceneGroupQueries,
   useWorkbenchShotQueries,
 } from './useWorkbenchQueries'
 import { WorkbenchLayout } from './WorkbenchLayout'
@@ -50,6 +52,7 @@ import { StylePanel } from './panels/StylePanel'
 import { AssetGroupPanel } from './panels/AssetGroupPanel'
 import { AssetDetailPanel } from './panels/AssetDetailPanel'
 import { EpisodePanel } from './panels/EpisodePanel'
+import { SceneGroupPanel } from './panels/SceneGroupPanel'
 import { ShotPanel } from './panels/ShotPanel'
 import { ExportPanel } from './panels/ExportPanel'
 
@@ -122,7 +125,9 @@ export default function WorkbenchPage() {
 
   const shotQueries = useWorkbenchShotQueries(projectId, expandedChapterIds)
   const runtimeQueries = useWorkbenchRuntimeQueries(projectId, expandedChapterIds)
+  const sceneGroupQueries = useWorkbenchSceneGroupQueries(projectId, expandedChapterIds)
   const shotsByChapter = collectShotsByChapter(expandedChapterIds, shotQueries)
+  const sceneGroupsByChapter = collectSceneGroupsByChapter(expandedChapterIds, sceneGroupQueries)
   const runtimeByChapter = collectRuntimeByChapter(expandedChapterIds, runtimeQueries)
   const chapterLoadState = collectChapterLoadState(expandedChapterIds, shotQueries)
 
@@ -133,6 +138,7 @@ export default function WorkbenchPage() {
         projectName: projectQuery.data?.name ?? '加载项目…',
         chapters,
         shotsByChapter,
+        sceneGroupsByChapter,
         runtimeByChapter,
         chapterLoadState,
         characters: charactersQuery.data ?? [],
@@ -145,6 +151,7 @@ export default function WorkbenchPage() {
       projectQuery.data?.name,
       chapters,
       shotsByChapter,
+      sceneGroupsByChapter,
       runtimeByChapter,
       chapterLoadState,
       charactersQuery.data,
@@ -347,6 +354,16 @@ function renderCenter(context: RenderCenterContext) {
       }
       return <EpisodePanel projectId={projectId} chapter={chapter} onNavigate={onNavigate} />
     }
+
+    case 'scene-group':
+      return (
+        <SceneGroupPanel
+          projectId={projectId}
+          chapterId={selection.chapterId}
+          sceneGroupId={selection.sceneGroupId}
+          onNavigate={onNavigate}
+        />
+      )
 
     case 'shot':
       return (

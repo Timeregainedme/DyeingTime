@@ -427,3 +427,24 @@ def require_scoped_resource(param: str, resolver):
         await resolver(db, resource_id, ctx)
 
     return _guard
+
+
+async def get_scene_group_in_workspace(
+    db: AsyncSession,
+    group_id: str,
+    ctx: WorkspaceContext,
+):
+    """读取场次并校验项目/工作区归属。"""
+    from app.models.studio import SceneGroup
+
+    obj = await db.scalar(
+        select(SceneGroup)
+        .join(Project, Project.id == SceneGroup.project_id)
+        .where(SceneGroup.id == group_id, Project.workspace_id == ctx.workspace_id)
+    )
+    if obj is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=entity_not_found("SceneGroup"),
+        )
+    return obj

@@ -35,6 +35,7 @@ from app.models.studio_projects import (
     ProjectStyleSnapshot,
 )
 from app.models.studio_script_documents import ScriptDocument, ScriptDocumentVersion
+from app.models.studio_scene_groups import SceneGroup
 from app.models.studio_script_parse import (
     ScriptDiffReport,
     ScriptParseCandidate,
@@ -98,6 +99,7 @@ __all__ = [
     "ProjectStyleSnapshot",
     "ScriptDocument",
     "ScriptDocumentVersion",
+    "SceneGroup",
     "CharacterAlias",
     "AssetVersion",
     "AssetImageCandidate",

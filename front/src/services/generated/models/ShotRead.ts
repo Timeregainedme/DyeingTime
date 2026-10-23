@@ -14,6 +14,10 @@ export type ShotRead = {
      */
     chapter_id: string;
     /**
+     * 所属正式场次 ID；为空表示未分配
+     */
+    scene_group_id?: (string | null);
+    /**
      * 镜头序号（章节内唯一）
      */
     index: number;

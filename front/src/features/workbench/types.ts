@@ -6,7 +6,7 @@
  *   - status 只承载三类互不替代的状态摘要（信息确认 / 运行时 / 镜头计数），
  *     不引入新的状态机，也不修改后端字段语义。
  */
-import type { ChapterRead, ShotRead } from '../../services/generated'
+import type { ChapterRead, SceneGroupRead, ShotRead } from '../../services/generated'
 import type { WorkbenchAssetType } from './routes'
 
 /**
@@ -51,6 +51,8 @@ export interface WorkbenchNodeMeta {
   shotId?: string
   assetType?: WorkbenchAssetType
   assetId?: string
+  sceneGroupId?: string
+  unassigned?: boolean
 }
 
 export interface WorkbenchTreeNode {
@@ -88,6 +90,8 @@ export interface BuildWorkbenchTreeInput {
   chapters: ChapterRead[]
   /** 已加载的镜头；key 为章节 ID。未加载的章节不放进 map，树里会显示加载占位。 */
   shotsByChapter: Record<string, ShotRead[]>
+  /** 每集正式场次；key 为章节 ID。 */
+  sceneGroupsByChapter?: Record<string, SceneGroupRead[]>
   /** 每集运行中任务摘要；key 为章节 ID。 */
   runtimeByChapter: Record<string, Record<string, number>>
   /** 已展开且尚未加载成功的章节状态。 */
