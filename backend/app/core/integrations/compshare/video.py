@@ -54,7 +54,11 @@ class CompshareVideoApiAdapter:
         body = build_compshare_video_body(input_)
         base_url = compshare_base_url(cfg)
         url = f"{base_url}/minimax/v2/video_generation"
-        headers = compshare_headers(cfg.api_key, idempotent=True)
+        headers = compshare_headers(
+            cfg.api_key,
+            idempotent=True,
+            idempotency_key=input_.idempotency_key,
+        )
 
         async with httpx.AsyncClient(timeout=timeout_s) as client:
             t0 = time.perf_counter()

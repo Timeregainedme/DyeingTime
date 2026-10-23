@@ -71,6 +71,9 @@ class VideoGenerationInput(BaseModel):
     skill_id: Optional[str] = Field(
         None, description="平台提示词优化所用的 skill 标识，仅在 use_context_ir 开启时生效"
     )
+    idempotency_key: Optional[str] = Field(
+        None, max_length=128, description="供应商提交幂等键；同一任务重试必须保持一致"
+    )
 
     @model_validator(mode="after")
     def require_prompt_or_any_reference(self) -> "VideoGenerationInput":

@@ -18,7 +18,7 @@ import {
   useWorkbenchShot,
   useWorkbenchShotDetail,
   useWorkbenchShotPreparation,
-  useWorkbenchShotReadiness,
+  useP6Readiness,
 } from './useWorkbenchQueries'
 import { PrepStatusBadge, ReadinessBadge, RunStatusBadge } from './components/StatusBadges'
 import { PanelError, PanelLoading } from './components/PanelStates'
@@ -212,7 +212,7 @@ function ShotInspector({
   const shotQuery = useWorkbenchShot(projectId, shotId)
   const detailQuery = useWorkbenchShotDetail(projectId, shotId)
   const preparationQuery = useWorkbenchShotPreparation(projectId, shotId)
-  const readinessQuery = useWorkbenchShotReadiness(projectId, shotId)
+  const readinessQuery = useP6Readiness(projectId, shotId)
   const runtimeQueries = useWorkbenchRuntimeQueries(projectId, [chapterId])
   const activeTasks =
     runtimeQueries[0]?.data?.find((item) => item.shot_id === shotId)?.active_task_count ?? 0

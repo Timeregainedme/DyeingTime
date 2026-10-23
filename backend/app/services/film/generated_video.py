@@ -632,6 +632,8 @@ async def run_video_generation_task(
 
             # payload 只存 file_id 引用；参考图/首尾帧字节到这一步（调用供应商前）才下载编码。
             input_dict = await materialize_input_references(session, input_dict=input_dict)
+            # 同一 GenerationTask 的 Worker 重试必须复用同一供应商幂等键。
+            input_dict.setdefault("idempotency_key", task_id)
 
             task = VideoGenerationTask(
                 provider_config=ProviderConfig(
@@ -699,5 +701,7 @@ async def run_video_generation_task(
                 shot_id = str(run_args.get("shot_id") or "")
                 if shot_id:
                     await recompute_shot_status(s2, shot_id=shot_id)
+                # 供应商请求可能已发出/已受理；失败或超时一律保守计费，避免额度被绕过。
+                await settle_task(s2, task_id=task_id, media_type="video", commit=True)
                 await s2.commit()
             log_task_failure("video_generation", task_id, str(exc))

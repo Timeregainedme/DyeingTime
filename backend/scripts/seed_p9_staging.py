@@ -38,7 +38,7 @@ from app.models.studio import (
 from app.models.studio_script_documents import ScriptDocument, ScriptDocumentVersion
 from app.models.workspace import Workspace, WorkspaceMember
 
-PNG = b"\x89PNG\r\n\x1a\n" + b"e2e"
+PNG = (Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "e2e-valid.png").read_bytes()
 
 
 async def main() -> None:

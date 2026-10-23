@@ -742,7 +742,7 @@ def test_h3_word_range_is_adaptive_by_duration() -> None:
     assert word_range_for_duration(12) == (350, 500)
 
 
-def test_compshare_h3_capabilities_match_official_4_to_15s_and_768p_2k() -> None:
+def test_compshare_h3_capabilities_match_compshare_api_4_to_30s_and_five_resolutions() -> None:
     from app.core.contracts.video_generation import VideoGenerationInput
     from app.core.integrations.compshare.video_capabilities import (
         resolve_compshare_video_capability,
@@ -751,16 +751,22 @@ def test_compshare_h3_capabilities_match_official_4_to_15s_and_768p_2k() -> None
 
     capability = resolve_compshare_video_capability("MiniMax-H3")
     assert capability.min_seconds == 4
-    assert capability.max_seconds == 15
-    assert capability.allowed_resolutions == {"768p", "2k"}
+    assert capability.max_seconds == 30
+    assert capability.allowed_resolutions == {"480p", "768p", "1080p", "2k", "4k"}
     validate_compshare_video_options(
-        VideoGenerationInput(prompt="test", model="MiniMax-H3", ratio="9:16", seconds=15, resolution="2k")
+        VideoGenerationInput(prompt="test", model="MiniMax-H3", ratio="9:16", seconds=30, resolution="1080p")
     )
-    with pytest.raises(ValueError, match="duration|seconds|15"):
+    with pytest.raises(ValueError, match="duration|seconds|30"):
         validate_compshare_video_options(
-            VideoGenerationInput(prompt="test", model="MiniMax-H3", ratio="9:16", seconds=16, resolution="2k")
+            VideoGenerationInput(prompt="test", model="MiniMax-H3", ratio="9:16", seconds=31, resolution="2k")
         )
-    with pytest.raises(ValueError, match="resolution"):
-        validate_compshare_video_options(
-            VideoGenerationInput(prompt="test", model="MiniMax-H3", ratio="9:16", seconds=5, resolution="1080p")
-        )
+
+
+def test_compshare_idempotency_header_is_stable_when_task_key_supplied() -> None:
+    from app.core.integrations.compshare.client import compshare_headers
+
+    headers = compshare_headers(
+        "sk-test", idempotent=True, idempotency_key="task-123"
+    )
+    assert headers["Idempotency-Key"] == "task-123"
+    assert "sk-test" not in headers["Idempotency-Key"]

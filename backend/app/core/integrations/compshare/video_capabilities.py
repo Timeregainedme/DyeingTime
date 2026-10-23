@@ -18,12 +18,12 @@ if TYPE_CHECKING:
 # H3 支持 adaptive / 21:9 / 16:9 / 4:3 / 1:1 / 3:4 / 9:16；
 # adaptive 无对应业务语义，故只声明与 DyeingTime VideoRatio 的交集。
 COMPSHARE_VIDEO_RATIOS = set(ALLOWED_RATIOS)
-# 官方 MiniMax-H3 输出规格：768P / 2K。
-COMPSHARE_VIDEO_RESOLUTIONS = ("768P", "2K")
+# 优云智算 H3 API：480P/768P 原生，1080P/2K/4K 超分。
+COMPSHARE_VIDEO_RESOLUTIONS = ("480P", "768P", "1080P", "2K", "4K")
 DEFAULT_COMPSHARE_VIDEO_RESOLUTION = "768P"
 DEFAULT_COMPSHARE_VIDEO_DURATION_S = 5
 
-# 官方 MiniMax-H3：4–15 秒；项目内部仍限制 4–15 秒。
+# 优云智算 H3 API：4–30 秒；项目内部仍限制 4–15 秒。
 _COMPSHARE_DEFAULT = VideoModelCapability(
     supports_seed=False,
     # 平台提供 aigc_watermark 开关。
@@ -34,7 +34,7 @@ _COMPSHARE_DEFAULT = VideoModelCapability(
     allowed_resolutions={r.lower() for r in COMPSHARE_VIDEO_RESOLUTIONS},
     default_resolution=DEFAULT_COMPSHARE_VIDEO_RESOLUTION.lower(),
     min_seconds=4,
-    max_seconds=15,
+    max_seconds=30,
 )
 
 # H3 参考素材硬约束：参考图 ≤9、参考视频 ≤3、参考音频 ≤3、总数 ≤12；

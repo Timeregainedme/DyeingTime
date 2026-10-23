@@ -37,13 +37,16 @@ def compshare_base_url(cfg: ProviderConfig) -> str:
     return (cfg.base_url or DEFAULT_COMPSHARE_BASE_URL).rstrip("/")
 
 
-def compshare_headers(api_key: str, *, idempotent: bool = False) -> dict[str, str]:
+def compshare_headers(
+    api_key: str, *, idempotent: bool = False, idempotency_key: str | None = None
+) -> dict[str, str]:
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
     if idempotent:
-        headers["Idempotency-Key"] = uuid.uuid4().hex
+        # 同一 GenerationTask 重试必须复用同一 key；仅在调用方未提供时生成随机值。
+        headers["Idempotency-Key"] = (idempotency_key or uuid.uuid4().hex)[:128]
     return headers
 
 
