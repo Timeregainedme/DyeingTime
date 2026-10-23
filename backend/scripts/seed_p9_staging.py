@@ -54,6 +54,10 @@ async def main() -> None:
             (ProjectStyleOption, ["style-e2e"]),
             (Model, ["model-text", "model-image", "model-video", "model-audio"]),
             (ModelSettings, [1]),
+            (AssetVersion, ["av-scene", "av-char1", "av-char2"]),
+            (Character, ["char-e2e-1", "char-e2e-2"]),
+            (Scene, ["scene-e2e"]),
+            (FileItem, ["f-char", "f-scene", "v-e2e-1", "v-e2e-2", "v-e2e-3", "v-e2e-4"]),
         ]:
             if model is User:
                 await db.execute(delete(model).where(model.id.in_(ids)))
