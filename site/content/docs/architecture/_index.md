@@ -30,4 +30,5 @@ description: "记录当前真实生效的系统结构、状态流转、页面边
 - [正式场次（SceneGroup）](/docs/architecture/scene-groups/)
 - [AI 分镜规划与镜头资产版本](/docs/architecture/shot-planning/)
 - [H3 多参考 Manifest 与生成输入快照](/docs/architecture/h3-reference-manifest/)
+- [生成测试额度与原子预留](/docs/architecture/generation-test-quota/)
 - [分镜页面职责边界](/docs/architecture/shot-page-boundary/)

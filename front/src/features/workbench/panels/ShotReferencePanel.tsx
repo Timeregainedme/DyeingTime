@@ -14,6 +14,7 @@ import type {
   ReferenceBindingRead,
 } from '../../../services/generated'
 import {
+  useGenerationQuota,
   useGenerationSnapshots,
   useP6Readiness,
   useReferenceBindings,
@@ -42,6 +43,7 @@ export function ShotReferencePanel({
   const readinessQuery = useP6Readiness(projectId, shotId)
   const snapshotsQuery = useGenerationSnapshots(projectId, shotId)
   const detailQuery = useWorkbenchShotDetail(projectId, shotId)
+  const quotaQuery = useGenerationQuota()
   const actions = useShotReferenceActions(projectId, shotId)
   const [prompt, setPrompt] = useState('')
   const [advancedPrompt, setAdvancedPrompt] = useState('')
@@ -97,6 +99,11 @@ export function ShotReferencePanel({
                 {readiness?.ready ? '生成准备就绪' : '准备度未通过'}
               </Badge>
               <Badge variant="outline">已启用 {active.length} 张</Badge>
+              {quotaQuery.data?.map((item) => (
+                <Badge key={item.media_type} variant="outline" className="font-normal">
+                  {item.media_type} 余额 {item.remaining}
+                </Badge>
+              ))}
               <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => actions.recommend.mutate()} disabled={busy}>
                 <Sparkles className="h-3 w-3" />自动推荐
               </Button>

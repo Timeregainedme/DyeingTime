@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "sqlite+aiosqlite:///./dyeingtime.db"
 
+    # --- P6：V2 验收测试预算（不是生产用户终身额度）---
+    # 默认关闭；开发/验收环境显式开启后才在真实供应商执行层拦截。
+    generation_test_quota_enabled: bool = False
+    generation_test_quota_scope: str = "v2-acceptance"
+
     # Redis / Celery Broker
     redis_host: str = "localhost"
     redis_port: int = 6379

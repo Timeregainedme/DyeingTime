@@ -41,6 +41,7 @@ from app.services.studio.file_usages import (
 )
 from app.services.studio.shot_status import mark_shot_generating, recompute_shot_status
 from app.services.studio.image_tasks import load_provider_config, resolve_image_model
+from app.services.studio.generation_quota import reserve_for_task, settle_task
 from app.services.studio.project_generation_config import resolve_project_id_for_image_relation
 from app.services.worker.async_task_support import cancel_if_requested_async
 from app.services.worker.task_logging import log_task_event, log_task_failure
@@ -472,6 +473,16 @@ async def run_image_generation_task(
                 ),
                 input_=ImageGenerationInput.model_validate(input_dict),
             )
+            await reserve_for_task(
+                session,
+                task_id=task_id,
+                media_type="image",
+                amount=int(run_args.get("input", {}).get("n") or 1),
+                provider=provider,
+                model=str(run_args.get("input", {}).get("model") or ""),
+                note="image generation",
+            )
+            await session.commit()
             await task.run()
             result = await task.get_result()
             if result is None:
@@ -513,6 +524,7 @@ async def run_image_generation_task(
                 await session.commit()
                 log_task_event("image_generation", task_id, "cancelled", stage="after_persist")
                 return
+            await settle_task(session, task_id=task_id, media_type="image", commit=True)
             await store.set_progress(task_id, 100)
             await store.set_status(task_id, TaskStatus.succeeded)
             related_shot_id = await _resolve_related_shot_id(
@@ -530,6 +542,7 @@ async def run_image_generation_task(
                 store = SqlAlchemyTaskStore(s2)
                 await store.set_error(task_id, str(exc))
                 await store.set_status(task_id, TaskStatus.failed)
+                await settle_task(s2, task_id=task_id, media_type="image", commit=True)
                 await _mark_candidate_task_failed(
                     s2,
                     relation_type=relation_type,

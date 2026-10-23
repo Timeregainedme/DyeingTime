@@ -17,6 +17,7 @@ import {
   StudioProjectsService,
   StudioSceneGroupsService,
   StudioShotPlansService,
+  StudioGenerationQuotaService,
   StudioShotReferencesService,
   StudioScriptDocumentsService,
   StudioScriptParseService,
@@ -77,6 +78,7 @@ import type {
   P6VideoTaskCreated,
   PromptResolveRead,
   GenerationSnapshotRead,
+  QuotaStatusRead,
   ShotVideoReadinessRead,
   ShotUpdate,
   ShotRead,
@@ -1220,6 +1222,12 @@ export async function loadGenerationSnapshots(shotId: string): Promise<Generatio
     await StudioShotReferencesService.listGenerationSnapshotsApiApiV1StudioShotsShotIdGenerationSnapshotsGet(
       { shotId },
     )
+  return response.data ?? []
+}
+
+export async function loadGenerationQuota(scope = 'v2-acceptance'): Promise<QuotaStatusRead[]> {
+  const response =
+    await StudioGenerationQuotaService.getGenerationQuotaApiApiV1StudioGenerationQuotaGet({ scope })
   return response.data ?? []
 }
 

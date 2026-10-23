@@ -467,6 +467,16 @@ async def run_audio_generation_task(
                 ),
                 input_=AudioGenerationInput.model_validate(input_dict),
             )
+            await reserve_for_task(
+                session,
+                task_id=task_id,
+                media_type="audio",
+                amount=len(str(input_dict.get("text") or "")),
+                provider=provider,
+                model=str(input_dict.get("model") or ""),
+                note="audio generation",
+            )
+            await session.commit()
             await task.run()
             result = await task.get_result()
             if result is None:
@@ -497,6 +507,7 @@ async def run_audio_generation_task(
             if await cancel_if_requested_async(store=store, task_id=task_id, session=session):
                 log_task_event("audio_generation", task_id, "cancelled", stage="after_persist")
                 return
+            await settle_task(session, task_id=task_id, media_type="audio", commit=True)
             await store.set_progress(task_id, 100)
             await store.set_status(task_id, TaskStatus.succeeded)
             await session.commit()
@@ -507,5 +518,6 @@ async def run_audio_generation_task(
                 store = SqlAlchemyTaskStore(s2)
                 await store.set_error(task_id, str(exc))
                 await store.set_status(task_id, TaskStatus.failed)
+                await settle_task(s2, task_id=task_id, media_type="audio", commit=True)
                 await s2.commit()
             log_task_failure("audio_generation", task_id, str(exc))

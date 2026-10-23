@@ -70,6 +70,7 @@ export const queryKeys = {
     ['workbench', projectId, 'p6-readiness', shotId] as const,
   workbenchGenerationSnapshots: (projectId: string, shotId: string) =>
     ['workbench', projectId, 'generation-snapshots', shotId] as const,
+  generationQuota: (scope: string) => ['generation-quota', scope] as const,
   workbenchRuntime: (projectId: string, chapterId: string) =>
     ['workbench', projectId, 'runtime', chapterId] as const,
   workbenchAssets: (projectId: string, assetType: string) =>

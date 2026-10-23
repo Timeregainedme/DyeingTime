@@ -38,6 +38,7 @@ from app.services.studio.generation.video import (
     validate_images_count,
 )
 from app.services.studio.shot_status import recompute_shot_status
+from app.services.studio.generation_quota import reserve_for_task, settle_task
 from app.services.studio.project_generation_config import (
     resolve_project_id_for_shot,
     resolve_project_model,
@@ -640,6 +641,16 @@ async def run_video_generation_task(
                 ),
                 input_=VideoGenerationInput.model_validate(input_dict),
             )
+            await reserve_for_task(
+                session,
+                task_id=task_id,
+                media_type="video",
+                amount=1,
+                provider=provider,
+                model=str(input_dict.get("model") or ""),
+                note="video generation",
+            )
+            await session.commit()
             await task.run()
             result = await task.get_result()
             if result is None:
@@ -673,6 +684,7 @@ async def run_video_generation_task(
             if await cancel_if_requested_async(store=store, task_id=task_id, session=session):
                 log_task_event("video_generation", task_id, "cancelled", stage="after_persist")
                 return
+            await settle_task(session, task_id=task_id, media_type="video", commit=True)
             await store.set_progress(task_id, 100)
             await store.set_status(task_id, TaskStatus.succeeded)
             await recompute_shot_status(session, shot_id=shot_id)

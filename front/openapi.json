@@ -12905,6 +12905,194 @@
         }
       }
     },
+    "/api/v1/studio/generation-quota": {
+      "get": {
+        "tags": [
+          "studio/generation-quota"
+        ],
+        "summary": "查询 V2 验收测试额度",
+        "operationId": "get_generation_quota_api_api_v1_studio_generation_quota_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "v2-acceptance",
+              "title": "Scope"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_list_QuotaStatusRead__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/generation-quota/reservations": {
+      "get": {
+        "tags": [
+          "studio/generation-quota"
+        ],
+        "summary": "额度预留/结算记录",
+        "operationId": "list_generation_quota_reservations_api_api_v1_studio_generation_quota_reservations_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "v2-acceptance",
+              "title": "Scope"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_list_QuotaReservationRead__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/generation-quota/reserve": {
+      "post": {
+        "tags": [
+          "studio/generation-quota"
+        ],
+        "summary": "原子预留测试额度（防并发超额）",
+        "operationId": "reserve_generation_quota_api_api_v1_studio_generation_quota_reserve_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuotaReserveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_QuotaReservationRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/studio/generation-quota/settle": {
+      "post": {
+        "tags": [
+          "studio/generation-quota"
+        ],
+        "summary": "结算测试额度预留",
+        "operationId": "settle_generation_quota_api_api_v1_studio_generation_quota_settle_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuotaSettleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_QuotaReservationRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/studio/files/{file_id}/download": {
       "get": {
         "tags": [
@@ -16285,6 +16473,48 @@
         "type": "object",
         "title": "ApiResponse[ProviderRead]"
       },
+      "ApiResponse_QuotaReservationRead_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QuotaReservationRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[QuotaReservationRead]"
+      },
       "ApiResponse_ReferenceBindingRead_": {
         "properties": {
           "code": {
@@ -18752,6 +18982,98 @@
         },
         "type": "object",
         "title": "ApiResponse[list[ProviderSupportedRead]]"
+      },
+      "ApiResponse_list_QuotaReservationRead__": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/QuotaReservationRead"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[list[QuotaReservationRead]]"
+      },
+      "ApiResponse_list_QuotaStatusRead__": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/QuotaStatusRead"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[list[QuotaStatusRead]]"
       },
       "ApiResponse_list_ReferenceBindingRead__": {
         "properties": {
@@ -26831,6 +27153,191 @@
         "type": "object",
         "title": "ProviderUpdate",
         "description": "更新供应商时的可选字段。"
+      },
+      "QuotaReservationRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope"
+          },
+          "media_type": {
+            "type": "string",
+            "title": "Media Type"
+          },
+          "amount": {
+            "type": "integer",
+            "title": "Amount"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": ""
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "default": ""
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "default": ""
+          },
+          "settled_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settled At"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "scope",
+          "media_type",
+          "amount",
+          "status"
+        ],
+        "title": "QuotaReservationRead"
+      },
+      "QuotaReserveRequest": {
+        "properties": {
+          "media_type": {
+            "type": "string",
+            "pattern": "^(image|video|audio)$",
+            "title": "Media Type"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Amount"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": ""
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "default": ""
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "media_type",
+          "amount"
+        ],
+        "title": "QuotaReserveRequest"
+      },
+      "QuotaSettleRequest": {
+        "properties": {
+          "reservation_id": {
+            "type": "integer",
+            "title": "Reservation Id"
+          },
+          "commit": {
+            "type": "boolean",
+            "title": "Commit",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "reservation_id"
+        ],
+        "title": "QuotaSettleRequest"
+      },
+      "QuotaStatusRead": {
+        "properties": {
+          "scope": {
+            "type": "string",
+            "title": "Scope"
+          },
+          "media_type": {
+            "type": "string",
+            "title": "Media Type"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "consumed": {
+            "type": "integer",
+            "title": "Consumed"
+          },
+          "reserved": {
+            "type": "integer",
+            "title": "Reserved"
+          },
+          "remaining": {
+            "type": "integer",
+            "title": "Remaining"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scope",
+          "media_type",
+          "limit",
+          "consumed",
+          "reserved",
+          "remaining"
+        ],
+        "title": "QuotaStatusRead"
       },
       "ReferenceBindingRead": {
         "properties": {

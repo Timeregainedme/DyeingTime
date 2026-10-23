@@ -9,6 +9,7 @@ from app.api.v1.routes.studio import (
     chapters,
     entities,
     files,
+    generation_quota,
     image_tasks,
     projects,
     prompts,
@@ -51,4 +52,5 @@ router.include_router(asset_impact.router, tags=["studio/asset-impact"])
 router.include_router(scene_groups.router, tags=["studio/scene-groups"])
 router.include_router(shot_plans.router, tags=["studio/shot-plans"])
 router.include_router(shot_references.router, tags=["studio/shot-references"])
+router.include_router(generation_quota.router, tags=["studio/generation-quota"])
 

@@ -29,6 +29,7 @@ import {
   loadCharacterVoice,
   loadGenerationConfig,
   loadGenerationOptions,
+  loadGenerationQuota,
   loadGlobalAssets,
   loadProject,
   loadProjectCharacters,
@@ -431,6 +432,14 @@ export function useP6Readiness(projectId: string, shotId: string | undefined) {
     queryKey: queryKeys.workbenchP6Readiness(projectId, shotId ?? ''),
     queryFn: () => loadP6Readiness(shotId as string),
     enabled: Boolean(projectId) && Boolean(shotId),
+    staleTime: 5_000,
+  })
+}
+
+export function useGenerationQuota(scope = 'v2-acceptance') {
+  return useQuery({
+    queryKey: queryKeys.generationQuota(scope),
+    queryFn: () => loadGenerationQuota(scope),
     staleTime: 5_000,
   })
 }
