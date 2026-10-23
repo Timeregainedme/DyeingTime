@@ -24,6 +24,7 @@ import {
   workbenchAssetGroupPath,
   workbenchConfigPath,
   workbenchEpisodePath,
+  workbenchExportPath,
   workbenchScriptPath,
   type WorkbenchAssetType,
 } from '../routes'
@@ -74,6 +75,101 @@ function StatCard({
     </button>
   ) : (
     content
+  )
+}
+
+/** 面向制作流程的入口条；状态只使用已有数据，不创建新的主状态机。 */
+function WorkflowGuide({
+  projectId,
+  project,
+  chapters,
+  assetCounts,
+  shotTotal,
+  recommendedChapterId,
+  onNavigate,
+}: {
+  projectId: string
+  project: ProjectRead
+  chapters: ChapterRead[]
+  assetCounts: Record<WorkbenchAssetType, number>
+  shotTotal: number
+  recommendedChapterId?: string
+  onNavigate: (path: string) => void
+}) {
+  const assetTotal = Object.values(assetCounts).reduce((sum, value) => sum + value, 0)
+  const steps = [
+    {
+      key: 'config',
+      label: '项目准备',
+      status: project.default_video_model_id ? '已配置模型' : '待配置模型',
+      hint: '模型、比例、分辨率与生成参数',
+      to: workbenchConfigPath(projectId),
+    },
+    {
+      key: 'script',
+      label: '剧本确认',
+      status: chapters.length ? '已建立剧集' : '未开始',
+      hint: '上传、解析、人工审核',
+      to: workbenchScriptPath(projectId),
+    },
+    {
+      key: 'assets',
+      label: '资产确认',
+      status: assetTotal ? `${assetTotal} 项资产` : '未开始',
+      hint: '角色身份、场景、道具、服装',
+      to: workbenchAssetGroupPath(projectId, 'character'),
+    },
+    {
+      key: 'shots',
+      label: '分镜确认',
+      status: shotTotal ? `${shotTotal} 个镜头` : '未开始',
+      hint: '场次、镜头资产版本与准备度',
+      to: recommendedChapterId
+        ? workbenchEpisodePath(projectId, recommendedChapterId)
+        : workbenchEpisodePath(projectId, chapters[0]?.id ?? ''),
+    },
+    {
+      key: 'video',
+      label: '视频生产',
+      status: shotTotal ? '按镜头检查' : '未开始',
+      hint: '参考图、H3、批量任务、抽卡采纳',
+      to: recommendedChapterId
+        ? workbenchEpisodePath(projectId, recommendedChapterId)
+        : workbenchEpisodePath(projectId, chapters[0]?.id ?? ''),
+    },
+    {
+      key: 'export',
+      label: '导出',
+      status: '随时可用',
+      hint: '选择已采纳镜头，检查后下载 MP4 ZIP',
+      to: workbenchExportPath(projectId),
+    },
+  ]
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-medium">制作流程</h3>
+          <span className="text-[10px] text-muted-foreground">
+            状态来自项目、剧集、资产与镜头数据；不会替代 shot.status / video-readiness
+          </span>
+        </div>
+        <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-6">
+          {steps.map((step) => (
+            <button
+              key={step.key}
+              type="button"
+              onClick={() => step.to && onNavigate(step.to)}
+              className="rounded-md border border-border bg-background p-2 text-left transition-colors hover:bg-accent"
+            >
+              <p className="text-[11px] font-medium">{step.label}</p>
+              <p className="mt-1 text-[10px] text-muted-foreground">{step.status}</p>
+              <p className="mt-0.5 line-clamp-2 text-[10px] text-muted-foreground/80">{step.hint}</p>
+            </button>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -165,6 +261,16 @@ export function OverviewPanel({
           onClick={() => onNavigate(workbenchAssetGroupPath(projectId, 'costume'))}
         />
       </div>
+
+      <WorkflowGuide
+        projectId={projectId}
+        project={project}
+        chapters={chapters}
+        assetCounts={assetCounts}
+        shotTotal={shotTotal}
+        recommendedChapterId={recommended?.id}
+        onNavigate={onNavigate}
+      />
 
       <div className="grid gap-3 lg:grid-cols-2">
         <Card>

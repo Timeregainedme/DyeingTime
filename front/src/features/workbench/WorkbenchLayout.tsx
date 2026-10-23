@@ -188,7 +188,7 @@ export function WorkbenchLayout({
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate('/projects')}>项目列表</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => window.open('/settings', '_blank', 'noreferrer')}>
+        <DropdownMenuItem onClick={() => navigate('/settings')}>
           <Settings2 className="h-4 w-4" />
           设置
         </DropdownMenuItem>
@@ -248,12 +248,12 @@ export function WorkbenchLayout({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" asChild aria-label="打开旧版项目页">
-                <a href={`/projects/${projectId}`} target="_blank" rel="noreferrer">
+                <Link to={`/projects/${projectId}?tab=dashboard`}>
                   <ExternalLink className="h-4 w-4" />
-                </a>
+                </Link>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>旧版项目页（新标签页）</TooltipContent>
+            <TooltipContent>旧版项目页（同一标签页）</TooltipContent>
           </Tooltip>
 
           <Tooltip>

@@ -15,16 +15,12 @@ import { Select } from '../../components/ui/select'
 import { Skeleton } from '../../components/ui/skeleton'
 import { cn } from '../../lib/utils'
 import { useProjectStyleOptions } from '../../pages/aiStudio/project/useProjectStyleOptions'
-import { ensureHasShotsBeforeShooting } from '../../pages/aiStudio/project/ProjectWorkbench/ensureHasShotsBeforeShooting'
-import {
-  getChapterBoardPath,
-  getChapterShotsPath,
-} from '../../pages/aiStudio/project/ProjectWorkbench/routes'
 import { ProjectCard } from '../../features/projects/ProjectCard'
 import { ProjectFormDialog } from '../../features/projects/ProjectFormDialog'
 import { useProjectList, type ProjectFormValues } from '../../features/projects/useProjectList'
 import { useProjectSummaries, type ProjectSummary } from '../../features/projects/useProjectSummaries'
 import type { ProjectView } from '../../features/projects/types'
+import { workbenchEpisodePath, workbenchPath } from '../workbench/routes'
 
 type FilterKey = 'all' | 'editRaw' | 'extractShots' | 'prepareShots' | 'generating' | 'ready'
 type SortKey = 'updatedAt' | 'name' | 'chapters'
@@ -102,37 +98,12 @@ export function ProjectListPage() {
    */
   const openProject = (project: ProjectView) => {
     const summary = summaries[project.id]
-    if (!summary) {
-      navigate(`/projects/${project.id}`)
+    // P8：项目默认进入树状工作台；旧版页面仅在明确携带 tab 参数时保留。
+    if (summary?.chapterId) {
+      navigate(workbenchEpisodePath(project.id, summary.chapterId))
       return
     }
-    if (summary.stageKey === 'create_first_chapter') {
-      navigate(`/projects/${project.id}?tab=chapters&create=1`)
-      return
-    }
-    if (!summary.chapterId) {
-      navigate(`/projects/${project.id}`)
-      return
-    }
-    if (summary.stageKey === 'edit_raw') {
-      navigate(`/projects/${project.id}?tab=chapters&edit=${summary.chapterId}`)
-      return
-    }
-    if (summary.stageKey === 'extract_shots') {
-      navigate(getChapterShotsPath(project.id, summary.chapterId))
-      return
-    }
-    if (summary.stageKey === 'prepare_shots') {
-      // 先到看板看清哪些镜头还没准备好，再从看板进工作室
-      navigate(getChapterBoardPath(project.id, summary.chapterId))
-      return
-    }
-    void ensureHasShotsBeforeShooting({
-      projectId: project.id,
-      chapterId: summary.chapterId,
-      storyboardCount: summary.storyboardCount,
-      navigate,
-    })
+    navigate(workbenchPath(project.id))
   }
 
   const submitForm = async (values: ProjectFormValues) => {
@@ -141,8 +112,8 @@ export function ProjectListPage() {
       return
     }
     const created = await createProject(values)
-    // 新建后直接进入项目，符合「创建完就要开始干活」的预期
-    navigate(`/projects/${created.id}`)
+    // 新建后直接进入树状工作台。
+    navigate(workbenchPath(created.id))
   }
 
   const confirmDelete = async () => {

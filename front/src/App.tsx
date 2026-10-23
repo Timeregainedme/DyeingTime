@@ -1,5 +1,5 @@
 import { Suspense, lazy, type FC } from 'react'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { Spin } from 'antd'
 import AppShell from './app/shell/AppShell'
 import RequireAuth from './components/RequireAuth'
@@ -67,6 +67,14 @@ const RouteFallback: FC = () => (
   </div>
 )
 
+/** 项目默认入口：无旧版 tab 参数时直接进入树状工作台。 */
+function ProjectEntry() {
+  const { projectId = '' } = useParams<{ projectId: string }>()
+  const location = useLocation()
+  if (location.search) return <ProjectWorkbench />
+  return <Navigate to={`/projects/${encodeURIComponent(projectId)}/workbench`} replace />
+}
+
 const App: React.FC = () => {
   return (
     <BrowserRouter>
@@ -90,7 +98,7 @@ const App: React.FC = () => {
           >
             <Route index element={<Navigate to="/projects" replace />} />
             <Route path="projects" element={<ProjectListPage />} />
-            <Route path="projects/:projectId" element={<ProjectWorkbench />} />
+            <Route path="projects/:projectId" element={<ProjectEntry />} />
             {/*
               树状工作台：用 splat 路由 + pathname 解析选中节点。
               这样 /workbench/episodes/:cid/shots/:sid 这类深链接不需要为每层

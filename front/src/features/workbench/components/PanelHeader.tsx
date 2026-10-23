@@ -5,6 +5,7 @@
  * 操作区只放真实可用入口（跳旧版页面、刷新、返回），不放装饰性按钮。
  */
 import type { ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 
 export function PanelHeader({
   title,
@@ -36,14 +37,12 @@ export function PanelHeader({
 /** 外链按钮：统一在新标签页打开旧版页面，保留工作台当前 Tab 的节点状态。 */
 export function LegacyLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
+    <Link
+      to={href}
       className="inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-background px-3 text-xs transition-colors hover:bg-accent"
-      title="在新标签页打开旧版页面，工作台保持当前节点"
+      title="在同一标签页打开旧版页面；浏览器返回可回到工作台"
     >
       {children}
-    </a>
+    </Link>
   )
 }
