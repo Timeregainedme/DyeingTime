@@ -29,7 +29,9 @@ test('从项目列表进入工作台，展示真实树节点且不出现旧侧�
   await page.getByRole('button', { name: '打开树状工作台' }).first().click()
 
   await expect(page).toHaveURL(new RegExp(`${WORKBENCH}$`))
-  await expect(page.getByRole('heading', { name: '现实都市爱情短剧' })).toBeVisible()
+  await expect(
+    page.getByRole('main', { name: '工作区' }).getByRole('heading', { name: '现实都市爱情短剧' }),
+  ).toBeVisible()
   await expect(page.getByRole('tree')).toBeVisible()
 
   const tree = page.getByRole('tree')
@@ -51,13 +53,14 @@ test('切换剧集与镜头，刷新和前进后退保持当前节点', async ({
 
   await expect(page).toHaveURL(new RegExp(`${WORKBENCH}/episodes/c1$`))
   const main = page.getByRole('main', { name: '工作区' })
-  await expect(main.getByText('镜头清单')).toBeVisible()
+  await expect(main.getByRole('heading', { name: /第 1 集/ })).toBeVisible()
 
-  // 剧集节点自动展开，树里出现镜头
+  // 剧集节点自动展开；历史镜头在未分配场次分组内。
+  await tree.getByRole('button', { name: /展开 未分配场次/ }).click()
   await expect(tree.getByText('镜头 01')).toBeVisible()
 
-  // 中央镜头清单进入镜头节点
-  await main.getByRole('button', { name: /镜头 01/ }).first().click()
+  // 从资源树进入镜头节点
+  await tree.getByText('镜头 01').click()
   await expect(page).toHaveURL(new RegExp(`${WORKBENCH}/episodes/c1/shots/s1$`))
   await expect(main.getByText('信息确认状态')).toBeVisible()
   await expect(main.getByText('视频生成准备度')).toBeVisible()
@@ -79,12 +82,14 @@ test('深链接直接打开镜头，并自动展开所属剧集', async ({ page 
   await page.goto(`${WORKBENCH}/episodes/c1/shots/s2`)
 
   const main = page.getByRole('main', { name: '工作区' })
-  await expect(page.getByRole('heading', { name: /镜头 02/ })).toBeVisible()
+  await expect(main.getByRole('heading', { name: /镜头 02/ })).toBeVisible()
   await expect(main.getByText('信息确认状态')).toBeVisible()
 
-  // 剧集被自动展开，当前镜头在树里可见
-  await expect(page.getByRole('tree').getByText('镜头 02')).toBeVisible()
-  await expect(page.getByRole('tree').getByText('镜头 01')).toBeVisible()
+  // 剧集被自动展开；历史镜头需要展开「未分配场次」才显示。
+  const tree = page.getByRole('tree')
+  await tree.getByRole('button', { name: /展开 未分配场次/ }).click()
+  await expect(tree.getByText('镜头 02')).toBeVisible()
+  await expect(tree.getByText('镜头 01')).toBeVisible()
 })
 
 test('树搜索只过滤节点，不改变当前 URL', async ({ page }) => {
