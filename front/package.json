@@ -20,7 +20,8 @@
     "openapi:update": "pnpm run openapi:fetch && pnpm run openapi:gen",
     "dev:mock": "VITE_USE_MOCK=true vite",
     "dev:design": "VITE_USE_MOCK=true vite --open /design",
-    "dev:prototype": "VITE_USE_MOCK=true vite --open /prototype"
+    "dev:prototype": "VITE_USE_MOCK=true vite --open /prototype",
+    "test:e2e:real": "playwright test -c playwright.real.config.ts"
   },
   "dependencies": {
     "@ant-design/icons": "^5.2.6",

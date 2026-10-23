@@ -1,0 +1,90 @@
+name: V2 Real Backend Browser E2E
+
+# P9-A：真实 React + Vite + FastAPI + MySQL + 本地 S3(moto)，仅外部 AI 供应商不调用。
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'front/**'
+      - '.github/workflows/v2-real-backend-e2e.yml'
+
+jobs:
+  real-backend-e2e:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: p8_e2e
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      DATABASE_URL: mysql+aiomysql://root:root@127.0.0.1:3306/p8_e2e
+      JWT_SECRET: p9-e2e-secret-at-least-32-bytes-long
+      S3_ENDPOINT_URL: http://127.0.0.1:5000
+      S3_BUCKET_NAME: dyeingtime-e2e
+      S3_ACCESS_KEY_ID: test
+      S3_SECRET_ACCESS_KEY: test
+      S3_ADDRESSING_STYLE: path
+      S3_PUBLIC_BASE_URL: http://127.0.0.1:5000/dyeingtime-e2e
+      CORS_ORIGINS: http://127.0.0.1:7801,http://localhost:7801
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: front/pnpm-lock.yaml
+      - uses: astral-sh/setup-uv@v6
+      - name: Install backend deps
+        working-directory: backend
+        run: |
+          uv sync
+          uv pip install 'moto[server]'
+      - name: Start mock S3
+        run: |
+          backend/.venv/bin/moto_server -H 127.0.0.1 -p 5000 > /tmp/moto.log 2>&1 &
+          sleep 2
+          backend/.venv/bin/python - <<'PY'
+          import boto3
+          from botocore.client import Config
+          c=boto3.client('s3',endpoint_url='http://127.0.0.1:5000',aws_access_key_id='test',aws_secret_access_key='test',region_name='us-east-1',config=Config(s3={'addressing_style':'path'}))
+          c.create_bucket(Bucket='dyeingtime-e2e')
+          PY
+      - name: Create schema and seed staging data
+        working-directory: backend
+        run: |
+          uv run python -c "import asyncio; from app.core.db import init_db; asyncio.run(init_db())"
+          uv run python scripts/seed_p9_staging.py
+      - name: Start FastAPI
+        working-directory: backend
+        run: |
+          nohup uv run uvicorn app.main:app --host 127.0.0.1 --port 8010 > /tmp/backend-e2e.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8010/health && break; sleep 1; done
+      - name: Install frontend deps
+        working-directory: front
+        run: pnpm install --frozen-lockfile
+      - name: Install Chromium
+        working-directory: front
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run real backend browser E2E
+        working-directory: front
+        run: pnpm exec playwright test -c playwright.real.config.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p9-real-e2e-report
+          path: |
+            front/playwright-report-real
+            front/test-results
+          retention-days: 7

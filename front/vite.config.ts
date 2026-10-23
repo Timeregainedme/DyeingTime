@@ -9,6 +9,13 @@ export default defineConfig({
     port: 7788,
     // CI/自动化场景不自动开浏览器：e2e 启动 dev server 时弹窗会干扰开发机
     open: !process.env.CI,
+    // 真实后端开发/验收模式：登录页使用相对 /api，需要由 Vite 同源代理。
+    proxy: {
+      '/api': {
+        target: process.env.VITE_DEV_PROXY_TARGET ?? 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     outDir: 'dist',
