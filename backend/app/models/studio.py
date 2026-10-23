@@ -36,6 +36,12 @@ from app.models.studio_projects import (
 )
 from app.models.studio_script_documents import ScriptDocument, ScriptDocumentVersion
 from app.models.studio_scene_groups import SceneGroup
+from app.models.studio_shot_plans import (
+    ShotAssetVersion,
+    ShotPlanAppliedShot,
+    ShotPlanCandidate,
+    ShotPlanDraft,
+)
 from app.models.studio_script_parse import (
     ScriptDiffReport,
     ScriptParseCandidate,
@@ -100,6 +106,10 @@ __all__ = [
     "ScriptDocument",
     "ScriptDocumentVersion",
     "SceneGroup",
+    "ShotPlanDraft",
+    "ShotPlanCandidate",
+    "ShotAssetVersion",
+    "ShotPlanAppliedShot",
     "CharacterAlias",
     "AssetVersion",
     "AssetImageCandidate",

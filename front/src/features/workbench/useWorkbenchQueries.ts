@@ -39,7 +39,19 @@ import {
   loadSceneGroups,
   loadSceneGroupShots,
   loadSceneGroupSuggestions,
+  loadShotAssetVersions,
+  loadShotPlan,
+  loadShotPlans,
+  loadShotPlanStats,
   loadScriptDocument,
+  addShotPlanCandidate,
+  confirmShotPlan,
+  createShotPlan,
+  deleteShotPlanCandidate,
+  duplicateShotPlanCandidate,
+  mergeShotPlanCandidates,
+  reorderShotPlanCandidates,
+  updateShotPlanCandidate,
   loadScriptDocuments,
   loadScriptDocumentVersion,
   loadShot,
@@ -75,6 +87,8 @@ import {
   reorderSceneGroups,
   updateSceneGroup,
   updateScriptParseCandidate,
+  updateShot,
+  updateShotDetail,
   updateAssetProfile,
   updateCharacterVoice,
   uploadAssetCandidate,
@@ -361,6 +375,104 @@ export function useSceneGroupSuggestions(projectId: string, chapterId: string | 
 }
 
 /** 场次/镜头顺序变更后统一失效章节镜头、场次与工作台树缓存。 */
+export function useChapterShotPlans(projectId: string, chapterId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.workbenchShotPlans(projectId, chapterId ?? ''),
+    queryFn: () => loadShotPlans(chapterId as string),
+    enabled: Boolean(projectId) && Boolean(chapterId),
+    staleTime: 5_000,
+  })
+}
+
+export function useShotPlan(projectId: string, draftId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.workbenchShotPlan(projectId, draftId ?? ''),
+    queryFn: () => loadShotPlan(draftId as string),
+    enabled: Boolean(projectId) && Boolean(draftId),
+    staleTime: 2_000,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      return status === 'draft' || status === 'generating' ? 2000 : false
+    },
+  })
+}
+
+export function useShotPlanStats(projectId: string, chapterId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.workbenchShotPlanStats(projectId, chapterId ?? ''),
+    queryFn: () => loadShotPlanStats(chapterId as string),
+    enabled: Boolean(projectId) && Boolean(chapterId),
+    staleTime: 5_000,
+  })
+}
+
+export function useShotAssetVersions(projectId: string, shotId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.workbenchShotAssetVersions(projectId, shotId ?? ''),
+    queryFn: () => loadShotAssetVersions(shotId as string),
+    enabled: Boolean(projectId) && Boolean(shotId),
+    staleTime: STALE_MS,
+  })
+}
+
+/** 分镜规划动作；确认后刷新镜头、场次、规划与统计缓存。 */
+export function useShotPlanActions(projectId: string, chapterId: string) {
+  const queryClient = useQueryClient()
+  const invalidate = (draftId?: string) => {
+    if (draftId) {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchShotPlan(projectId, draftId) })
+    }
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchShotPlans(projectId, chapterId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchShotPlanStats(projectId, chapterId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchShots(projectId, chapterId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchSceneGroups(projectId, chapterId) })
+    void queryClient.invalidateQueries({ queryKey: ['workbench', projectId, 'scene-group'] })
+  }
+  const create = useMutation({
+    mutationFn: (body: Parameters<typeof createShotPlan>[1]) => createShotPlan(chapterId, body),
+    onSuccess: (data) => invalidate(data.id),
+  })
+  const updateCandidate = useMutation({
+    mutationFn: (payload: {
+      draftId: string
+      candidateId: string
+      body: Parameters<typeof updateShotPlanCandidate>[2]
+    }) => updateShotPlanCandidate(payload.draftId, payload.candidateId, payload.body),
+    onSuccess: (_data, variables) => invalidate(variables.draftId),
+  })
+  const addCandidate = useMutation({
+    mutationFn: (payload: { draftId: string; body: Parameters<typeof addShotPlanCandidate>[1] }) =>
+      addShotPlanCandidate(payload.draftId, payload.body),
+    onSuccess: (_data, variables) => invalidate(variables.draftId),
+  })
+  const duplicate = useMutation({
+    mutationFn: (payload: { draftId: string; candidateId: string }) =>
+      duplicateShotPlanCandidate(payload.draftId, payload.candidateId),
+    onSuccess: (_data, variables) => invalidate(variables.draftId),
+  })
+  const remove = useMutation({
+    mutationFn: (payload: { draftId: string; candidateId: string }) =>
+      deleteShotPlanCandidate(payload.draftId, payload.candidateId),
+    onSuccess: (_data, variables) => invalidate(variables.draftId),
+  })
+  const reorder = useMutation({
+    mutationFn: (payload: { draftId: string; candidateIds: string[] }) =>
+      reorderShotPlanCandidates(payload.draftId, payload.candidateIds),
+    onSuccess: (_data, variables) => invalidate(variables.draftId),
+  })
+  const merge = useMutation({
+    mutationFn: (payload: { draftId: string; sourceId: string; targetId: string }) =>
+      mergeShotPlanCandidates(payload.draftId, payload.sourceId, payload.targetId),
+    onSuccess: (_data, variables) => invalidate(variables.draftId),
+  })
+  const confirm = useMutation({
+    mutationFn: (payload: { draftId: string; appendToExisting: boolean }) =>
+      confirmShotPlan(payload.draftId, payload.appendToExisting),
+    onSuccess: (_data, variables) => invalidate(variables.draftId),
+  })
+  return { create, updateCandidate, addCandidate, duplicate, remove, reorder, merge, confirm }
+}
+
 export function useSceneGroupActions(projectId: string, chapterId: string) {
   const queryClient = useQueryClient()
   const invalidate = () => {
@@ -679,6 +791,26 @@ export function useWorkbenchShotDetail(projectId: string, shotId: string | undef
   })
 }
 
+
+export function useShotEditActions(projectId: string, chapterId: string, shotId: string) {
+  const queryClient = useQueryClient()
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchShot(projectId, shotId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchShotDetail(projectId, shotId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchShots(projectId, chapterId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchSceneGroups(projectId, chapterId) })
+    void queryClient.invalidateQueries({ queryKey: ['workbench', projectId, 'scene-group'] })
+  }
+  const updateShotMutation = useMutation({
+    mutationFn: (body: Parameters<typeof updateShot>[1]) => updateShot(shotId, body),
+    onSuccess: invalidate,
+  })
+  const updateDetail = useMutation({
+    mutationFn: (body: Parameters<typeof updateShotDetail>[1]) => updateShotDetail(shotId, body),
+    onSuccess: invalidate,
+  })
+  return { updateShot: updateShotMutation, updateDetail }
+}
 
 export function useWorkbenchShotPreparation(projectId: string, shotId: string | undefined) {
   return useQuery({

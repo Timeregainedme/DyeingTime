@@ -56,6 +56,14 @@ export const queryKeys = {
     ['workbench', projectId, 'scene-group', groupId] as const,
   workbenchSceneGroupShots: (projectId: string, groupId: string) =>
     ['workbench', projectId, 'scene-group-shots', groupId] as const,
+  workbenchShotPlans: (projectId: string, chapterId: string) =>
+    ['workbench', projectId, 'shot-plans', chapterId] as const,
+  workbenchShotPlan: (projectId: string, draftId: string) =>
+    ['workbench', projectId, 'shot-plan', draftId] as const,
+  workbenchShotPlanStats: (projectId: string, chapterId: string) =>
+    ['workbench', projectId, 'shot-plan-stats', chapterId] as const,
+  workbenchShotAssetVersions: (projectId: string, shotId: string) =>
+    ['workbench', projectId, 'shot-asset-versions', shotId] as const,
   workbenchRuntime: (projectId: string, chapterId: string) =>
     ['workbench', projectId, 'runtime', chapterId] as const,
   workbenchAssets: (projectId: string, assetType: string) =>

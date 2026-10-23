@@ -14,7 +14,6 @@ from app.models.studio import (
     Scene,
     SceneGroup,
     ScriptDocument,
-    ScriptDocumentVersion,
     ScriptParseRun,
     Shot,
     ShotDetail,

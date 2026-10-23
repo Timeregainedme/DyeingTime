@@ -33,6 +33,7 @@ import { ChapterStatusBadge, PrepStatusBadge, RunStatusBadge } from '../componen
 import { LegacyLink, PanelHeader } from '../components/PanelHeader'
 import { PanelEmpty, PanelError, PanelLoading, StageNote } from '../components/PanelStates'
 import { legacyShotListPath, legacyStudioPath } from './legacyPaths'
+import { ShotPlanWorkspace } from './ShotPlanWorkspace'
 
 function ShotRow({
   shot,
@@ -320,6 +321,17 @@ export function EpisodePanel({
         </Card>
       ) : null}
 
+      <ShotPlanWorkspace
+        projectId={projectId}
+        chapter={chapter}
+        sceneGroups={groups}
+        existingShotCount={shots?.length ?? 0}
+        onApplied={() => {
+          void shotsQuery[0]?.refetch()
+          void groupsQuery.refetch()
+          setNotice('分镜规划已写入正式镜头；旧镜头与历史视频未被覆盖。')
+        }}
+      />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[

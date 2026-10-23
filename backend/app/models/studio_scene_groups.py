@@ -5,10 +5,7 @@ SceneGroup 是剧集内的剧情分组；Scene 是可复用场景资产。二者
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any
-
-from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base

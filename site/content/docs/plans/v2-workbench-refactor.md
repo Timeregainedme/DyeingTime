@@ -273,9 +273,9 @@ C8 已实现：
 - 正式场次与镜头拆分仍属 P5；
 - 镜头级显式参考绑定与生成输入快照仍属 P6。
 
-### P5 — 场次与分镜（进行中）
+### P5 — 场次与分镜（已完成）
 
-状态：C9 已完成并提交；C10 AI 分镜规划与本轮继续。当前实现见
+状态：C9 / C10 已完成并提交；当前实现见
 [正式场次（SceneGroup）](/docs/architecture/scene-groups/)。
 
 目标：AI 划分场次、合理镜头拆解、树状管理、排序、剧本定位。
@@ -292,12 +292,14 @@ C9 已实现：
 - `front/src/features/workbench/panels/SceneGroupPanel.tsx` — 场次编辑与镜头移动
 - 工作台树：剧集 → 场次 → 镜头 / 未分配场次
 
-C10 待完成：
-- AI 分镜规划草稿与 Mock 任务
-- 角色锁定前置、时长/节奏、剧情覆盖
-- 正式 Shot/ShotDetail 写入
-- 镜头资产版本选择
-- 分镜审核与镜头编辑
+C10 已实现：
+- `backend/app/models/studio_shot_plans.py` — 规划草稿、候选、镜头资产版本、应用映射
+- `backend/app/chains/agents/scene_shot_planner_agent.py` — 结构化分镜 Agent
+- `backend/app/services/studio/shot_plan_runner.py` — 分块规划、资产解析、问题检查
+- `backend/app/services/studio/shot_plans.py` — 草稿/审核/确认与正式 Shot 写入
+- `backend/app/api/v1/routes/studio/shot_plans.py` — 规划 API
+- `front/src/features/workbench/panels/ShotPlanWorkspace.tsx` — 规划参数/审核/应用
+- `ShotPanel` — 镜头文字、时长、场次与资产版本编辑
 
 约束：
 - 正式场次与场景资产严格分开；
@@ -412,8 +414,8 @@ P6 ──> P7 导出与端到端验收 ──> P8 全站迁移
 | C6 | `[feat]` | P3：AI 解析、统一审核与增量差异（✅ 已完成） |
 | C7 | `[feat]` | P4：角色圣经与资产版本（✅ 已完成 `e5f14d6`） |
 | C8 | `[feat]` | P4：资产变更影响分析（✅ 已完成） |
-| C9 | `[feat]` | P5：正式场次实体与树状管理（✅ 已完成） |
-| C10 | `[feat]` | P5：AI 分镜规划与镜头管理（进行中） |
+| C9 | `[feat]` | P5：正式场次实体与树状管理（✅ 已完成 `008526c`） |
+| C10 | `[feat]` | P5：AI 分镜规划与镜头管理（✅ 已完成） |
 | C11 | `[feat]` | P6：镜头参考绑定与自动推荐 |
 | C12 | `[feat]` | P6：额度门禁 |
 | C13 | `[feat]` | P6：批量视频生成任务与并发控制 |

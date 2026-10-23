@@ -8,13 +8,20 @@
  *
  * P1 只读展示，不提供生成、参考绑定或重抽；这些入口仍在旧版准备台与工作室。
  */
+import { useEffect, useState } from 'react'
 import { ArrowLeft, ExternalLink, PlayCircle, RefreshCw } from 'lucide-react'
 import { Button } from '../../../components/ui/button'
+import { Input } from '../../../components/ui/input'
+import { Select } from '../../../components/ui/select'
+import { Textarea } from '../../../components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card'
 import { cn } from '../../../lib/utils'
 import { workbenchEpisodePath } from '../routes'
 import {
+  useShotAssetVersions,
+  useShotEditActions,
   useWorkbenchRuntimeQueries,
+  useWorkbenchSceneGroups,
   useWorkbenchShot,
   useWorkbenchShotDetail,
   useWorkbenchShotPreparation,
@@ -47,6 +54,22 @@ export function ShotPanel({
   const preparationQuery = useWorkbenchShotPreparation(projectId, shotId)
   const readinessQuery = useWorkbenchShotReadiness(projectId, shotId)
   const runtimeQuery = useWorkbenchRuntimeQueries(projectId, [chapterId])
+  const groupsQuery = useWorkbenchSceneGroups(projectId, chapterId)
+  const assetVersionsQuery = useShotAssetVersions(projectId, shotId)
+  const editActions = useShotEditActions(projectId, chapterId, shotId)
+  const [notice, setNotice] = useState('')
+  const [form, setForm] = useState({
+    title: '',
+    script_excerpt: '',
+    scene_group_id: '',
+    duration: '4',
+    camera_shot: 'MS',
+    angle: 'EYE_LEVEL',
+    movement: 'STATIC',
+    description: '',
+    action_beats: '',
+    video_prompt_draft: '',
+  })
 
   const shot = shotQuery.data
   const detail = detailQuery.data
@@ -54,6 +77,24 @@ export function ShotPanel({
   const readiness = readinessQuery.data
   const activeTasks =
     runtimeQuery[0]?.data?.find((item) => item.shot_id === shotId)?.active_task_count ?? 0
+
+  useEffect(() => {
+    if (!shot) return
+    setForm({
+      title: shot.title ?? '',
+      script_excerpt: shot.script_excerpt ?? '',
+      scene_group_id: shot.scene_group_id ?? '',
+      duration: String(detail?.duration ?? 4),
+      camera_shot: detail?.camera_shot ?? 'MS',
+      angle: detail?.angle ?? 'EYE_LEVEL',
+      movement: detail?.movement ?? 'STATIC',
+      description: detail?.description ?? '',
+      action_beats: (detail?.action_beats ?? []).join('\n'),
+      video_prompt_draft: detail?.video_prompt_draft ?? '',
+    })
+    // 只在镜头/详情数据变化时回填，避免覆盖用户正在编辑的草稿。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shot?.id, shot?.title, shot?.script_excerpt, shot?.scene_group_id, detail?.duration, detail?.camera_shot, detail?.angle, detail?.movement, detail?.description, detail?.action_beats, detail?.video_prompt_draft])
 
   if (shotQuery.isLoading) return <PanelLoading lines={7} label="加载镜头" />
   if (shotQuery.isError) {
@@ -76,6 +117,29 @@ export function ShotPanel({
         }
       />
     )
+  }
+
+  const saveShot = async () => {
+    setNotice('')
+    try {
+      await editActions.updateShot.mutateAsync({
+        title: form.title,
+        script_excerpt: form.script_excerpt,
+        scene_group_id: form.scene_group_id || null,
+      })
+      await editActions.updateDetail.mutateAsync({
+        duration: Number(form.duration) || 0,
+        camera_shot: form.camera_shot as never,
+        angle: form.angle as never,
+        movement: form.movement as never,
+        description: form.description,
+        action_beats: form.action_beats.split('\n').map((item) => item.trim()).filter(Boolean),
+        video_prompt_draft: form.video_prompt_draft,
+      })
+      setNotice('镜头已保存；资产版本与历史视频未被覆盖。')
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : '保存失败')
+    }
   }
 
   const refreshAll = () => {
@@ -130,8 +194,75 @@ export function ShotPanel({
       />
 
       <StageNote stage="P6">
-        参考绑定、H3 提示词预览、批量生成与抽卡审核将在 P6 提供。当前生成仍走旧版工作室。
+        参考绑定、H3 提示词预览、批量生成与抽卡审核将在 P6 提供。P5 已支持镜头文字、时长、场次与资产版本选择。
       </StageNote>
+
+      {notice ? <p className="rounded border border-state-pending/40 bg-state-pending/10 p-2 text-[11px]">{notice}</p> : null}
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">镜头编辑</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div className="grid gap-2 md:grid-cols-2">
+            <div className="space-y-1">
+              <label className="text-[11px] text-muted-foreground">标题</label>
+              <Input value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[11px] text-muted-foreground">所属场次</label>
+              <Select value={form.scene_group_id} onChange={(event) => setForm((prev) => ({ ...prev, scene_group_id: event.target.value }))} className="h-8 text-xs">
+                <option value="">未分配场次</option>
+                {(groupsQuery.data ?? []).map((group) => (
+                  <option key={group.id} value={group.id}>场次 {group.index} · {group.title}</option>
+                ))}
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[11px] text-muted-foreground">时长（秒）</label>
+              <Input type="number" min={1} value={form.duration} onChange={(event) => setForm((prev) => ({ ...prev, duration: event.target.value }))} className="h-8 text-xs" />
+            </div>
+            <div className="grid grid-cols-3 gap-1">
+              <div className="space-y-1">
+                <label className="text-[10px] text-muted-foreground">景别</label>
+                <Input value={form.camera_shot} onChange={(event) => setForm((prev) => ({ ...prev, camera_shot: event.target.value }))} className="h-8 text-xs" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] text-muted-foreground">角度</label>
+                <Input value={form.angle} onChange={(event) => setForm((prev) => ({ ...prev, angle: event.target.value }))} className="h-8 text-xs" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] text-muted-foreground">运镜</label>
+                <Input value={form.movement} onChange={(event) => setForm((prev) => ({ ...prev, movement: event.target.value }))} className="h-8 text-xs" />
+              </div>
+            </div>
+          </div>
+          <Textarea value={form.script_excerpt} rows={2} onChange={(event) => setForm((prev) => ({ ...prev, script_excerpt: event.target.value }))} placeholder="剧本摘录" className="text-xs" />
+          <Textarea value={form.description} rows={2} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} placeholder="视觉/动作描述" className="text-xs" />
+          <Textarea value={form.action_beats} rows={2} onChange={(event) => setForm((prev) => ({ ...prev, action_beats: event.target.value }))} placeholder="动作拍点，每行一个" className="text-xs" />
+          <Textarea value={form.video_prompt_draft} rows={2} onChange={(event) => setForm((prev) => ({ ...prev, video_prompt_draft: event.target.value }))} placeholder="自然语言视频提示词草稿" className="text-xs" />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" className="h-7 px-2 text-[11px]" onClick={() => void saveShot()} disabled={editActions.updateShot.isPending || editActions.updateDetail.isPending}>
+              保存镜头
+            </Button>
+            <span className="text-[10px] text-muted-foreground">时长需落在项目有效业务范围；保存不会改写历史视频。</span>
+          </div>
+          <div className="rounded border border-border bg-muted/20 p-2 text-[10px]">
+            <p className="mb-1 font-medium">镜头资产版本选择（P5）</p>
+            {assetVersionsQuery.data?.length ? (
+              <ul className="space-y-0.5">
+                {assetVersionsQuery.data.map((item) => (
+                  <li key={`${item.asset_type}-${item.asset_id}-${item.role}`} className="text-muted-foreground">
+                    {item.role} · {item.asset_id.slice(0, 12)} · 版本 {item.asset_version_id?.slice(0, 12) ?? '当前/未指定'}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground">暂无镜头级资产版本；可在分镜规划中确认，或由旧版资产链路回退读取当前版本。</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-3 xl:grid-cols-3">
         <Card>

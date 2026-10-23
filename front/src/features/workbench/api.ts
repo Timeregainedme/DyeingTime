@@ -16,6 +16,7 @@ import {
   StudioFilesService,
   StudioProjectsService,
   StudioSceneGroupsService,
+  StudioShotPlansService,
   StudioScriptDocumentsService,
   StudioScriptParseService,
   StudioShotDetailsService,
@@ -57,8 +58,18 @@ import type {
   SceneGroupRead,
   SceneGroupSuggestionRead,
   SceneGroupUpdate,
+  ShotAssetVersionRead,
   ShotDetailRead,
+  ShotDetailUpdate,
+  ShotPlanCandidateCreate,
+  ShotPlanCandidateRead,
+  ShotPlanCandidateUpdate,
+  ShotPlanConfirmRead,
+  ShotPlanDraftRead,
+  ShotPlanRequest,
+  ShotPlanStatsRead,
   ShotPreparationStateRead,
+  ShotUpdate,
   ShotRead,
   ShotRuntimeSummaryRead,
   ShotVideoReadinessRead,
@@ -798,6 +809,161 @@ export async function loadAvailableVoices(modelId?: string | null): Promise<Voic
     modelId: modelId || undefined,
     kind: 'preset',
   })
+  return response.data ?? []
+}
+
+export async function updateShot(shotId: string, body: ShotUpdate): Promise<ShotRead> {
+  const response = await StudioShotsService.updateShotApiV1StudioShotsShotIdPatch({
+    shotId,
+    requestBody: body,
+  })
+  if (!response.data) throw new Error('服务端没有返回镜头')
+  return response.data
+}
+
+export async function updateShotDetail(
+  shotId: string,
+  body: ShotDetailUpdate,
+): Promise<ShotDetailRead> {
+  const response = await StudioShotDetailsService.updateShotDetailApiV1StudioShotDetailsShotIdPatch({
+    shotId,
+    requestBody: body,
+  })
+  if (!response.data) throw new Error('服务端没有返回镜头详情')
+  return response.data
+}
+
+/** P5：创建 AI 分镜规划。 */
+export async function createShotPlan(
+  chapterId: string,
+  body: ShotPlanRequest,
+): Promise<ShotPlanDraftRead> {
+  const response =
+    await StudioShotPlansService.createShotPlanApiApiV1StudioChaptersChapterIdShotPlansPost({
+      chapterId,
+      requestBody: body,
+    })
+  if (!response.data) throw new Error('服务端没有返回分镜规划草稿')
+  return response.data
+}
+
+export async function loadShotPlans(chapterId: string): Promise<ShotPlanDraftRead[]> {
+  const response =
+    await StudioShotPlansService.listShotPlansApiApiV1StudioChaptersChapterIdShotPlansGet({
+      chapterId,
+    })
+  return response.data ?? []
+}
+
+export async function loadShotPlan(draftId: string): Promise<ShotPlanDraftRead> {
+  const response =
+    await StudioShotPlansService.getShotPlanApiApiV1StudioShotPlansDraftIdGet({ draftId })
+  if (!response.data) throw new Error('服务端没有返回分镜规划')
+  return response.data
+}
+
+export async function loadShotPlanStats(chapterId: string): Promise<ShotPlanStatsRead> {
+  const response =
+    await StudioShotPlansService.getShotPlanStatsApiApiV1StudioChaptersChapterIdShotPlanStatsGet({
+      chapterId,
+    })
+  if (!response.data) throw new Error('服务端没有返回分镜规划统计')
+  return response.data
+}
+
+export async function updateShotPlanCandidate(
+  draftId: string,
+  candidateId: string,
+  body: ShotPlanCandidateUpdate,
+): Promise<ShotPlanCandidateRead> {
+  const response =
+    await StudioShotPlansService.updateShotPlanCandidateApiApiV1StudioShotPlansDraftIdCandidatesCandidateIdPatch(
+      { draftId, candidateId, requestBody: body },
+    )
+  if (!response.data) throw new Error('服务端没有返回镜头候选')
+  return response.data
+}
+
+export async function addShotPlanCandidate(
+  draftId: string,
+  body: ShotPlanCandidateCreate,
+): Promise<ShotPlanCandidateRead> {
+  const response =
+    await StudioShotPlansService.addShotPlanCandidateApiApiV1StudioShotPlansDraftIdCandidatesPost({
+      draftId,
+      requestBody: body,
+    })
+  if (!response.data) throw new Error('服务端没有返回新增候选')
+  return response.data
+}
+
+export async function duplicateShotPlanCandidate(
+  draftId: string,
+  candidateId: string,
+): Promise<ShotPlanCandidateRead> {
+  const response =
+    await StudioShotPlansService.duplicateShotPlanCandidateApiApiV1StudioShotPlansDraftIdCandidatesCandidateIdDuplicatePost(
+      { draftId, candidateId },
+    )
+  if (!response.data) throw new Error('服务端没有返回复制候选')
+  return response.data
+}
+
+export async function deleteShotPlanCandidate(draftId: string, candidateId: string): Promise<void> {
+  await StudioShotPlansService.deleteShotPlanCandidateApiApiV1StudioShotPlansDraftIdCandidatesCandidateIdDelete(
+    { draftId, candidateId },
+  )
+}
+
+export async function reorderShotPlanCandidates(
+  draftId: string,
+  candidateIds: string[],
+): Promise<ShotPlanDraftRead> {
+  const response =
+    await StudioShotPlansService.reorderShotPlanCandidatesApiApiV1StudioShotPlansDraftIdReorderPost(
+      { draftId, requestBody: { candidate_ids: candidateIds } },
+    )
+  if (!response.data) throw new Error('服务端没有返回排序结果')
+  return response.data
+}
+
+export async function mergeShotPlanCandidates(
+  draftId: string,
+  sourceCandidateId: string,
+  targetCandidateId: string,
+): Promise<ShotPlanCandidateRead> {
+  const response =
+    await StudioShotPlansService.mergeShotPlanCandidatesApiApiV1StudioShotPlansDraftIdMergePost(
+      {
+        draftId,
+        requestBody: {
+          source_candidate_id: sourceCandidateId,
+          target_candidate_id: targetCandidateId,
+        },
+      },
+    )
+  if (!response.data) throw new Error('服务端没有返回合并结果')
+  return response.data
+}
+
+export async function confirmShotPlan(
+  draftId: string,
+  appendToExisting: boolean,
+): Promise<ShotPlanConfirmRead> {
+  const response =
+    await StudioShotPlansService.confirmShotPlanApiApiV1StudioShotPlansDraftIdConfirmPost({
+      draftId,
+      requestBody: { append_to_existing: appendToExisting },
+    })
+  if (!response.data) throw new Error('服务端没有返回确认结果')
+  return response.data
+}
+
+export async function loadShotAssetVersions(shotId: string): Promise<ShotAssetVersionRead[]> {
+  const response =
+    await StudioShotPlansService.listShotAssetVersionsApiApiV1StudioShotsShotIdAssetVersionsGet({
+      shotId,
+    })
   return response.data ?? []
 }
 
