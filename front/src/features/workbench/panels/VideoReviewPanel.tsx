@@ -11,15 +11,22 @@ import type { ShotVideoVersionRead } from '../../../services/generated'
 import { useShotVideoVersions, useVideoReviewActions } from '../useWorkbenchQueries'
 
 const ISSUE_TAGS = [
+  '角色声音不匹配',
+  '说话人归属错误',
+  '对白与口型不同步',
+  '人脸不一致',
   '人物脸部漂移',
   '服装不一致',
+  '场景/背景不连续',
+  '场景布局错误',
   '场景错误',
+  '动作不准确',
   '动作错误',
+  '镜头切换异常',
   '运镜错误',
-  '对白/口型错误',
-  '音色错误',
-  '肢体畸形',
   '画面闪烁',
+  '肢体异常',
+  '肢体畸形',
   '其他',
 ]
 

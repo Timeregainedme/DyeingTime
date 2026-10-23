@@ -1,5 +1,6 @@
 import { Spin, Tag, Tooltip } from 'antd'
 import { VideoCameraAddOutlined } from '@ant-design/icons'
+import { QualityCheckList } from '../../../../components/QualityCheckList'
 import type { ShotRead, ShotVideoReadinessRead } from '../../../../services/generated'
 
 type ChapterStudioVideoReadinessPanelProps = {
@@ -66,6 +67,8 @@ export function ChapterStudioVideoReadinessPanel({
               ))}
             </div>
           ) : null}
+
+          <QualityCheckList checks={videoReadiness.quality_checks ?? []} />
         </div>
       )}
     </div>

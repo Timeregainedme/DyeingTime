@@ -140,6 +140,20 @@ P6 正式路径区分：
 - 提示词 @ 引用均可解析；
 - 既有模型/供应商/时长/任务/参考帧检查继续生效。
 
+P9-C 起，`GET /api/v1/studio/shots/{id}/p6-readiness` 同时返回 `quality_checks`，与硬性 `checks` 分离：
+
+- `blocking`：说话角色/场景资产不存在、跨项目引用等，无法正确构建输入；
+- `warning`：声音描述缺失、场景版本未进入参考图、短镜头多机位等；
+- `info`：已满足约束或优化建议。
+
+场景连续性检查会核对：
+
+- `ShotDetail.scene_id` 与 `ShotAssetVersion(scene)` 是否一致；
+- 场景参考图是否实际进入 active manifest；
+- 场景参考图版本是否与 `ShotAssetVersion(scene)` 一致。
+
+用户主动移除场景参考时保留其选择，只返回 `scene_reference_missing`，不静默恢复。
+
 ## 8. API
 
 | 方法 | 路径 | 说明 |

@@ -9,11 +9,11 @@ weight: 32
 
 ## 1. 范围
 
-V2 累计测试预算：
+V2 累计测试预算（P9-C 已按用户批准翻倍）：
 
-- 图片 20 张
-- 视频 4 次供应商生成请求
-- 音频 500 字
+- 图片 40 张
+- 视频 8 次供应商生成请求
+- 音频 1000 字
 
 默认 scope：`v2-acceptance`。
 
@@ -41,7 +41,7 @@ V2 累计测试预算：
 - task_id / provider / model
 - note / settled_at
 
-迁移：`044-add-generation-usage-quota.sql`；初始化默认 20/4/500。
+迁移：`044-add-generation-usage-quota.sql` 初始化 20/4/500；`049-raise-v2-acceptance-quota.sql` 将 `v2-acceptance` 上限提升为 40/8/1000，**不重置已消耗**。
 
 ## 3. 原子预留
 
@@ -88,5 +88,6 @@ Mock/本地测试不经过真实供应商 runner，不消耗额度。
 
 - 默认关闭，真实调用必须在启用的测试环境中进行；
 - 不把本地 Mock 计入预算；
-- 未执行真实供应商测试，因此当前剩余额度仍为 20/4/500；
-- 生产预算与验收预算继续分离。
+- 当前隔离验收库状态：图片 0/40、视频 3/8（含 1 次失败协议探测）、音频 0/1000，视频剩余 5 次；
+- 提升上限只改 `limit_amount`，不重置 `consumed_amount` / `reserved_amount`；
+- 生产预算与验收预算继续分离，不把 `v2-acceptance` 当作生产用户配额。

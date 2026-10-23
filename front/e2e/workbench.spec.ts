@@ -124,3 +124,26 @@ test('旧版章节分镜页仍然可用', async ({ page }) => {
   await expect(page).toHaveURL(/\/projects\/p1\/chapters\/c1\/shots$/)
   await expect(page.getByText('分镜列表')).toBeVisible()
 })
+
+test('镜头详情展示生成质量风险与视频审核标签', async ({ page }) => {
+  await signIn(page)
+  await page.goto(`${WORKBENCH}/episodes/c1/shots/s1`)
+
+  const main = page.getByRole('main', { name: '工作区' })
+  await expect(main.getByRole('heading', { name: /镜头 01/ })).toBeVisible()
+
+  // 质量检查与硬性准备度分开显示：warning/info 不伪装成阻塞。
+  const quality = main.getByTestId('quality-check-list')
+  await expect(quality).toBeVisible()
+  await expect(quality.getByText(/角色「林晚」没有声音描述/)).toBeVisible()
+  await expect(quality.getByText('风险')).toBeVisible()
+  await expect(quality.getByText('建议')).toBeVisible()
+
+  // 视频候选沿用 shot_video_reviews，标签直接来自现有审核记录。
+  await expect(main.getByRole('button', { name: '角色声音不匹配' })).toBeVisible()
+  await expect(main.getByRole('button', { name: '说话人归属错误' })).toBeVisible()
+  await expect(page.locator('textarea[placeholder="审核备注"]')).toHaveValue('P9-C mock：男性角色出现女性声音。')
+
+  await main.getByRole('button', { name: '不满意' }).click()
+  await expect(main.getByText('已标记不满意')).toBeVisible()
+})

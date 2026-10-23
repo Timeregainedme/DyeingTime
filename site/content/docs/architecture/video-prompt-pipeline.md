@@ -250,6 +250,74 @@ GET /api/v1/studio/projects/{project_id}/production-readiness
 
 检查项目是否有默认文/图/视频/音频模型、风格是否就绪、是否有可用的视频比例、角色是否有音色、分镜是否有参考帧等，用于开工前一次性暴露阻塞项。
 
+## 说话人、声音描述与连续性约束（P9-C）
+
+正式 H3 生成链路在 IR 中新增以下硬约束；它们进入最终 Prompt、生成预览和不可变 `ShotGenerationSnapshot`，并参与 `input_hash`。
+
+### 说话人来源
+
+- 对白说话人只来自 `ShotDialogLine.speaker_character_id`。
+- 不用角色名、参考照片、演员资料或性别刻板印象推断声音。
+- `ShotVideoPromptPackRead.dialogues` 与 `IRDialogueInput` / `IRDialogueLine` 保留：
+  - `speaker_character_id`
+  - `voice_description`（来自 `characters.voice_description`）
+- 没有确认说话人时，质量检查给出 warning，不随机绑定；用户可在镜头编辑页人工指定。
+
+### 声音描述
+
+H3 台词句会输出：
+
+```text
+<Subject 1> (S1), using this voice profile: <用户配置的声音描述>, says, <d>[Chinese] …</d>
+```
+
+- 声音描述仅用于文字约束，**不等于音色身份锁定**。
+- 项目关闭 `use_dialog_audio_as_reference` 时不上传音频参考，只保留文字描述。
+- 项目开启时仍走固定音色样本；样本缺失/说话人不明确会进入质量检查或阻塞。
+
+### 无对白镜头
+
+没有任何结构化台词且没有自定义同期声时，IR 写入：
+
+```text
+No spoken dialogue is requested; characters do not speak. Use only ambient room tone and natural physical sounds.
+```
+
+用于阻止模型自行发明对白、口型和声音。
+
+### 默认单一连续镜头
+
+`IRShot.continuity` 默认追加：
+
+- 场景已知：`Keep the entire video in one continuous scene at <场景>; keep the background layout, lighting direction and character positions consistent; use continuous camera movement and do not cut to another location.`
+- 场景未知：`Keep one continuous scene and consistent background; do not cut to another location.`
+
+场景名兜底顺序：`ShotDetail.scene_id` → `ShotAssetVersion(scene)`。兜底只补 Prompt 上下文，不自动把场景图加入参考图列表，避免覆盖用户选择。
+
+高级 Prompt 仍然优先，但不会静默补齐；若缺少 `<d>`、无对白或连续性约束，质量检查返回 warning，由用户决定修改高级 Prompt 或清空后使用自动渲染。
+
+### LLM 正文的确定性兜底
+
+H3 正文由文本模型生成，但文本模型不能决定是否保留关键约束。`render_h3` 在装配阶段对 LLM 正文做**只补缺失项**的处理：
+
+- 缺少台词时补 `_dialogue_fragment`；
+- 缺少 voice profile 时补 voice profile；
+- 缺少“非说话角色沉默”时补该句；
+- 无对白但正文未声明时补 `No spoken dialogue`；
+- 缺少连续性时补 `Continuity:`。
+
+这样即使文本模型改写或省略，最终 Prompt 仍保留结构化的说话人、声音和场景约束。
+
+### 质量检查分级
+
+`ShotVideoReadinessRead.quality_checks` 与硬性 `checks` 分开：
+
+- `blocking`：说话角色/场景资产不存在、跨项目引用等，无法正确构建输入；会阻止提交；
+- `warning`：声音描述缺失、场景参考未进入 manifest、短镜头多机位、高级 Prompt 绕过等；
+- `info`：已满足的约束或可优化建议。
+
+前端在镜头看板、工作台镜头面板和分镜工作室都展示同一组级别与修复建议；不会把 warning 当成硬性阻塞。
+
 ## 视频比例继承链
 
 `resolve_effective_video_options(db, *, shot_id, shot_detail, requested_ratio)` 按以下顺序取值：

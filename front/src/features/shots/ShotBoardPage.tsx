@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, ArrowUpRight, Boxes, CheckCheck, Clapperboard, Pencil, RefreshCw, Save, X } from 'lucide-react'
+import { QualityCheckList } from '../../components/QualityCheckList'
 import { Button } from '../../components/ui/button'
 import { Checkbox } from '../../components/ui/checkbox'
 import {
@@ -872,6 +873,7 @@ export function ShotBoardPage() {
                         ))}
                       </ul>
                     ) : null}
+                    <QualityCheckList checks={readiness?.quality_checks ?? []} compact />
                   </div>
                 </div>
 

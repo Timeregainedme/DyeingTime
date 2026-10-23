@@ -23,6 +23,56 @@ let providersList: Provider[] = [...initialProviders]
 let modelsList: Model[] = [...llmModels]
 let modelSettingsStore: ModelSettings = { ...defaultModelSettings }
 
+// P9-C：视频候选审核的会话内 mock，用于浏览器验证质量标签与备注回写。
+const videoVersionsByShot: Record<string, Array<Record<string, unknown>>> = {
+  s1: [
+    {
+      task_id: 'mock-video-task-1',
+      file_id: null,
+      file_url: '',
+      status: 'succeeded',
+      is_current: false,
+      ratio: '9:16',
+      seconds: 5,
+      prompt: '<Subject 1> says, <d>[Chinese] 你先听我解释。</d>',
+      model_name: 'MiniMax-H3',
+      reference_count: 2,
+      manifest: [{ asset_id: 'char-1' }, { asset_id: 'scene-1' }],
+      review_status: 'unsatisfied',
+      issue_tags: ['角色声音不匹配', '说话人归属错误'],
+      note: 'P9-C mock：男性角色出现女性声音。',
+      created_at: '2026-10-23T00:00:00Z',
+    },
+  ],
+}
+
+/** P6 准备度 mock：同时服务镜头看板与生成工作室。 */
+function mockReadiness(shotId: string) {
+  return {
+    shot_id: shotId,
+    reference_mode: 'reference',
+    ready: false,
+    checks: [
+      { key: 'extracted', ok: false, message: '尚未执行信息提取，请先提取或将镜头标记为无需提取' },
+      { key: 'duration', ok: true, message: '镜头时长已配置' },
+    ],
+    quality_checks: [
+      {
+        code: 'character_voice_missing',
+        level: 'warning',
+        message: '角色「林晚」没有声音描述；H3 只能根据画面/文字自由分配声音。',
+        fix_hint: '在角色详情填写用户确认的声音描述。',
+      },
+      {
+        code: 'scene_reference_ready',
+        level: 'info',
+        message: '场景参考已进入实际参考图，并参与 input_hash。',
+        fix_hint: '',
+      },
+    ],
+  }
+}
+
 function nextProjectId(): string {
   const max = projectsList.reduce((m, p) => {
     const n = parseInt(p.id.replace(/\D/g, ''), 10)
@@ -900,15 +950,34 @@ export const handlers = [
 
   http.get('/api/v1/studio/shots/:shot_id/video-readiness', ({ params }) => {
     const { shot_id } = params as { shot_id: string }
-    return ok({
-      shot_id,
-      reference_mode: 'none',
-      ready: false,
-      checks: [
-        { key: 'extracted', ok: false, message: '尚未执行信息提取，请先提取或将镜头标记为无需提取' },
-        { key: 'duration', ok: true, message: '镜头时长已配置' },
-      ],
-    })
+    return ok(mockReadiness(shot_id))
+  }),
+
+  http.get('/api/v1/studio/shots/:shot_id/p6-readiness', ({ params }) => {
+    const { shot_id } = params as { shot_id: string }
+    return ok(mockReadiness(shot_id))
+  }),
+
+  http.get('/api/v1/studio/shots/:shot_id/video-versions', ({ params }) => {
+    const { shot_id } = params as { shot_id: string }
+    return ok(videoVersionsByShot[shot_id] ?? [])
+  }),
+
+  http.post('/api/v1/studio/shots/:shot_id/video-versions/:task_id/review', async ({ params, request }) => {
+    const { shot_id, task_id } = params as { shot_id: string; task_id: string }
+    const body = (await request.json()) as {
+      review_status?: string
+      issue_tags?: string[]
+      note?: string
+    }
+    const items = videoVersionsByShot[shot_id] ?? []
+    const item = items.find((candidate) => candidate.task_id === task_id)
+    if (item) {
+      item.review_status = body.review_status ?? item.review_status
+      item.issue_tags = body.issue_tags ?? item.issue_tags
+      item.note = body.note ?? item.note
+    }
+    return ok({ updated: Boolean(item) })
   }),
 
   http.get('/api/v1/studio/shots/:shot_id/extracted-candidates', ({ params }) => {

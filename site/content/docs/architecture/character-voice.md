@@ -67,6 +67,20 @@ weight: 15
 API：`GET/PATCH /api/v1/studio/projects/{pid}/assets/character/{cid}/voice`。
 底层仍使用既有 `characters.voice_*` 与 `_resolve_audio_voice`，不新增回退规则。
 
+## 视频 Prompt 中的声音描述（P9-C）
+
+`characters.voice_description` 除用于 TTS 选型外，也会进入 H3 视频 Prompt：
+
+- `build_shot_video_prompt_pack` 按 `ShotDialogLine.speaker_character_id` 读取角色；
+- `IRDialogueLine.voice_description` 传递到 H3 Renderer；
+- H3 台词句使用 `using this voice profile: <描述>, says, <d>…</d>`。
+
+边界：
+
+- 文字描述只约束模型，不锁定音色身份；
+- 系统不根据角色名、参考照片或演员资料推断性别/声音；
+- 需要稳定音色时，使用项目“参考音频”与固定音色样本，而不是只写文字描述。
+
 ## 旧版前端入口
 
 - 复用组件 `front/src/pages/aiStudio/components/VoiceSelectField.tsx`：`value` 是供应商侧 `voice_id`（`string | null`，**不是对象**），`onChange` 回传 `VoiceChoice = {voice_id, voice_source}`。

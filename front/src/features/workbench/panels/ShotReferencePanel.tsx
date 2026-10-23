@@ -3,6 +3,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ImagePlus, Pin, RefreshCw, Sparkles, Trash2, Unlock, Upload } from 'lucide-react'
+import { QualityCheckList } from '../../../components/QualityCheckList'
 import { Badge } from '../../../components/ui/badge'
 import { Button } from '../../../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card'
@@ -193,12 +194,15 @@ export function ShotReferencePanel({
               ))}
             </div>
           )}
-          {readiness?.checks?.length ? (
+          {readiness ? (
             <div className="rounded border border-border bg-muted/20 p-2 text-[10px]">
-              {readiness.checks.filter((item) => !item.ok).slice(0, 6).map((item) => (
+              {(readiness.checks ?? []).filter((item) => !item.ok).slice(0, 6).map((item) => (
                 <p key={item.key} className="text-ready-blocked">× {item.message}</p>
               ))}
-              {readiness.checks.every((item) => item.ok) ? <p className="text-ready-complete">全部准备度检查通过。</p> : null}
+              {(readiness.checks ?? []).length > 0 && (readiness.checks ?? []).every((item) => item.ok) ? (
+                <p className="text-ready-complete">全部准备度检查通过。</p>
+              ) : null}
+              <QualityCheckList checks={readiness.quality_checks ?? []} />
             </div>
           ) : null}
         </CardContent>

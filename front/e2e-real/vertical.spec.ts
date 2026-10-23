@@ -63,6 +63,10 @@ test('真实后端：工作台、配置、风格、剧本、资产、镜头与 Z
   await expect(page.getByText('H3 参考素材').first()).toBeVisible()
   await expect(page.getByText('视频候选与抽卡').first()).toBeVisible()
   await expect(page.getByText('信息确认状态').first()).toBeVisible()
+  // P9-C：真实后端返回结构化质量检查，warning/info 与硬性准备度分开显示。
+  const quality = page.getByTestId('quality-check-list').first()
+  await expect(quality).toBeVisible()
+  await expect(quality.getByText(/场景参考/)).toBeVisible()
 
   await page.goto(`${WORKBENCH}/export`)
   await expect(page.getByText('已采纳 4').first()).toBeVisible()
