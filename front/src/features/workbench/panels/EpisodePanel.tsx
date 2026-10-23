@@ -34,6 +34,7 @@ import { LegacyLink, PanelHeader } from '../components/PanelHeader'
 import { PanelEmpty, PanelError, PanelLoading, StageNote } from '../components/PanelStates'
 import { legacyShotListPath, legacyStudioPath } from './legacyPaths'
 import { ShotPlanWorkspace } from './ShotPlanWorkspace'
+import { VideoBatchPanel } from './VideoBatchPanel'
 
 function ShotRow({
   shot,
@@ -332,6 +333,8 @@ export function EpisodePanel({
           setNotice('分镜规划已写入正式镜头；旧镜头与历史视频未被覆盖。')
         }}
       />
+
+      <VideoBatchPanel projectId={projectId} chapterId={chapter.id} shots={shots ?? []} />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[

@@ -827,6 +827,7 @@ __all__ = [
     "build_manifest",
     "create_snapshot",
     "create_video_task",
+    "stage_video_from_preview",
     "list_bindings",
     "list_snapshots",
     "remove_binding",
@@ -853,14 +854,15 @@ class _CreateOnlyTask:
         return None
 
 
-async def create_video_task(
+async def stage_video_from_preview(
     db: AsyncSession,
     *,
     shot_id: str,
-    body: P6VideoGenerateRequest,
+    preview: GenerationPreviewRead,
+    auto_adopt: bool = False,
     created_by: int | None = None,
-) -> tuple[str, ShotGenerationSnapshot, GenerationPreviewRead]:
-    """创建 P6 单镜头视频任务；预览与提交使用同一份 manifest/prompt。"""
+) -> tuple[str, ShotGenerationSnapshot]:
+    """基于已校验的同一份 preview 创建任务与快照；不提交、不入队。"""
     from app.core.task_manager import DeliveryMode, SqlAlchemyTaskStore, TaskManager
     from app.services.common.workspace import resolve_workspace_id
     from app.services.film.generated_video import (
@@ -868,23 +870,6 @@ async def create_video_task(
         resolve_default_video_model,
     )
     from app.models.task_links import GenerationTaskLink
-
-    preview = await build_generation_preview(
-        db,
-        shot_id=shot_id,
-        natural_prompt=body.prompt,
-        advanced_prompt=body.advanced_prompt,
-        reference_mode=body.reference_mode,
-        ratio=body.ratio,
-        resolution=body.resolution,
-        reference_audio_file_ids=body.reference_audio_file_ids,
-    )
-    if preview.blocking_errors:
-        raise ValueError("；".join(preview.blocking_errors))
-    if not preview.images:
-        raise ValueError("没有可提交的参考图片")
-    if not preview.prompt.strip():
-        raise ValueError("最终提示词为空")
 
     project_id = await _project_id_for_shot(db, shot_id)
     if project_id is None:
@@ -895,14 +880,13 @@ async def create_video_task(
     snapshot = await create_snapshot(
         db, shot_id=shot_id, preview=preview, task_id=None, created_by=created_by
     )
-
     input_payload: dict[str, Any] = {
         "prompt": preview.prompt,
         "reference_file_ids": preview.images,
         "model": model.name,
         "ratio": preview.ratio,
         "seconds": preview.duration,
-        "auto_adopt": bool(body.auto_adopt),
+        "auto_adopt": bool(auto_adopt),
         "snapshot_id": snapshot.id,
     }
     if preview.resolution:
@@ -935,11 +919,46 @@ async def create_video_task(
             relation_entity_id=shot_id,
         )
     )
+    await db.flush()
+    return task.id, snapshot
+
+
+async def create_video_task(
+    db: AsyncSession,
+    *,
+    shot_id: str,
+    body: P6VideoGenerateRequest,
+    created_by: int | None = None,
+) -> tuple[str, ShotGenerationSnapshot, GenerationPreviewRead]:
+    """创建 P6 单镜头视频任务；预览与提交使用同一份 manifest/prompt。"""
+    preview = await build_generation_preview(
+        db,
+        shot_id=shot_id,
+        natural_prompt=body.prompt,
+        advanced_prompt=body.advanced_prompt,
+        reference_mode=body.reference_mode,
+        ratio=body.ratio,
+        resolution=body.resolution,
+        reference_audio_file_ids=body.reference_audio_file_ids,
+    )
+    if preview.blocking_errors:
+        raise ValueError("；".join(preview.blocking_errors))
+    if not preview.images:
+        raise ValueError("没有可提交的参考图片")
+    if not preview.prompt.strip():
+        raise ValueError("最终提示词为空")
+    task_id, snapshot = await stage_video_from_preview(
+        db,
+        shot_id=shot_id,
+        preview=preview,
+        auto_adopt=body.auto_adopt,
+        created_by=created_by,
+    )
     await db.commit()
     from app.tasks.execute_task import enqueue_task_execution
 
-    enqueue_task_execution(task.id)
-    return task.id, snapshot, preview
+    enqueue_task_execution(task_id)
+    return task_id, snapshot, preview
 
 
 async def list_snapshots(

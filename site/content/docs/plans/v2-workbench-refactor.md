@@ -312,7 +312,7 @@ C10 已实现：
 
 ### P6 — 多参考与视频生产（进行中）
 
-状态：C11/C12 已完成并提交；C13/C14 继续。当前实现见
+状态：C11/C12/C13 已完成并提交；C14 继续。当前实现见
 [H3 多参考 Manifest 与生成输入快照](/docs/architecture/h3-reference-manifest/)。
 
 C11 已实现：
@@ -330,8 +330,13 @@ C12 已实现：
 - 额度查询与记录 API
 - 默认关闭，验收环境显式启用
 
-C13/C14 待完成：
-- 批量任务/并发/恢复
+C13 已实现：
+- `video_generation_batches` / `video_generation_batch_items`
+- 批次创建、coverage 风险确认、默认并发 4/上限 8
+- coordinator 子任务队列、取消、失败重试、resume
+- 子任务默认不自动采纳
+
+C14 待完成：
 - 视频候选审核、问题标记与显式采纳
 
 ### P7 — 导出与端到端验收

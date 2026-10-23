@@ -132,6 +132,8 @@ export type { ApiResponse_TimelineExportRead_ } from './models/ApiResponse_Timel
 export type { ApiResponse_TokenResponse_ } from './models/ApiResponse_TokenResponse_';
 export type { ApiResponse_UserRead_ } from './models/ApiResponse_UserRead_';
 export type { ApiResponse_VariantAnalysisResult_ } from './models/ApiResponse_VariantAnalysisResult_';
+export type { ApiResponse_VideoBatchListRead_ } from './models/ApiResponse_VideoBatchListRead_';
+export type { ApiResponse_VideoBatchRead_ } from './models/ApiResponse_VideoBatchRead_';
 export type { ApiResponse_VideoGenerationOptionsRead_ } from './models/ApiResponse_VideoGenerationOptionsRead_';
 export type { ApiResponse_VideoPromptPreviewResponse_ } from './models/ApiResponse_VideoPromptPreviewResponse_';
 export type { ApiResponse_VoiceBindingRead_ } from './models/ApiResponse_VoiceBindingRead_';
@@ -416,6 +418,11 @@ export type { VariantAnalysisRequest } from './models/VariantAnalysisRequest';
 export type { VariantAnalysisResult } from './models/VariantAnalysisResult';
 export type { VariantSuggestion } from './models/VariantSuggestion';
 export type { VFXType } from './models/VFXType';
+export type { VideoBatchCreate } from './models/VideoBatchCreate';
+export type { VideoBatchItemRead } from './models/VideoBatchItemRead';
+export type { VideoBatchListRead } from './models/VideoBatchListRead';
+export type { VideoBatchRead } from './models/VideoBatchRead';
+export type { VideoBatchRetryRequest } from './models/VideoBatchRetryRequest';
 export type { VideoGenerationOptionsRead } from './models/VideoGenerationOptionsRead';
 export type { VideoGenerationTaskRequest } from './models/VideoGenerationTaskRequest';
 export type { VideoPromptPreviewResponse } from './models/VideoPromptPreviewResponse';
@@ -452,3 +459,4 @@ export { StudioShotReferencesService } from './services/StudioShotReferencesServ
 export { StudioShotsService } from './services/StudioShotsService';
 export { StudioStylesService } from './services/StudioStylesService';
 export { StudioTimelineService } from './services/StudioTimelineService';
+export { StudioVideoBatchesService } from './services/StudioVideoBatchesService';

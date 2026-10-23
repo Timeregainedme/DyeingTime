@@ -22,6 +22,7 @@ from app.api.v1.routes.studio import (
     styles,
     timeline,
     shot_character_links,
+    video_batches,
 )
 
 router = APIRouter()
@@ -53,4 +54,5 @@ router.include_router(scene_groups.router, tags=["studio/scene-groups"])
 router.include_router(shot_plans.router, tags=["studio/shot-plans"])
 router.include_router(shot_references.router, tags=["studio/shot-references"])
 router.include_router(generation_quota.router, tags=["studio/generation-quota"])
+router.include_router(video_batches.router, tags=["studio/video-batches"])
 

@@ -30,6 +30,10 @@ import {
   loadGenerationConfig,
   loadGenerationOptions,
   loadGenerationQuota,
+  loadVideoBatches,
+  createVideoBatch,
+  cancelVideoBatch,
+  retryVideoBatch,
   loadGlobalAssets,
   loadProject,
   loadProjectCharacters,
@@ -434,6 +438,42 @@ export function useP6Readiness(projectId: string, shotId: string | undefined) {
     enabled: Boolean(projectId) && Boolean(shotId),
     staleTime: 5_000,
   })
+}
+
+export function useVideoBatches(projectId: string, chapterId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.videoBatches(projectId, chapterId ?? ''),
+    queryFn: () => loadVideoBatches(chapterId as string),
+    enabled: Boolean(projectId) && Boolean(chapterId),
+    staleTime: 3_000,
+    refetchInterval: (query) =>
+      query.state.data?.some((item) => item.status === 'queued' || item.status === 'running')
+        ? 2500
+        : false,
+  })
+}
+
+export function useVideoBatchActions(projectId: string, chapterId: string) {
+  const queryClient = useQueryClient()
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.videoBatches(projectId, chapterId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchShots(projectId, chapterId) })
+  }
+  const create = useMutation({
+    mutationFn: (body: Parameters<typeof createVideoBatch>[1]) =>
+      createVideoBatch(chapterId, body),
+    onSuccess: invalidate,
+  })
+  const cancel = useMutation({
+    mutationFn: (batchId: string) => cancelVideoBatch(batchId),
+    onSuccess: invalidate,
+  })
+  const retry = useMutation({
+    mutationFn: (payload: { batchId: string; itemIds?: number[] | null }) =>
+      retryVideoBatch(payload.batchId, payload.itemIds),
+    onSuccess: invalidate,
+  })
+  return { create, cancel, retry }
 }
 
 export function useGenerationQuota(scope = 'v2-acceptance') {

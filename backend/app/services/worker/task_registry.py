@@ -25,6 +25,7 @@ from app.services.studio.audio_task_runner import run_audio_generation_task
 from app.services.studio.image_task_runner import run_image_generation_task
 from app.services.studio.script_parse_runner import run_script_parse_task
 from app.services.studio.shot_plan_runner import run_shot_plan_task
+from app.services.studio.video_batches import run_video_batch_task
 from app.services.worker.task_executor import AbstractAsyncDelegatingExecutor, AbstractWorkerTaskExecutor
 
 
@@ -99,5 +100,13 @@ task_executor_registry.register(
         task_kind="shot_plan",
         runner=run_shot_plan_task,
         timeout_seconds=1800.0,
+    ),
+)
+task_executor_registry.register(
+    "video_batch",
+    AbstractAsyncDelegatingExecutor(
+        task_kind="video_batch",
+        runner=run_video_batch_task,
+        timeout_seconds=7200.0,
     ),
 )

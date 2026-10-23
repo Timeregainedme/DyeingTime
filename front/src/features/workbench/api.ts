@@ -25,6 +25,7 @@ import {
   StudioShotsService,
   StudioStylesService,
   StudioTimelineService,
+  StudioVideoBatchesService,
 } from '../../services/generated'
 import type {
   AssetImpactRead,
@@ -79,6 +80,8 @@ import type {
   PromptResolveRead,
   GenerationSnapshotRead,
   QuotaStatusRead,
+  VideoBatchCreate,
+  VideoBatchRead,
   ShotVideoReadinessRead,
   ShotUpdate,
   ShotRead,
@@ -1223,6 +1226,49 @@ export async function loadGenerationSnapshots(shotId: string): Promise<Generatio
       { shotId },
     )
   return response.data ?? []
+}
+
+export async function createVideoBatch(
+  chapterId: string,
+  body: VideoBatchCreate,
+): Promise<VideoBatchRead> {
+  const response =
+    await StudioVideoBatchesService.createVideoBatchApiApiV1StudioChaptersChapterIdVideoBatchesPost({
+      chapterId,
+      requestBody: body,
+    })
+  if (!response.data) throw new Error('服务端没有返回批量任务')
+  return response.data
+}
+
+export async function loadVideoBatches(chapterId: string): Promise<VideoBatchRead[]> {
+  const response =
+    await StudioVideoBatchesService.listVideoBatchesApiApiV1StudioChaptersChapterIdVideoBatchesGet({
+      chapterId,
+    })
+  return response.data?.items ?? []
+}
+
+export async function cancelVideoBatch(batchId: string): Promise<VideoBatchRead> {
+  const response =
+    await StudioVideoBatchesService.cancelVideoBatchApiApiV1StudioVideoBatchesBatchIdCancelPost({
+      batchId,
+    })
+  if (!response.data) throw new Error('服务端没有返回取消结果')
+  return response.data
+}
+
+export async function retryVideoBatch(
+  batchId: string,
+  itemIds?: number[] | null,
+): Promise<VideoBatchRead> {
+  const response =
+    await StudioVideoBatchesService.retryVideoBatchApiApiV1StudioVideoBatchesBatchIdRetryPost({
+      batchId,
+      requestBody: { item_ids: itemIds ?? null },
+    })
+  if (!response.data) throw new Error('服务端没有返回重试结果')
+  return response.data
 }
 
 export async function loadGenerationQuota(scope = 'v2-acceptance'): Promise<QuotaStatusRead[]> {
