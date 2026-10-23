@@ -28,3 +28,5 @@ description: "记录当前正在推进的开发计划、改造方案与阶段性
 - [P9-B2 真实 MiniMax H3 生成结果](/docs/plans/p9-b2-real-h3-results/)
 
 - [P9-C 真实视频质量缺陷修复](/docs/plans/p9-c-quality-fixes/)
+
+- [P9-D1 男性对白声音验证结果](/docs/plans/p9-d1-voice-results/)

@@ -1,0 +1,128 @@
+{
+  "stage": "P9-D1",
+  "date": "2026-10-23",
+  "scope": "v2-acceptance",
+  "purpose": "验证明确指定的男性角色能否使用用户配置的男性声音说出指定台词",
+  "provider": "compshare_model_api",
+  "model": "MiniMax-H3",
+  "project_id": "p-e2e",
+  "shot_id": "s-p9d1-voice",
+  "character_id": "char-p9d1-male",
+  "character_name": "江屿",
+  "voice_description": "年轻成年男性声音，音色清晰，语速适中，情绪克制。",
+  "dialogue": "你先听我解释。",
+  "scene_id": "scene-p9d1-office",
+  "scene_name": "办公室",
+  "reference_files": [
+    {
+      "file_id": "f-p9d1-male",
+      "role": "character_identity",
+      "asset_id": "char-p9d1-male",
+      "asset_version_id": "av-p9d1-male",
+      "local_source": "e2e/images/char.jpg"
+    },
+    {
+      "file_id": "f-p9d1-office",
+      "role": "scene",
+      "asset_id": "scene-p9d1-office",
+      "asset_version_id": "av-p9d1-office",
+      "local_source": "e2e/images/scene.jpg"
+    }
+  ],
+  "request": {
+    "task_id": "1722a29e118e4cfd9eb3839ee3bd5f00",
+    "request_key": "p9d1-voice-b0f427df2908",
+    "snapshot_id": "daeaedbc-4b7b-42ba-a144-fb17c9e5f866",
+    "input_hash": "b0f427df290805dd83cdf6e47c725d7bba080229ce9ac6ffe68204e8a823a5d2",
+    "provider_task_id": "01a169a6-b9a6-799a-8f50-3cfc66f79d90",
+    "auto_adopt": false,
+    "ratio": "9:16",
+    "resolution": "768p",
+    "duration": 5,
+    "reference_images": 2,
+    "audio_reference": "disabled",
+    "prompt_contains_voice_profile": true,
+    "prompt_contains_dialogue": true,
+    "prompt_contains_continuity": true,
+    "prompt_contains_opposite_gender": false
+  },
+  "result": {
+    "status": "succeeded",
+    "file_id": "1fefbc8f-065b-4fab-bf0d-b8a6e5eca302",
+    "local_path": "/tmp/opencode/p9d1-voice.mp4",
+    "storage_key": "generated-videos/shots/s-p9d1-voice/e6bab3c80d6c45f58ba8a70204d63153.mp4",
+    "bytes": 1285861,
+    "container": "mp4",
+    "video_codec": "h264",
+    "audio_codec": "aac",
+    "width": 768,
+    "height": 1344,
+    "duration_seconds": 5.175,
+    "audio_sample_rate": 32000,
+    "audio_channels": 2,
+    "review_status": "unrated",
+    "is_current": false,
+    "auto_adopted": false
+  },
+  "audio_analysis": {
+    "asr_model": "faster-whisper base, language=zh, vad_filter=true",
+    "segments": [
+      {
+        "start": 0.0,
+        "end": 3.97,
+        "text": "在班中內內神情課職 / 緩慢台蛋開箱鏡頭",
+        "interpretation": "与 Prompt 中文画面描述高度对应，判断为 H3 额外朗读了非 <d> 文本；ASR 对专有词有误识别"
+      },
+      {
+        "start": 3.97,
+        "end": 5.17,
+        "text": "你先聽我解釋",
+        "interpretation": "与 ShotDialogLine 一致，指定台词已被说出"
+      }
+    ],
+    "f0_auxiliary": {
+      "method": "16k mono, autocorrelation, median over voiced frames",
+      "old_s_e2e_1_tail_median_hz": 225.35,
+      "new_dialogue_segment_median_hz": 113.08,
+      "note": "基频只作辅助线索，不单独用于判定性别；最终音色由用户试听确认"
+    },
+    "conclusion": "台词内容正确；但存在额外旁白朗读，本次不是干净的单句声音对照。"
+  },
+  "visual_analysis": {
+    "contact_sheet": "docs/p9-real-h3/p9d1-voice-contact.jpg",
+    "spectrogram": "docs/p9-real-h3/p9d1-voice-spectrum.png",
+    "observations": [
+      "画面人物与男性参考图一致",
+      "同一办公室背景贯穿全片，未见明显切镜",
+      "人物嘴部有说话动作",
+      "画面中没有第二个角色开口"
+    ]
+  },
+  "local_quota": {
+    "before": {
+      "image": {"limit": 40, "consumed": 0, "reserved": 0},
+      "video": {"limit": 8, "consumed": 3, "reserved": 0},
+      "audio": {"limit": 1000, "consumed": 0, "reserved": 0}
+    },
+    "after": {
+      "image": {"limit": 40, "consumed": 0, "reserved": 0},
+      "video": {"limit": 8, "consumed": 4, "reserved": 0},
+      "audio": {"limit": 1000, "consumed": 0, "reserved": 0}
+    },
+    "video_remaining": 4
+  },
+  "provider_points": {
+    "previous_record_after_p9_b2": 9893.02,
+    "current_available_after_p9_d1": 5663.02,
+    "p9_d1_estimated_points": 50,
+    "confirmed_per_task": false,
+    "note": "调用后通过 compshare minimax points 读取到 5663.02。供应商任务列表显示同一账号在 16:37–16:42 存在多条非本会话发起的 H3 任务，因此不能用余额差单独结算本单；50 points 仅按 P9-B2 同参数（5s/2 图）估算。"
+  },
+  "history_protection": {
+    "old_s_e2e_1_hash": "5767d116ad3711155e2ac0312a9599adb4239d6dd24ef0b13b0555e17c9e2cc1",
+    "old_s_e2e_1_snapshot_unchanged": true,
+    "old_adopted_pointer": "v-e2e-1",
+    "new_video_not_adopted": true,
+    "old_video_retained": "/tmp/opencode/s-e2e-1.mp4"
+  }
+}

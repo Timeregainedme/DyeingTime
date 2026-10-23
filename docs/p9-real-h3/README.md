@@ -25,3 +25,12 @@ L4 用户已观看并反馈两项缺陷：
 - s-e2e-2：场景/背景不连续、镜头切换异常。
 
 两条真实视频均标记为 `unsatisfied`，未自动采纳。完整证据与新旧 Prompt 对照见 `p9c-evidence.md`。
+
+## P9-D1 男性对白声音验证
+
+- 新视频：`/tmp/opencode/p9d1-voice.mp4`
+- 供应商 task：`01a169a6-b9a6-799a-8f50-3cfc66f79d90`
+- 内部 Task：`1722a29e118e4cfd9eb3839ee3bd5f00`
+- 规格：5.175s / 768×1344 / H.264 + AAC / 1.3MB
+- 结果：台词内容正确；额外出现画面描述旁白；待用户 L4 试听确认音色。
+- 证据：`p9d1-voice-results.md`、`p9d1-call-record.json`、`p9d1-voice-contact.jpg`、`p9d1-voice-spectrum.png`
