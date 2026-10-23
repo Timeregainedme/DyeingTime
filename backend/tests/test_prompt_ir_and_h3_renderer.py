@@ -972,3 +972,100 @@ def test_h3_two_speakers_alternate_and_silent_listener_stays_silent() -> None:
     assert "<d>[Chinese] 我不想听。</d>" in text
     assert "Characters who are not speaking" in text
     assert "Only the dialogue lines are spoken" in text
+
+
+def test_ref2va_fallback_uses_official_english_body_without_chinese_scene_text() -> None:
+    from app.chains.prompts.ir import build_video_prompt_ir
+    from app.chains.prompts.renderers.h3 import REFERENCE_SECTION_ORDER, render_h3_reference
+
+    ir = build_video_prompt_ir(_pack(), duration_seconds=5)
+    result = render_h3_reference(ir, prose=None)
+    text = result.text
+
+    positions = [text.index(f"{name}:") for name in REFERENCE_SECTION_ORDER]
+    assert positions == sorted(positions)
+    # 中文画面描述/动作拍点不得进入 H3 英文正文（否则可能被朗读成旁白）。
+    assert "林晚站在公寓落地窗前" not in text
+    assert "林晚走到落地窗前" not in text
+    # 官方镜头语言应使用自然英文，而不是内部枚举码。
+    assert "medium shot" in text.lower()
+    assert "EYE_LEVEL" not in text
+    assert "STATIC" not in text
+    # 单镜头不能自动出现第二个 H3 子镜头。
+    assert "[Shot 2]" not in text
+    assert "Only the dialogue lines are spoken" not in text
+
+
+def test_ref2va_multiple_images_for_same_character_merge_into_one_subject() -> None:
+    from app.chains.prompts.ir import IRReference, build_video_prompt_ir
+    from app.chains.prompts.renderers.h3 import render_h3_reference
+
+    refs = [
+        IRReference(token="图1", kind="character", name="林晚", ref_id="c1", file_id="f1"),
+        IRReference(token="图2", kind="character", name="林晚", ref_id="c1", file_id="f2"),
+        IRReference(token="图3", kind="scene", name="都市公寓客厅", ref_id="s1", file_id="f3"),
+    ]
+    ir = build_video_prompt_ir(
+        _pack(characters=[], scene=None, props=[], costumes=[]),
+        references_override=refs,
+        duration_seconds=5,
+    )
+    assert len(ir.subjects) == 2
+    character = ir.subjects[0]
+    assert character.label == "Subject 1"
+    assert character.source_tokens == ["图1", "图2"]
+    text = render_h3_reference(ir).text
+    assert "<Subject 1> is the character 林晚 in <Picture 1>, <Picture 2>." in text
+    assert "<Subject 2> is the environment 都市公寓客厅 in <Picture 3>." in text
+
+
+def test_h3_validator_flags_shot2_for_single_ir_shot() -> None:
+    from app.chains.prompts.ir import build_video_prompt_ir
+    from app.chains.prompts.renderers.h3 import render_h3_reference
+
+    ir = build_video_prompt_ir(_pack(), duration_seconds=5)
+    prose = _prose()
+    prose.detailed_description = (
+        prose.detailed_description
+        + "\n[Shot 2] At 00:03.000, the shot cuts to a close-up."
+    )
+    result = render_h3_reference(ir, prose=prose)
+    assert any("[Shot 2+]" in item for item in result.warnings)
+
+
+def test_h3_summary_requires_task_type_prefix() -> None:
+    from app.chains.prompts.renderers.h3 import validate_h3_reference
+
+    text = "\n\n".join(
+        [
+            "subject_definitions:\n<Subject 1> is the character in <Picture 1>.",
+            "summary:\nshe stands still.",
+            "retention_analysis:\n<Subject 1> (appears in [Shot 1]): fully_preserved - kept.",
+            "detailed_description:\nA restrained live-action look.\n[Shot 1] she stands still.",
+            "overall_soundscape:\nRoom tone.",
+            "non_diegetic_music:\nN/A",
+        ]
+    )
+    warnings = validate_h3_reference(text)
+    assert any("summary 缺少方括号任务类型前缀" in item for item in warnings)
+
+
+def test_ref2va_fallback_keeps_chinese_only_inside_dialogue_and_adds_no_narration() -> None:
+    from app.chains.prompts.ir import build_video_prompt_ir
+    from app.chains.prompts.renderers.h3 import render_h3_reference
+
+    ir = build_video_prompt_ir(
+        _pack(),
+        dialogues=[IRDialogueInput(speaker_name="林晚", text="你好，我叫林晚。")],
+        duration_seconds=5,
+    )
+    text = render_h3_reference(ir).text
+    assert "林晚站在公寓落地窗前" not in text
+    assert "林晚走到落地窗前" not in text
+    assert "<d>[Chinese] 你好，我叫林晚。</d>" in text
+    assert text.count("<d>") == text.count("</d>")
+    assert "Only the dialogue lines are spoken" in text
+    # 对白不得被重复写进环境声或背景音乐。
+    soundscape = text.split("overall_soundscape:", 1)[1].split("non_diegetic_music:", 1)[0]
+    assert "你好，我叫林晚" not in soundscape
+    assert "你好，我叫林晚" not in text.split("non_diegetic_music:", 1)[1]

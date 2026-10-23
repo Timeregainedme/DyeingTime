@@ -275,6 +275,9 @@ async def test_at_reference_and_preview_snapshot_consistent() -> None:
             db, shot_id="ref-shot", preview=preview, task_id=None, created_by=1
         )
         assert snapshot.manifest[0]["file_id"] == "ref-file-front"
+        # 预览、快照和后续 Provider payload 必须使用同一份 prompt/advanced prompt。
+        assert snapshot.prompt == preview.prompt
+        assert snapshot.advanced_prompt == preview.advanced_prompt
         # 资产版本变化不应修改历史快照。
         snapshot_id = snapshot.id
         asset = await db.get(AssetVersion, "ref-scene-version")
@@ -642,4 +645,40 @@ async def test_generation_quality_blocking_for_unknown_scene() -> None:
         )
         blocking = [item for item in checks if item.level == "blocking"]
         assert any(item.code == "scene_asset_unknown" for item in blocking)
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_quality_checks_ignore_other_speaker_pronouns_and_negated_cuts() -> None:
+    from app.models.studio import ShotDialogLine
+
+    db, engine = await _build_session()
+    async with db:
+        seed = await _seed(db)
+        character = seed["character"]
+        character.voice_description = "Young adult male voice, clear timbre."
+        db.add(
+            ShotDialogLine(
+                shot_detail_id="ref-shot",
+                index=1,
+                text="你先听我解释。",
+                speaker_character_id=character.id,
+                speaker_name="沈知微",
+            )
+        )
+        detail = await db.get(ShotDetail, "ref-shot")
+        assert detail is not None
+        detail.video_prompt_draft = "The camera does not cut to another room."
+        await db.flush()
+        checks = await shot_references.collect_generation_quality_checks(
+            db,
+            shot_id="ref-shot",
+            advanced_prompt=(
+                "<Subject 1> (S1) says, <d>[Chinese] 你先听我解释。</d> "
+                "<Subject 2> stays silent; her lips remain closed."
+            ),
+        )
+        codes = {item.code for item in checks}
+        assert "prompt_voice_gender_conflict" not in codes
+        assert "short_shot_multi_camera" not in codes
     await engine.dispose()

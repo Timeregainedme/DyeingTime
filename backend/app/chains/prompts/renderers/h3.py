@@ -234,17 +234,75 @@ def build_h3_alignment_instruction(ir: IRPrompt, *, reference_mode: str | None =
 # --------------------------------------------------------------------------- #
 
 
+_CJK_RE = re.compile(r"[\u3400-\u9fff]")
+_SHOT_SIZE_LABELS = {
+    "ECU": "extreme close-up",
+    "CU": "close-up",
+    "MCU": "medium close-up",
+    "MS": "medium shot",
+    "MLS": "medium-wide shot",
+    "LS": "wide shot",
+    "ELS": "extreme wide shot",
+}
+_CAMERA_ANGLE_LABELS = {
+    "EYE_LEVEL": "eye-level angle",
+    "HIGH_ANGLE": "high angle",
+    "LOW_ANGLE": "low angle",
+    "OVERHEAD": "overhead angle",
+    "DUTCH_ANGLE": "dutch angle",
+}
+_CAMERA_MOVEMENT_LABELS = {
+    "STATIC": "static camera",
+    "PAN": "pan",
+    "TILT": "tilt",
+    "DOLLY": "dolly",
+    "TRACK": "tracking camera",
+    "ZOOM": "zoom",
+    "HANDHELD": "handheld camera",
+}
+_SUBJECT_KIND_NOUNS = {
+    "character": "character",
+    "scene": "environment",
+    "prop": "prop",
+    "costume": "costume",
+    "frame": "frame",
+}
+
+
+def _has_cjk(text: str) -> bool:
+    """判断文本是否包含中文；H3 正文除台词/专有名词外必须为英文。"""
+    return bool(_CJK_RE.search(str(text or "")))
+
+
+def _english_or_empty(text: str) -> str:
+    """保留英文文本；中文自由描述不回落到 H3 正文，避免被模型朗读成旁白。"""
+    value = str(text or "").strip()
+    return "" if _has_cjk(value) else value
+
+
+def _subject_labels(shot: IRShot) -> list[str]:
+    """把 IRShot.subjects 的 `Subject N` 转成 `<Subject N>` 标签。"""
+    labels: list[str] = []
+    for item in shot.subjects:
+        value = str(item or "").strip()
+        if not value:
+            continue
+        labels.append(value if value.startswith("<") else f"<{value}>")
+    return labels
+
+
 def _style_sentence(ir: IRPrompt) -> str:
-    bits: list[str] = []
-    if ir.style_anchor:
-        bits.append(f"The video keeps the established project look: {ir.style_anchor}.")
+    bits: list[str] = ["The target video uses a consistent short-drama visual style."]
+    style_anchor = _english_or_empty(ir.style_anchor)
+    if style_anchor:
+        bits.append(f"Visual style anchor: {style_anchor}.")
     if ir.aspect_ratio:
-        bits.append(f"The frame is composed for vertical delivery at {ir.aspect_ratio}.")
+        bits.append(f"The frame is composed for delivery at {ir.aspect_ratio}.")
     if ir.duration_seconds:
         bits.append(f"Total duration is {ir.duration_seconds:g} seconds.")
     bits.append(
-        "Subject identity, wardrobe, spatial layout, and lighting direction stay consistent "
-        "with the supplied visual context throughout the shot."
+        "Subject identity, clothing, environment, spatial layout, and lighting direction "
+        "remain consistent with the supplied references throughout the shot."
     )
     return " ".join(bits)
 
@@ -317,8 +375,9 @@ def _fallback_subject_definitions(ir: IRPrompt) -> str:
         if subject.source_tokens:
             sources = ", ".join(_token_to_picture_label(token) for token in subject.source_tokens)
             source = f" in {sources}"
-        text = f"<{subject.label}> is {subject.name}{source}"
-        definition = str(subject.definition or "").strip()
+        noun = _SUBJECT_KIND_NOUNS.get(str(subject.kind), "referenced subject")
+        text = f"<{subject.label}> is the {noun} {subject.name}{source}"
+        definition = _english_or_empty(str(subject.definition or ""))
         if definition:
             text = f"{text}, {definition}"
         lines.append(text.rstrip("。.") + ".")
@@ -330,9 +389,17 @@ def _fallback_subject_definitions(ir: IRPrompt) -> str:
 
 def _fallback_summary(ir: IRPrompt) -> str:
     prefix = " + ".join([t for t in ir.task_types if t in KNOWN_TASK_TYPES]) or "reference generation"
-    shot = ir.shots[0] if ir.shots else None
-    what = str(getattr(shot, "visual", "") or "").strip().rstrip("。.") or "the target shot"
-    return f"[{prefix}] The target video shows {what}."
+    labels = [f"<{subject.label}>" for subject in ir.subjects]
+    subjects = ", ".join(labels) if labels else "the referenced subjects"
+    audio = ""
+    if ir.audio_references:
+        audio = " The voice timbre is referenced from " + ", ".join(
+            f"<{item.label}>" for item in ir.audio_references
+        ) + "."
+    return (
+        f"[{prefix}] The target video presents {subjects} in one continuous shot "
+        f"with consistent identity and environment.{audio}"
+    )
 
 
 def _fallback_retention_analysis(ir: IRPrompt) -> str:
@@ -340,11 +407,14 @@ def _fallback_retention_analysis(ir: IRPrompt) -> str:
     for subject in ir.subjects:
         appears = ", ".join(f"[Shot {index}]" for index in (subject.appears_in or [1]))
         marker = subject.retention if subject.retention in VISIBLE_RETENTION_MARKERS else "fully_preserved"
-        source = _token_to_picture_label(subject.source_tokens[0]) if subject.source_tokens else ""
+        source = ", ".join(
+            _token_to_picture_label(token) for token in subject.source_tokens
+        )
         suffix = f" from {source}" if source else ""
+        noun = _SUBJECT_KIND_NOUNS.get(str(subject.kind), "subject")
         lines.append(
             f"<{subject.label}> (appears in {appears}): {marker} - "
-            f"the referenced {subject.kind} is reused as the source of this content unit{suffix}."
+            f"the referenced {noun} is reused as the source of this content unit{suffix}."
         )
     for audio in ir.audio_references:
         subject = _subject_for_speaker(ir, audio.speaker_id)
@@ -363,22 +433,39 @@ def _fallback_shot_block(ir: IRPrompt, shot: IRShot, *, use_labels: bool = True)
         header = f"[Shot {shot.index}]"
 
     parts: list[str] = []
-    if shot.visual:
-        parts.append(str(shot.visual).strip())
-    camera_bits = [bit for bit in (shot.shot_size, shot.camera_angle, shot.camera_movement) if bit]
-    if camera_bits:
+    visual = _english_or_empty(shot.visual)
+    if visual:
+        parts.append(visual.rstrip("。.") + ".")
+    elif use_labels and _subject_labels(shot):
         parts.append(
-            f"Shot size {shot.shot_size or 'unspecified'}, angle {shot.camera_angle or 'unspecified'}, "
-            f"camera {shot.camera_movement or 'static'}."
+            "The shot presents "
+            + ", ".join(_subject_labels(shot))
+            + " in one continuous composition."
         )
-    if shot.action_beats:
-        parts.append("Action beats: " + "; ".join(shot.action_beats) + ".")
-    if shot.atmosphere:
-        parts.append(f"Atmosphere: {shot.atmosphere}.")
-    if shot.composition_anchor:
-        parts.append(f"Framing: {shot.composition_anchor}.")
-    if shot.screen_direction:
-        parts.append(f"Screen direction: {shot.screen_direction}.")
+    else:
+        parts.append("The shot presents one continuous composition.")
+
+    size = _SHOT_SIZE_LABELS.get(str(shot.shot_size or "").upper(), "shot")
+    angle = _CAMERA_ANGLE_LABELS.get(str(shot.camera_angle or "").upper(), "eye-level angle")
+    movement = _CAMERA_MOVEMENT_LABELS.get(
+        str(shot.camera_movement or "").upper(), "static camera"
+    )
+    parts.append(f"{size.capitalize()} at {angle}, {movement}.")
+
+    beats = [item for item in shot.action_beats if _english_or_empty(item)]
+    if beats:
+        parts.append("Action beats: " + "; ".join(beats).rstrip("。.") + ".")
+    elif shot.dialogues:
+        parts.append("The speaking character delivers the line while the others remain silent.")
+    else:
+        parts.append("The subject performs one continuous action within the same space.")
+
+    if _english_or_empty(shot.atmosphere):
+        parts.append(f"Atmosphere: {_english_or_empty(shot.atmosphere)}.")
+    if _english_or_empty(shot.composition_anchor):
+        parts.append(f"Framing: {_english_or_empty(shot.composition_anchor)}.")
+    if _english_or_empty(shot.screen_direction):
+        parts.append(f"Screen direction: {_english_or_empty(shot.screen_direction)}.")
     for line in shot.dialogues:
         parts.append(_dialogue_fragment(ir, line, use_labels=use_labels))
     if shot.dialogues:
@@ -387,7 +474,8 @@ def _fallback_shot_block(ir: IRPrompt, shot: IRShot, *, use_labels: bool = True)
         )
         parts.append(_NO_NARRATION_INSTRUCTION)
     if shot.sound:
-        parts.append(f"Sound: {_trim_sentence(shot.sound)}.")
+        sound = _english_or_empty(shot.sound)
+        parts.append(f"Sound: {_trim_sentence(sound or 'Natural room tone and physical sounds continue')}.")
     if shot.continuity:
         parts.append(f"Continuity: {_trim_sentence(shot.continuity)}.")
 
@@ -406,8 +494,9 @@ def _fallback_detailed_description(ir: IRPrompt) -> str:
 
 def _fallback_soundscape(ir: IRPrompt) -> str:
     for shot in ir.shots:
-        if str(shot.sound or "").strip():
-            return str(shot.sound).strip()
+        sound = _english_or_empty(str(shot.sound or ""))
+        if sound:
+            return sound
     return "Room tone and natural physical sounds continue throughout the video."
 
 
@@ -418,13 +507,11 @@ def _fallback_music() -> str:
 def _fallback_multimodal(ir: IRPrompt) -> str:
     """基础模式主段落：不使用全参考标签，只写可见内容与台词。"""
     blocks: list[str] = [_style_sentence(ir)]
-    descriptions = [
-        f"{subject.name}: {subject.definition}".strip()
-        for subject in ir.subjects
-        if subject.definition
-    ]
-    if descriptions:
-        blocks.append("Visible subjects and settings: " + "; ".join(descriptions) + ".")
+    if ir.subjects:
+        blocks.append(
+            "The referenced subject identity, clothing, environment, and lighting "
+            "remain consistent throughout the shot."
+        )
     for shot in ir.shots:
         blocks.append(_fallback_shot_block(ir, shot, use_labels=False))
     if not ir.shots:
@@ -479,7 +566,7 @@ def _append_missing_shot_constraints(section_name: str, body: str, ir: IRPrompt)
                     additions.append(_dialogue_fragment(ir, line, use_labels=use_labels))
             voice_profiles: dict[str, str] = {}
             for line in shot.dialogues:
-                voice = str(line.voice_description or "").strip()
+                voice = str(line.voice_description or "").strip().rstrip("。.!！")
                 if not voice:
                     continue
                 who = line.speaker_name or line.speaker_id
@@ -567,6 +654,10 @@ def render_h3_reference(
         body = _resolve_section(name, ir, prose).strip() or "N/A"
         sections.append(f"{name}:\n{body}")
     text = "\n\n".join(sections).strip()
+    if len(ir.shots) == 1:
+        description_body = _section_body(text, "detailed_description")
+        if re.search(r"\[Shot [2-9]\d*\]", description_body):
+            warnings.append("单个业务 Shot 的 H3 正文出现了 [Shot 2+]；默认应保持一个连续镜头")
 
     warnings.extend(
         validate_h3_reference(text, duration_seconds=ir.duration_seconds, max_chars=max_chars)
@@ -600,6 +691,10 @@ def render_h3_base(
         body = _resolve_section(name, ir, prose).strip() or "N/A"
         sections.append(f"{name}:\n{body}")
     text = "\n\n".join(sections).strip()
+    if len(ir.shots) == 1:
+        description_body = _section_body(text, "integrated_multimodal_description")
+        if re.search(r"\[Shot [2-9]\d*\]", description_body):
+            warnings.append("单个业务 Shot 的 H3 正文出现了 [Shot 2+]；默认应保持一个连续镜头")
 
     alignment = build_h3_alignment_instruction(ir, reference_mode=mode)
     if alignment:
@@ -670,6 +765,9 @@ def validate_h3_reference(
     # retention_analysis 里也会合法出现 `([Shot 1])`，所以镜头锚点必须在
     # detailed_description 这一段内部查找，不能全文搜索。
     description_body = _section_body(body, "detailed_description")
+    summary_body = _section_body(body, "summary").strip()
+    if summary_body and not re.match(r"^\[[^\]]+\]", summary_body):
+        warnings.append("summary 缺少方括号任务类型前缀（如 [reference generation]）")
 
     if "[Shot 1]" not in description_body:
         warnings.append("detailed_description 缺少 [Shot 1]")

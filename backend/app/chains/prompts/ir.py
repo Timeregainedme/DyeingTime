@@ -53,6 +53,11 @@ DEFAULT_CONTINUITY_WITHOUT_SCENE = (
 _REFERENCE_MODES = {"reference", "first", "last", "key", "first_last", "first_last_key", "text_only"}
 
 
+def _contains_cjk(text: str) -> bool:
+    """判断文本是否含中文；H3 英文正文只允许台词/专有名词保留中文。"""
+    return any("\u3400" <= char <= "\u9fff" for char in str(text or ""))
+
+
 class IRReference(BaseModel):
     """一条有序参考素材。`token` 是内部统一 token（`图1`），渲染器再映射为目标模型语法。"""
 
@@ -308,25 +313,33 @@ def _build_subjects(
     """
     descriptions = {(kind, name): description for kind, name, description in _definition_rows(pack)}
     subjects: list[IRSubjectDefinition] = []
-    referenced_names: set[str] = set()
+    subject_by_key: dict[tuple[str, str], IRSubjectDefinition] = {}
 
+    # 官方 Ref2VA 允许一个 <Subject N> 由多张图片共同定义。
+    # 同一资产的多张参考图必须合并到同一个 Subject，不能把每张图当成新人物。
     for ref in references:
-        referenced_names.add(ref.name)
-        subjects.append(
-            IRSubjectDefinition(
-                label=f"Subject {len(subjects) + 1}",
-                name=ref.name,
-                kind=ref.kind,
-                definition=descriptions.get((ref.kind, ref.name), ""),
-                source_tokens=[ref.token],
-                retention="fully_preserved",
-                appears_in=_appears_in(ref.name, shots),
-            )
+        key = (ref.kind, ref.ref_id or ref.name)
+        existing = subject_by_key.get(key)
+        if existing is not None:
+            if ref.token not in existing.source_tokens:
+                existing.source_tokens.append(ref.token)
+            continue
+        subject = IRSubjectDefinition(
+            label=f"Subject {len(subjects) + 1}",
+            name=ref.name,
+            kind=ref.kind,
+            definition=descriptions.get((ref.kind, ref.name), ""),
+            source_tokens=[ref.token],
+            retention="fully_preserved",
+            appears_in=_appears_in(ref.name, shots),
         )
+        subject_by_key[key] = subject
+        subjects.append(subject)
 
     if include_without_reference:
         for kind, name, description in _definition_rows(pack):
-            if not name or name in referenced_names:
+            key = (kind, name)
+            if not name or key in subject_by_key:
                 continue
             subjects.append(
                 IRSubjectDefinition(
@@ -559,16 +572,21 @@ def build_video_prompt_ir(
     )
     # 默认单镜头连续生成：不主动要求 H3 在同一条短视频内切换机位/场景；
     # 高级多机位需求仍可通过自然提示词/高级提示词显式表达。
-    shot.continuity = " ".join(
-        part for part in [
-            str(shot.continuity or "").strip(),
-            (
-                DEFAULT_CONTINUITY_WITH_SCENE.format(scene=pack.scene.name)
-                if pack.scene is not None
-                else DEFAULT_CONTINUITY_WITHOUT_SCENE
-            ),
-        ] if part
+    # H3 正文必须为英文：中文 continuity_guidance 不写入 IR 正文，避免被模型
+    # 当成旁白朗读；英文默认连续性约束始终保留。
+    continuity_parts: list[str] = []
+    raw_continuity = str(shot.continuity or "").strip()
+    if raw_continuity:
+        if _contains_cjk(raw_continuity):
+            warnings.append("中文连续性建议未写入 H3 英文正文；已使用默认连续镜头约束")
+        else:
+            continuity_parts.append(raw_continuity)
+    continuity_parts.append(
+        DEFAULT_CONTINUITY_WITH_SCENE.format(scene=pack.scene.name)
+        if pack.scene is not None
+        else DEFAULT_CONTINUITY_WITHOUT_SCENE
     )
+    shot.continuity = " ".join(continuity_parts)
 
     subjects = _build_subjects(
         pack,
@@ -576,6 +594,8 @@ def build_video_prompt_ir(
         shots=[shot],
         include_without_reference=(mode != "reference"),
     )
+    # `IRShot.subjects` 记录 H3 标签而不是资产名，避免正文/诊断里出现未定义名称。
+    shot.subjects = [subject.label for subject in subjects]
     dialogue_lines, dialogue_warnings = _build_dialogues(dialogues, subjects=subjects)
     warnings.extend(dialogue_warnings)
     shot.dialogues = dialogue_lines

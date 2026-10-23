@@ -30,6 +30,7 @@ description: "记录当前真实生效的系统结构、状态流转、页面边
 - [正式场次（SceneGroup）](/docs/architecture/scene-groups/)
 - [AI 分镜规划与镜头资产版本](/docs/architecture/shot-planning/)
 - [H3 多参考 Manifest 与生成输入快照](/docs/architecture/h3-reference-manifest/)
+- [H3 官方 Prompt Skill 接入](/docs/architecture/h3-prompt-writing-skill/)
 - [生成测试额度与原子预留](/docs/architecture/generation-test-quota/)
 - [视频批量生成与并发协调](/docs/architecture/video-batches/)
 - [视频抽卡审核与显式采纳](/docs/architecture/video-review/)

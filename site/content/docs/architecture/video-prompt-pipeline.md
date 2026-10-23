@@ -5,6 +5,9 @@ weight: 10
 ---
 
 > 本文属于“当前架构”文档，描述当前已经生效的视频提示词链路。
+>
+> H3 提示词格式以官方 `h3-prompt-writing` Skill 为依据（上游 `MiniMax-AI/MiniMax-H3`
+> commit `d21241f0a4b3acbb34c97dae47fa417b7065e438`）；DyeingTime 的业务约束在此之上叠加。
 
 ## 为什么要有 IR 层
 
@@ -295,6 +298,18 @@ No spoken dialogue is requested; characters do not speak. Use only ambient room 
 场景名兜底顺序：`ShotDetail.scene_id` → `ShotAssetVersion(scene)`。兜底只补 Prompt 上下文，不自动把场景图加入参考图列表，避免覆盖用户选择。
 
 高级 Prompt 仍然优先，但不会静默补齐；若缺少 `<d>`、无对白或连续性约束，质量检查返回 warning，由用户决定修改高级 Prompt 或清空后使用自动渲染。
+
+### fallback 正文策略
+
+文本模型不可用时不把中文画面描述直接塞进 H3 正文：
+
+- fallback 仍输出官方六段/三段结构；
+- 中文 `visual`、动作拍点、氛围、构图、连续性建议不进入英文正文；
+- 镜头语言从内部枚举映射为 `medium shot / eye-level angle / static camera` 等自然英文；
+- Subject 定义使用 `<Picture N>` 来源和英文主体类型；
+- 预览给出 warning：中文骨架可能被 H3 朗读为旁白，建议配置文本模型或提供英文高级 Prompt。
+
+这不是“官方 Skill 已提升模型质量”的证明；它只保证输入结构合规并避免明显的中文旁白风险。
 
 ### LLM 正文的确定性兜底
 

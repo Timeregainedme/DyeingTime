@@ -957,6 +957,35 @@ def _quality_check(
     )
 
 
+def _has_positive_cut_cue(text: str) -> bool:
+    """判断文本是否包含“正向”切镜指令，忽略 no/do not/不要 等否定约束。"""
+    for match in _CUT_CUE_RE.finditer(str(text or "")):
+        before = str(text or "")[max(0, match.start() - 24): match.start()].lower()
+        if re.search(r"(do not|does not|no |not |不要|不|避免|无需|没有)\s*$", before):
+            continue
+        return True
+    return False
+
+
+def _speaker_prompt_segment(text: str, *, speaker_id: str, speaker_name: str) -> str:
+    """截取说话人附近的 Prompt 片段，避免把其他角色的代词误判成本说话人。"""
+    body = str(text or "")
+    marker = f"({speaker_id})" if speaker_id else ""
+    if not marker or marker not in body:
+        marker = speaker_name or ""
+    if not marker:
+        return ""
+    start = body.find(marker)
+    if start < 0:
+        return ""
+    end = len(body)
+    tail = body[start + len(marker):]
+    next_marker = re.search(r"<Subject \d+>|\(S\d+\)", tail)
+    if next_marker:
+        end = start + len(marker) + next_marker.start()
+    return body[start:end]
+
+
 async def collect_generation_quality_checks(
     db: AsyncSession,
     *,
@@ -1141,22 +1170,31 @@ async def collect_generation_quality_checks(
 
         # 只用用户提供的声音描述与 Prompt 中的性别指代做一致性比对；
         # 不根据姓名、照片或演员资料推断性别。
-        for speaker in speakers.values():
+        for line in lines:
+            speaker_id = str(line.speaker_character_id or "").strip()
+            speaker = speakers.get(speaker_id)
+            if speaker is None:
+                continue
             voice = str(speaker.voice_description or "").strip()
             if not voice:
                 continue
-            if _MALE_VOICE_RE.search(voice) and _FEMALE_PRONOUN_RE.search(script_text):
+            segment = _speaker_prompt_segment(
+                script_text, speaker_id=speaker_id, speaker_name=speaker.name
+            )
+            if not segment:
+                continue
+            if _MALE_VOICE_RE.search(voice) and _FEMALE_PRONOUN_RE.search(segment):
                 add(
                     "prompt_voice_gender_conflict",
                     "warning",
-                    f"角色「{speaker.name}」的声音描述为男性，但 Prompt 含女性指代；声音可能被错误分配。",
+                    f"角色「{speaker.name}」的声音描述为男性，但 Prompt 中该说话人附近含女性指代；声音可能被错误分配。",
                     "统一 Prompt 中的性别指代，或修正角色声音描述。",
                 )
-            if _FEMALE_VOICE_RE.search(voice) and _MALE_PRONOUN_RE.search(script_text):
+            if _FEMALE_VOICE_RE.search(voice) and _MALE_PRONOUN_RE.search(segment):
                 add(
                     "prompt_voice_gender_conflict",
                     "warning",
-                    f"角色「{speaker.name}」的声音描述为女性，但 Prompt 含男性指代；声音可能被错误分配。",
+                    f"角色「{speaker.name}」的声音描述为女性，但 Prompt 中该说话人附近含男性指代；声音可能被错误分配。",
                     "统一 Prompt 中的性别指代，或修正角色声音描述。",
                 )
     else:
@@ -1262,7 +1300,7 @@ async def collect_generation_quality_checks(
                     "场景参考已进入实际参考图，并参与 input_hash。",
                 )
 
-    if _CUT_CUE_RE.search(script_text):
+    if _has_positive_cut_cue(script_text):
         duration = int(getattr(detail, "duration", 0) or 0)
         if 0 < duration <= 6:
             add(
