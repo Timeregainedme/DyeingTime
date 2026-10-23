@@ -30,3 +30,5 @@ description: "记录当前正在推进的开发计划、改造方案与阶段性
 - [P9-C 真实视频质量缺陷修复](/docs/plans/p9-c-quality-fixes/)
 
 - [P9-D1 男性对白声音验证结果](/docs/plans/p9-d1-voice-results/)
+
+- [P9-D2 背景连续性真实生成结果](/docs/plans/p9-d2-continuity-results/)

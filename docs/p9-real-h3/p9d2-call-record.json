@@ -1,0 +1,102 @@
+{
+  "stage": "P9-D2",
+  "date": "2026-10-23",
+  "official_skill": {
+    "name": "h3-prompt-writing",
+    "source": "MiniMax-AI/MiniMax-H3",
+    "upstream_commit": "d21241f0a4b3acbb34c97dae47fa417b7065e438",
+    "install_path": ".agents/skills/h3-prompt-writing",
+    "lock_file": "skills-lock.json",
+    "computed_hash": "77d059b596e34c1139b859bac30fe5049735bdf49acb70cd63ad8f4e7e329f3c"
+  },
+  "shot_id": "s-p9d2-continuity",
+  "purpose": "验证官方 Ref2VA 规范化后的同一场景、连续运镜、单镜头背景连续性",
+  "characters": [
+    {"id": "char-p9d2-male", "name": "顾言", "role": "speaker S1", "voice_description": "Young adult male voice, clear timbre, moderate pace, restrained emotion."},
+    {"id": "char-p9d2-female", "name": "沈知微", "role": "silent listener"}
+  ],
+  "scene": {"id": "scene-p9d2-office", "name": "办公室 D2"},
+  "dialogue": "你听我解释。",
+  "reference_files": [
+    {"file_id": "f-p9d2-male", "picture": "Picture 1", "asset_version_id": "av-p9d2-male", "role": "character_identity"},
+    {"file_id": "f-p9d2-female", "picture": "Picture 2", "asset_version_id": "av-p9d2-female", "role": "character_identity"},
+    {"file_id": "f-p9d2-office", "picture": "Picture 3", "asset_version_id": "av-p9d2-office", "role": "scene"}
+  ],
+  "request": {
+    "task_id": "d2f398cee22d45e88dcb939def720e9e",
+    "provider_task_id": "01a16a35-d9c9-7259-aa73-3f2de7beb0b7",
+    "snapshot_id": "ff201572-0840-4ed6-babf-f38e764fd09d",
+    "input_hash": "214962cad3fa4e10fae03a48480edb432e70bc3af19fd05e86eb6c7131e95a6e",
+    "request_key": "p9d2-continuity-214962cad3fa",
+    "advanced_prompt_file": "docs/p9-real-h3/p9d2-official-prompt.txt",
+    "advanced_prompt_equals_payload": true,
+    "ratio": "9:16",
+    "resolution": "768p",
+    "duration": 5,
+    "reference_images": 3,
+    "audio_reference": "disabled",
+    "auto_adopt": false
+  },
+  "result": {
+    "status": "succeeded",
+    "file_id": "bc9a1b44-303b-4cf2-ab04-3858e58cc686",
+    "local_path": "/tmp/opencode/p9d2-continuity.mp4",
+    "storage_key": "generated-videos/shots/s-p9d2-continuity/b3181bfa18fc44128706c00eba6bc640.mp4",
+    "bytes": 2051254,
+    "container": "mp4",
+    "video_codec": "h264",
+    "audio_codec": "aac",
+    "width": 768,
+    "height": 1344,
+    "duration_seconds": 5.175,
+    "audio_sample_rate": 32000,
+    "audio_channels": 2,
+    "review_status": "unrated",
+    "is_current": false,
+    "auto_adopted": false
+  },
+  "analysis": {
+    "asr": {
+      "model": "faster-whisper base, language=zh, vad_filter=true",
+      "segments": [
+        {"start": 1.04, "end": 2.04, "text": "你听我解释"}
+      ],
+      "extra_narration": false,
+      "silent_character_spoke": false
+    },
+    "f0_auxiliary": {
+      "median_hz": 109.2,
+      "note": "仅作辅助线索，不单独用于性别判定；音色由用户试听确认"
+    },
+    "scene_cut_detection": {
+      "threshold": 0.25,
+      "old_s_e2e_2_cuts_seconds": [1.375, 4.583],
+      "new_p9d2_cuts_seconds": [],
+      "note": "新视频在该阈值下未检测到场景切换；视觉抽帧显示同一办公室背景"
+    },
+    "visual_observations": [
+      "同一办公室背景贯穿全片",
+      "男性在左、女性在右，位置保持",
+      "连续推近，无切到另一房间",
+      "三张参考图与 Subject/Picture 编号一致"
+    ]
+  },
+  "local_quota": {
+    "before": {"image": {"limit": 40, "consumed": 0, "reserved": 0}, "video": {"limit": 8, "consumed": 4, "reserved": 0}, "audio": {"limit": 1000, "consumed": 0, "reserved": 0}},
+    "after": {"image": {"limit": 40, "consumed": 0, "reserved": 0}, "video": {"limit": 8, "consumed": 5, "reserved": 0}, "audio": {"limit": 1000, "consumed": 0, "reserved": 0}},
+    "video_remaining": 3
+  },
+  "provider_points": {
+    "before": 5663.02,
+    "after": 5623.02,
+    "this_task": 40,
+    "available_after": 5623.02
+  },
+  "history_protection": {
+    "old_s_e2e_2_hash": "39cf21753926e0016c72d165230e13d0c3f455602af52baee0a5404d5d30d03e",
+    "old_s_e2e_2_snapshot_unchanged": true,
+    "old_s_e2e_2_adopted_pointer": "v-e2e-2",
+    "old_video_retained": "/tmp/opencode/s-e2e-2.mp4",
+    "new_video_not_adopted": true
+  }
+}

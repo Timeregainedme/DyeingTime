@@ -1,0 +1,22 @@
+subject_definitions:
+<Subject 1> is the adult male character 顾言 in <Picture 1>, with short dark hair, a dark grey sweater, and a light blue collared shirt.
+<Subject 2> is the adult female character 沈知微 in <Picture 2>, with long dark wavy hair and a deep red long-sleeve top.
+<Subject 3> is the modern office environment in <Picture 3>, with black-framed glass partitions on both sides, a long grey corridor, a cream sofa, a yellow chair, a floor lamp, and warm pendant lights.
+
+summary:
+[reference generation] The target video shows <Subject 1> and <Subject 2> facing each other in <Subject 3> in one continuous medium shot. <Subject 1> speaks one line while <Subject 2> remains silent and reacts.
+
+retention_analysis:
+<Subject 1> (appears in [Shot 1]): fully_preserved - his identity, short dark hair, dark grey sweater, and light blue collared shirt are retained from <Picture 1>.
+<Subject 2> (appears in [Shot 1]): fully_preserved - her identity, long dark wavy hair, and deep red top are retained from <Picture 2>.
+<Subject 3> (appears in [Shot 1]): fully_preserved - the glass partitions, corridor depth, cream sofa, yellow chair, floor lamp, and warm pendant lights are retained from <Picture 3>.
+
+detailed_description:
+The target video uses a realistic live-action short-drama look with cool daylight from the glass partitions and warm practical lamps.
+[Shot 1] A medium two-shot frames <Subject 1> on the left and <Subject 2> on the right inside <Subject 3>. The camera pushes in with small amplitude at slow speed while keeping both characters and the office background in the same continuous space. <Subject 1> (S1), using this voice profile: Young adult male voice, clear timbre, moderate pace, restrained emotion, holds his ground and says, <d>[Chinese] 你听我解释。</d> <Subject 2> stays silent, keeps her lips closed, and shifts her gaze toward him without leaving her position. The glass partitions, corridor depth, cream sofa, floor lamp, and warm pendant lights remain fixed behind them throughout the shot; the camera does not cut to another room or change the background. Only the dialogue lines are spoken; do not read the shot description, subject definitions, summary, retention analysis, or continuity text aloud. No narration or voiceover.
+
+overall_soundscape:
+Quiet office room tone with a low ventilation hum and faint distant footsteps. Fabric movement is audible as the man shifts his weight.
+
+non_diegetic_music:
+N/A

@@ -34,3 +34,17 @@ L4 用户已观看并反馈两项缺陷：
 - 规格：5.175s / 768×1344 / H.264 + AAC / 1.3MB
 - 结果：台词内容正确；额外出现画面描述旁白；待用户 L4 试听确认音色。
 - 证据：`p9d1-voice-results.md`、`p9d1-call-record.json`、`p9d1-voice-contact.jpg`、`p9d1-voice-spectrum.png`
+
+## H3 官方 Skill
+
+- 安装与差异审计：`h3-official-skill-audit.md`
+- 固定上游：`MiniMax-AI/MiniMax-H3@d21241f0a4b3acbb34c97dae47fa417b7065e438`
+
+## P9-D2 背景连续性验证
+
+- 新视频：`/tmp/opencode/p9d2-continuity.mp4`
+- 供应商 task：`01a16a35-d9c9-7259-aa73-3f2de7beb0b7`
+- 内部 Task：`d2f398cee22d45e88dcb939def720e9e`
+- 规格：5.175s / 768×1344 / H.264 + AAC / 2.0MB
+- 结果：同一办公室背景贯穿全片，场景切换检测为零；指定台词出现，无额外旁白；待用户 L4。
+- 证据：`p9d2-continuity-results.md`、`p9d2-call-record.json`、`p9d2-continuity-contact.jpg`、`p9d2-official-prompt.txt`
