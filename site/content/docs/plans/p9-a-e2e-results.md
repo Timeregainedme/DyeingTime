@@ -73,6 +73,6 @@ weight: 9
 ## 6. 未完成
 
 - 浏览器中创建项目、配置保存、风格锁定、文件上传、AI 解析、分镜规划、视频生成提交的逐步 UI 操作。
-- 真实后端 + MySQL 的 CI workflow 尚未实际运行。
+- 真实后端 CI 已在 P9-B1 实际运行成功：`39957304589`；浏览器 CI `39957304607`。
 - Chrome 系统依赖在 CI 由 `playwright install --with-deps` 负责；本地需要临时 sysroot 或安装系统包。
 - L3/L4 未执行。

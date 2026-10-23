@@ -13,7 +13,7 @@ weight: 20
 | 供应商 | 优云智算 `compshare_model_api` |
 | 视频模型 | `MiniMax-H3` |
 | 提交协议 | `POST /minimax/v2/video_generation`（现有适配器） |
-| 业务时长 | 项目内部 4–15 秒；H3 能力声明 4–30 秒 |
+| 业务时长 | 项目内部 4–15 秒；官方 MiniMax-H3 4–15 秒 |
 | 图片参考 | 最多 9 张 |
 | 音频参考 | 最多 3 个，不能单独使用 |
 | 提示词 | 最多 7000 字符 |
@@ -62,12 +62,12 @@ weight: 20
 | --- | --- | --- |
 | 模型 ID `MiniMax-H3` | 仓库配置已核对 | `docs/供应商配置.md`、项目模型记录 |
 | 提交路径 `/minimax/v2/video_generation` | 适配器代码已核对 | `backend/app/core/integrations/compshare/video.py` |
-| 参考图 ≤9 | 适配器能力声明已核对 | `video_capabilities.py` |
-| 参考音频 ≤3、不能单独使用 | 适配器能力声明已核对 | `video_capabilities.py` |
+| 参考图 ≤9 | 官方 docs + 适配器声明已核对 | MiniMax API Docs / `video_capabilities.py` |
+| 参考音频 ≤3、不能单独使用 | 官方 docs + 适配器声明已核对 | MiniMax API Docs / `video_capabilities.py` |
 | 提示词 ≤7000 字符 | 适配器能力声明/测试已核对 | `video_capabilities.py`、合约测试 |
-| 4–30 秒供应商能力 | 适配器声明已核对 | `video_capabilities.py` |
+| 4–15 秒供应商能力 | 官方文档已核对；适配器已修正 | MiniMax API Docs |
 | 项目业务 4–15 秒 | 项目常量已核对 | `shot_video_readiness` / 项目配置 |
-| 异步提交/轮询/下载实际行为 | **未验证** | 未发真实请求 |
+| 异步提交/轮询/下载实际行为 | **官方协议已核对；compshare 实际网关未验证** | MiniMax API Docs；未发真实请求 |
 | 供应商当前定价 | **未核实** | 未查询账户/官方最新价 |
 | 参考音频实际格式接受度 | **未验证** | 未发真实请求 |
 

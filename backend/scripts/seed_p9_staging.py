@@ -24,7 +24,9 @@ from app.models.studio import (
     FileItem,
     FileUsage,
     Project,
+    ProjectPropLink,
     ProjectSceneLink,
+    Prop,
     ProjectStyleOption,
     ProjectStyleSnapshot,
     Scene,
@@ -54,10 +56,11 @@ async def main() -> None:
             (ProjectStyleOption, ["style-e2e"]),
             (Model, ["model-text", "model-image", "model-video", "model-audio"]),
             (ModelSettings, [1]),
-            (AssetVersion, ["av-scene", "av-char1", "av-char2"]),
+            (AssetVersion, ["av-scene", "av-char1", "av-char2", "av-prop"]),
             (Character, ["char-e2e-1", "char-e2e-2"]),
             (Scene, ["scene-e2e"]),
-            (FileItem, ["f-char", "f-scene", "v-e2e-1", "v-e2e-2", "v-e2e-3", "v-e2e-4"]),
+            (Prop, ["prop-e2e"]),
+            (FileItem, ["f-char", "f-char2", "f-scene", "f-prop", "v-e2e-1", "v-e2e-2", "v-e2e-3", "v-e2e-4"]),
         ]:
             if model is User:
                 await db.execute(delete(model).where(model.id.in_(ids)))
@@ -74,7 +77,7 @@ async def main() -> None:
             sort_order=1, is_builtin=True,
         ))
         provider = Provider(
-            id="prov-e2e", name="E2E Mock Provider", base_url="http://127.0.0.1:9",
+            id="prov-e2e", name="compshare_model_api", base_url="http://127.0.0.1:9",
             image_base_url="http://127.0.0.1:9", video_base_url="http://127.0.0.1:9",
             audio_base_url="http://127.0.0.1:9", api_key="test-only", api_secret="",
             description="仅用于 UI/任务验收，不会调用", status="active", created_by="9001",
@@ -130,13 +133,23 @@ async def main() -> None:
             return item
 
         char_file = await put_file("f-char", "林晚.png", "e2e/images/char.png", PNG, "image/png", "image")
+        char2_file = await put_file("f-char2", "周沉.png", "e2e/images/char2.png", PNG, "image/png", "image")
         scene_file = await put_file("f-scene", "值班室.png", "e2e/images/scene.png", PNG, "image/png", "image")
+        prop_file = await put_file("f-prop", "钥匙.png", "e2e/images/prop.png", PNG, "image/png", "image")
+        prop = Prop(id="prop-e2e", name="钥匙", description="", style=project.style, visual_style=project.visual_style)
+        prop_version = AssetVersion(id="av-prop", project_id=project.id, asset_type="prop", asset_id=prop.id, version_no=1, version_kind="base", variant_type="base", name="钥匙基础", status="active")
+        prop.current_version_id = prop_version.id
+        db.add_all([prop, prop_version, ProjectPropLink(project_id=project.id, prop_id=prop.id)])
         await db.flush()
         db.add_all([
             AssetImageCandidate(project_id=project.id, asset_type="character", asset_id=char1.id, asset_version_id=av1.id, candidate_batch_id="e2e", view_angle="FRONT", source="uploaded", file_id=char_file.id, status="adopted", is_adopted=True, prompt="", generation_params={}, format="png"),
+            AssetImageCandidate(project_id=project.id, asset_type="character", asset_id=char2.id, asset_version_id=av2.id, candidate_batch_id="e2e", view_angle="FRONT", source="uploaded", file_id=char2_file.id, status="adopted", is_adopted=True, prompt="", generation_params={}, format="png"),
+            AssetImageCandidate(project_id=project.id, asset_type="prop", asset_id=prop.id, asset_version_id=prop_version.id, candidate_batch_id="e2e", view_angle="FRONT", source="uploaded", file_id=prop_file.id, status="adopted", is_adopted=True, prompt="", generation_params={}, format="png"),
             AssetImageCandidate(project_id=project.id, asset_type="scene", asset_id=scene.id, asset_version_id=scene_version.id, candidate_batch_id="e2e", view_angle="FRONT", source="uploaded", file_id=scene_file.id, status="adopted", is_adopted=True, prompt="", generation_params={}, format="png"),
             FileUsage(file_id=char_file.id, project_id=project.id, chapter_id=chapter.id, shot_id=None, usage_kind="asset_image", source_ref="e2e:char"),
+            FileUsage(file_id=char2_file.id, project_id=project.id, chapter_id=chapter.id, shot_id=None, usage_kind="asset_image", source_ref="e2e:char2"),
             FileUsage(file_id=scene_file.id, project_id=project.id, chapter_id=chapter.id, shot_id=None, usage_kind="asset_image", source_ref="e2e:scene"),
+            FileUsage(file_id=prop_file.id, project_id=project.id, chapter_id=chapter.id, shot_id=None, usage_kind="asset_image", source_ref="e2e:prop"),
         ])
 
         video_ids = ["v-e2e-1", "v-e2e-2", "v-e2e-3", "v-e2e-4"]
@@ -161,6 +174,10 @@ async def main() -> None:
         for index in range(1, 13):
             sid = f"s-e2e-{index}"
             db.add(ShotAssetVersion(shot_id=sid, asset_type="character", asset_id=char1.id, asset_version_id=av1.id, role="character_identity", created_at=datetime.now(UTC)))
+            if index in {2, 4}:
+                db.add(ShotAssetVersion(shot_id=sid, asset_type="character", asset_id=char2.id, asset_version_id=av2.id, role="character_identity", created_at=datetime.now(UTC)))
+            if index == 3:
+                db.add(ShotAssetVersion(shot_id=sid, asset_type="prop", asset_id=prop.id, asset_version_id=prop_version.id, role="prop", created_at=datetime.now(UTC)))
             db.add(ShotAssetVersion(shot_id=sid, asset_type="scene", asset_id=scene.id, asset_version_id=scene_version.id, role="scene", created_at=datetime.now(UTC)))
         await db.commit()
         print("seeded p-e2e, user e2e/e2e-pass, videos", video_ids)

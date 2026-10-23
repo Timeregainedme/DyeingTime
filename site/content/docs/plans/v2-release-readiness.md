@@ -109,11 +109,10 @@ P9-A 已实际启动 Chromium 并执行页面断言。
 - 真实后端用例的 P3/P4/P5 数据是确定性 Mock 业务对象，不是浏览器中重新执行 AI 上传/解析/规划。
 - 真实后端用例覆盖项目列表、工作台总览、配置、风格、剧本、角色、剧集、镜头、导出与 ZIP 下载。
 - 真实后端的创建项目、上传文件、AI 解析、视频生成任务仍需继续补浏览器级操作。
-- CI 工作流：
-  - `.github/workflows/v2-browser-e2e.yml`
-  - `.github/workflows/v2-real-backend-e2e.yml`
-
-本机已验证真实 Chromium 页面断言通过；CI 工作流尚未实际运行。
+- CI 工作流已在 P9-B1 实际运行并成功：
+  - `V2 Browser E2E`：https://github.com/Timeregainedme/dyeingtime/actions/runs/39957304607
+  - `V2 Real Backend Browser E2E`：https://github.com/Timeregainedme/dyeingtime/actions/runs/39957304589
+  - 早期失败运行已通过并发=1、FastAPI 存活检查和失败摘要修复。
 
 ## 7. 安全检查
 
@@ -163,8 +162,8 @@ uv run python scripts/scan_generation_task_secrets.py
 
 ### P1 上线前应修复
 
-- 真实后端浏览器 E2E 目前覆盖 8 个页面/导出，尚未覆盖 UI 创建项目、上传、AI 解析、视频生成全操作。
-- CI 的 real-backend workflow 尚未实际运行。
+- 真实后端浏览器 E2E 目前只真实创建项目/保存配置，其余业务数据仍由 seed 准备；尚未覆盖 UI 上传、AI 解析、视频生成全操作。
+- CI real-backend workflow 已实际成功运行。
 - 历史任务 api_key 只读扫描已有，脱敏方案未执行。
 - 单任务幂等边界不覆盖供应商侧 exactly-once；需人工查询/恢复流程。
 
