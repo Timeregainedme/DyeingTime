@@ -80,9 +80,15 @@ jobs:
       - name: Install Chromium
         working-directory: front
         run: pnpm exec playwright install --with-deps chromium
+      - name: Verify FastAPI is still alive
+        run: |
+          curl -sf http://127.0.0.1:8010/health || { echo "FastAPI died after startup"; tail -200 /tmp/backend-e2e.log; exit 1; }
       - name: Run real backend browser E2E
         working-directory: front
-        run: pnpm exec playwright test -c playwright.real.config.ts
+        run: pnpm exec playwright test -c playwright.real.config.ts 2>&1 | tee /tmp/real-e2e.log
+      - name: Write real E2E failure summary
+        if: failure()
+        run: tail -250 /tmp/real-e2e.log >> "$GITHUB_STEP_SUMMARY" || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
