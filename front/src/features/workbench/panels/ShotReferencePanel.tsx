@@ -51,6 +51,7 @@ export function ShotReferencePanel({
   const [advancedPrompt, setAdvancedPrompt] = useState('')
   const [preview, setPreview] = useState<GenerationPreviewRead | null>(null)
   const [notice, setNotice] = useState('')
+  const [requestKey, setRequestKey] = useState(() => crypto.randomUUID())
   const [role, setRole] = useState('shot_composition')
   const [mention, setMention] = useState<{ query: string; start: number } | null>(null)
   const uploadRef = useRef<HTMLInputElement | null>(null)
@@ -75,6 +76,7 @@ export function ShotReferencePanel({
     reference_audio_file_ids: [],
     expected_input_hash: preview?.input_hash ?? null,
     auto_adopt: false,
+    request_key: requestKey,
   })
   const readiness = readinessQuery.data
   const busy =
@@ -275,7 +277,10 @@ export function ShotReferencePanel({
               className="h-7 px-2 text-[10px]"
               disabled={busy || !readiness?.ready || Boolean((preview?.blocking_errors ?? []).length)}
               onClick={() => actions.generate.mutate(body(), {
-                onSuccess: (data) => setNotice(`已创建视频任务 ${data.task_id}；生成完成后进入抽卡审核`),
+                onSuccess: (data) => {
+                  setRequestKey(crypto.randomUUID())
+                  setNotice(`已创建视频任务 ${data.task_id}；生成完成后进入抽卡审核`)
+                },
                 onError: (error) => setNotice(error instanceof Error ? error.message : '生成任务创建失败'),
               })}
             >

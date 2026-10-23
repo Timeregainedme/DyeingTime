@@ -358,3 +358,81 @@ async def test_prompt_reference_survives_character_rename() -> None:
         assert result.resolved[0].asset_id == character.id
         assert result.resolved[0].asset_name == "沈知微改名"
     await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_request_key_returns_existing_task_and_rejects_payload_change(monkeypatch) -> None:
+    from app.schemas.studio.shot_references import GenerationPreviewRead, P6VideoGenerateRequest
+    from app.schemas.studio.shots import ShotVideoReadinessRead
+
+    db, engine = await _build_session()
+    async with db:
+        await _seed(db)
+        await auto_recommend(db, shot_id="ref-shot")
+        refs, manifest, _warnings = await build_manifest(db, shot_id="ref-shot")
+        preview = GenerationPreviewRead(
+            shot_id="ref-shot",
+            manifest=[],
+            images=[item.file_id for item in refs if item.file_id],
+            prompt="stable prompt",
+            input_hash="hash-1",
+            duration=5,
+            ratio="9:16",
+        )
+        snapshot = await create_snapshot(
+            db,
+            shot_id="ref-shot",
+            preview=preview,
+            task_id="existing-task",
+            created_by=1,
+            request_key="req-1",
+        )
+        await db.commit()
+
+        async def _fake_preview(*args, **kwargs):
+            return preview
+
+        async def _fake_ready(*args, **kwargs):
+            return ShotVideoReadinessRead(
+                shot_id="ref-shot", reference_mode="reference", ready=True, checks=[]
+            )
+
+        monkeypatch.setattr(shot_references, "build_generation_preview", _fake_preview)
+        monkeypatch.setattr(shot_references, "get_p6_readiness", _fake_ready)
+        task_id, existing, _ = await shot_references.create_video_task(
+            db,
+            shot_id="ref-shot",
+            body=P6VideoGenerateRequest(
+                prompt="same",
+                expected_input_hash="hash-1",
+                request_key="req-1",
+            ),
+        )
+        assert task_id == "existing-task"
+        assert existing.id == snapshot.id
+
+        changed = preview.model_copy(update={"input_hash": "hash-2"})
+
+        async def _changed_preview(*args, **kwargs):
+            return changed
+
+        monkeypatch.setattr(shot_references, "build_generation_preview", _changed_preview)
+        with pytest.raises(ValueError, match="不同生成输入"):
+            await shot_references.create_video_task(
+                db,
+                shot_id="ref-shot",
+                body=P6VideoGenerateRequest(
+                    prompt="different",
+                    expected_input_hash="hash-2",
+                    request_key="req-1",
+                ),
+            )
+    await engine.dispose()
+
+
+def test_legacy_generating_status_is_read_as_pending() -> None:
+    from app.services.studio.shot_status import normalize_shot_status
+
+    assert normalize_shot_status("generating") == "pending"
+    assert normalize_shot_status("ready") == "ready"
+    assert normalize_shot_status("pending") == "pending"

@@ -105,12 +105,18 @@ class ShotGenerationSnapshot(Base):
     ratio: Mapped[str] = mapped_column(String(16), nullable=False, default="")
     resolution: Mapped[str | None] = mapped_column(String(16), nullable=True)
     input_hash: Mapped[str] = mapped_column(String(64), nullable=False, default="", index=True)
+    request_key: Mapped[str | None] = mapped_column(
+        String(128), nullable=True, index=True, comment="客户端幂等键；同一 key 只创建一个任务"
+    )
     created_by: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
-    __table_args__ = (Index("ix_shot_generation_snapshots_shot_created", "shot_id", "created_at"),)
+    __table_args__ = (
+        Index("ix_shot_generation_snapshots_shot_created", "shot_id", "created_at"),
+        UniqueConstraint("shot_id", "request_key", name="uq_shot_generation_snapshots_request"),
+    )
 
 
 __all__ = ["ShotReferenceBinding", "ShotPromptReference", "ShotGenerationSnapshot"]

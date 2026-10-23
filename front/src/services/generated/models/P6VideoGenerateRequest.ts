@@ -23,5 +23,9 @@ export type P6VideoGenerateRequest = {
      * 生成完成后是否自动采纳；P6 默认显式采纳
      */
     auto_adopt?: boolean;
+    /**
+     * 客户端幂等键；相同 key + 相同输入返回已有任务
+     */
+    request_key?: (string | null);
 };
 

@@ -68,6 +68,7 @@ export function VideoBatchPanel({
   const [concurrency, setConcurrency] = useState(4)
   const [allowLowCoverage, setAllowLowCoverage] = useState(false)
   const [notice, setNotice] = useState('')
+  const [requestKey, setRequestKey] = useState(() => crypto.randomUUID())
   const readyShots = useMemo(() => shots.filter((shot) => shot.status === 'ready'), [shots])
 
   useEffect(() => {
@@ -86,9 +87,13 @@ export function VideoBatchPanel({
         candidate_count: candidateCount,
         concurrency,
         allow_low_coverage: allowLowCoverage,
+        request_key: requestKey,
       },
       {
-        onSuccess: (batch) => setNotice(`批次 ${batch.id.slice(0, 8)} 已创建，按并发 ${batch.concurrency} 执行`),
+        onSuccess: (batch) => {
+          setRequestKey(crypto.randomUUID())
+          setNotice(`批次 ${batch.id.slice(0, 8)} 已创建，按并发 ${batch.concurrency} 执行`)
+        },
         onError: (error) => setNotice(error instanceof Error ? error.message : '创建批量任务失败'),
       },
     )

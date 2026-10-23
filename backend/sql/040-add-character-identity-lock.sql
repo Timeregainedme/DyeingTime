@@ -31,7 +31,7 @@ SET @ddl = (
         AND COLUMN_NAME = 'age_range'
     ),
     'SELECT 1',
-    'ALTER TABLE characters ADD COLUMN age_range VARCHAR(64) NOT NULL DEFAULT '''' COMMENT ''''年龄感/年龄段'''' AFTER voice_description'
+    'ALTER TABLE characters ADD COLUMN age_range VARCHAR(64) NOT NULL DEFAULT '''' COMMENT ''年龄感/年龄段'' AFTER voice_description'
   )
 );
 PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
@@ -44,7 +44,7 @@ SET @ddl = (
         AND COLUMN_NAME = 'appearance'
     ),
     'SELECT 1',
-    'ALTER TABLE characters ADD COLUMN appearance TEXT NOT NULL COMMENT ''''基础外貌描述'''' AFTER age_range'
+    'ALTER TABLE characters ADD COLUMN appearance TEXT NOT NULL COMMENT ''基础外貌描述'' AFTER age_range'
   )
 );
 PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
@@ -57,7 +57,7 @@ SET @ddl = (
         AND COLUMN_NAME = 'face_features'
     ),
     'SELECT 1',
-    'ALTER TABLE characters ADD COLUMN face_features TEXT NOT NULL COMMENT ''''脸型与五官等身份辨识特征'''' AFTER appearance'
+    'ALTER TABLE characters ADD COLUMN face_features TEXT NOT NULL COMMENT ''脸型与五官等身份辨识特征'' AFTER appearance'
   )
 );
 PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
@@ -70,7 +70,7 @@ SET @ddl = (
         AND COLUMN_NAME = 'body_type'
     ),
     'SELECT 1',
-    'ALTER TABLE characters ADD COLUMN body_type VARCHAR(64) NOT NULL DEFAULT '''' COMMENT ''''基础体型'''' AFTER face_features'
+    'ALTER TABLE characters ADD COLUMN body_type VARCHAR(64) NOT NULL DEFAULT '''' COMMENT ''基础体型'' AFTER face_features'
   )
 );
 PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
@@ -83,7 +83,7 @@ SET @ddl = (
         AND COLUMN_NAME = 'identity_features'
     ),
     'SELECT 1',
-    'ALTER TABLE characters ADD COLUMN identity_features TEXT NOT NULL COMMENT ''''不可随造型改变的身份特征'''' AFTER body_type'
+    'ALTER TABLE characters ADD COLUMN identity_features TEXT NOT NULL COMMENT ''不可随造型改变的身份特征'' AFTER body_type'
   )
 );
 PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
@@ -96,7 +96,7 @@ SET @ddl = (
         AND COLUMN_NAME = 'identity_version_id'
     ),
     'SELECT 1',
-    'ALTER TABLE characters ADD COLUMN identity_version_id VARCHAR(64) NULL COMMENT ''''当前视觉身份版本 ID'''' AFTER identity_features'
+    'ALTER TABLE characters ADD COLUMN identity_version_id VARCHAR(64) NULL COMMENT ''当前视觉身份版本 ID'' AFTER identity_features'
   )
 );
 PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
@@ -109,7 +109,7 @@ SET @ddl = (
         AND COLUMN_NAME = 'current_appearance_version_id'
     ),
     'SELECT 1',
-    'ALTER TABLE characters ADD COLUMN current_appearance_version_id VARCHAR(64) NULL COMMENT ''''当前造型版本 ID'''' AFTER identity_version_id'
+    'ALTER TABLE characters ADD COLUMN current_appearance_version_id VARCHAR(64) NULL COMMENT ''当前造型版本 ID'' AFTER identity_version_id'
   )
 );
 PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
@@ -122,7 +122,7 @@ SET @ddl = (
         AND COLUMN_NAME = 'identity_locked_at'
     ),
     'SELECT 1',
-    'ALTER TABLE characters ADD COLUMN identity_locked_at DATETIME(6) NULL COMMENT ''''视觉身份锁定时间'''' AFTER current_appearance_version_id'
+    'ALTER TABLE characters ADD COLUMN identity_locked_at DATETIME(6) NULL COMMENT ''视觉身份锁定时间'' AFTER current_appearance_version_id'
   )
 );
 PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
@@ -135,7 +135,7 @@ SET @ddl = (
         AND COLUMN_NAME = 'identity_locked_by'
     ),
     'SELECT 1',
-    'ALTER TABLE characters ADD COLUMN identity_locked_by INT NULL COMMENT ''''视觉身份锁定人'''' AFTER identity_locked_at'
+    'ALTER TABLE characters ADD COLUMN identity_locked_by INT NULL COMMENT ''视觉身份锁定人'' AFTER identity_locked_at'
   )
 );
 PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
@@ -148,7 +148,7 @@ SET @ddl = (
         AND COLUMN_NAME = 'identity_lock_version'
     ),
     'SELECT 1',
-    'ALTER TABLE characters ADD COLUMN identity_lock_version INT NOT NULL DEFAULT 0 COMMENT ''''身份乐观锁版本'''' AFTER identity_locked_by'
+    'ALTER TABLE characters ADD COLUMN identity_lock_version INT NOT NULL DEFAULT 0 COMMENT ''身份乐观锁版本'' AFTER identity_locked_by'
   )
 );
 PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
@@ -161,7 +161,7 @@ SET @ddl = (
         AND COLUMN_NAME = 'voice_bound_at'
     ),
     'SELECT 1',
-    'ALTER TABLE characters ADD COLUMN voice_bound_at DATETIME(6) NULL COMMENT ''''最近绑定音色时间'''' AFTER identity_lock_version'
+    'ALTER TABLE characters ADD COLUMN voice_bound_at DATETIME(6) NULL COMMENT ''最近绑定音色时间'' AFTER identity_lock_version'
   )
 );
 PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
@@ -174,7 +174,7 @@ SET @ddl = (
         AND COLUMN_NAME = 'voice_bound_by'
     ),
     'SELECT 1',
-    'ALTER TABLE characters ADD COLUMN voice_bound_by INT NULL COMMENT ''''最近绑定音色操作人'''' AFTER voice_bound_at'
+    'ALTER TABLE characters ADD COLUMN voice_bound_by INT NULL COMMENT ''最近绑定音色操作人'' AFTER voice_bound_at'
   )
 );
 PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
@@ -187,7 +187,7 @@ SET @ddl = (
         AND COLUMN_NAME = 'current_version_id'
     ),
     'SELECT 1',
-    'ALTER TABLE scenes ADD COLUMN current_version_id VARCHAR(64) NULL COMMENT ''''当前基础/衍生版本 ID'''' AFTER visual_style'
+    'ALTER TABLE scenes ADD COLUMN current_version_id VARCHAR(64) NULL COMMENT ''当前基础/衍生版本 ID'' AFTER visual_style'
   )
 );
 PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
@@ -200,7 +200,7 @@ SET @ddl = (
         AND COLUMN_NAME = 'current_version_id'
     ),
     'SELECT 1',
-    'ALTER TABLE props ADD COLUMN current_version_id VARCHAR(64) NULL COMMENT ''''当前基础/衍生版本 ID'''' AFTER visual_style'
+    'ALTER TABLE props ADD COLUMN current_version_id VARCHAR(64) NULL COMMENT ''当前基础/衍生版本 ID'' AFTER visual_style'
   )
 );
 PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
@@ -213,7 +213,7 @@ SET @ddl = (
         AND COLUMN_NAME = 'current_version_id'
     ),
     'SELECT 1',
-    'ALTER TABLE costumes ADD COLUMN current_version_id VARCHAR(64) NULL COMMENT ''''当前基础/衍生版本 ID'''' AFTER visual_style'
+    'ALTER TABLE costumes ADD COLUMN current_version_id VARCHAR(64) NULL COMMENT ''当前基础/衍生版本 ID'' AFTER visual_style'
   )
 );
 PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;

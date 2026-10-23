@@ -136,6 +136,9 @@ class P6VideoGenerateRequest(BaseModel):
         None, description="预览返回的 input_hash；提交时不一致则拒绝，要求刷新预览"
     )
     auto_adopt: bool = Field(False, description="生成完成后是否自动采纳；P6 默认显式采纳")
+    request_key: str | None = Field(
+        None, max_length=128, description="客户端幂等键；相同 key + 相同输入返回已有任务"
+    )
 
 
 class P6VideoTaskCreated(BaseModel):

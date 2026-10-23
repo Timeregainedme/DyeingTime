@@ -24,6 +24,16 @@ from app.models.studio import (
 )
 from app.services.common import entity_not_found
 
+# 历史数据库可能仍保存 generating；它只作为旧值读取映射为 pending，
+# 不再写入新状态，也不改写历史行。
+LEGACY_SHOT_STATUS_VALUES = frozenset({"generating"})
+
+
+def normalize_shot_status(value: object) -> str:
+    """把历史镜头状态映射到当前两态语义（读取时兼容，不落库）。"""
+    text = str(getattr(value, "value", value) or "").strip()
+    return "pending" if text in LEGACY_SHOT_STATUS_VALUES else text
+
 
 async def _count_candidates(db: AsyncSession, *, shot_id: str) -> tuple[int, int]:
     """统计镜头候选项总数和未处理数量。

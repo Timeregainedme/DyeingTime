@@ -47,6 +47,16 @@ class VideoGenerationBatch(Base, TimestampMixin):
     coordinator_task_id: Mapped[str | None] = mapped_column(
         String(64), ForeignKey("generation_tasks.id", ondelete="SET NULL"), nullable=True
     )
+    request_key: Mapped[str | None] = mapped_column(
+        String(128), nullable=True, index=True, comment="客户端幂等键；同一剧集内唯一"
+    )
+    request_hash: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="", comment="批次选择/参数 hash，用于同 key 冲突检测"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("chapter_id", "request_key", name="uq_video_batches_request"),
+    )
 
     items: Mapped[list["VideoGenerationBatchItem"]] = relationship(
         back_populates="batch",

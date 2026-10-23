@@ -14,6 +14,9 @@ class VideoBatchCreate(BaseModel):
     concurrency: int | None = Field(None, ge=1, le=8)
     scene_group_id: str | None = None
     allow_low_coverage: bool = Field(False, description="分镜覆盖率低时需显式确认")
+    request_key: str | None = Field(
+        None, max_length=128, description="客户端幂等键；同一剧集内相同 key 只创建一个批次"
+    )
 
 
 class VideoBatchItemRead(BaseModel):

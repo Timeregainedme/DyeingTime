@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -92,6 +95,28 @@ async def create_video_batch(
     requested_by: int | None = None,
 ) -> VideoGenerationBatch:
     """创建批次并 staging 子任务；实际排队由 batch coordinator 控制并发。"""
+    request_hash = ""
+    if body.request_key:
+        payload = body.model_dump(exclude={"request_key"})
+        payload["shot_ids"] = sorted(payload.get("shot_ids") or [])
+        request_hash = hashlib.sha256(
+            json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        existing = (
+            await db.execute(
+                select(VideoGenerationBatch)
+                .options(selectinload(VideoGenerationBatch.items))
+                .where(
+                    VideoGenerationBatch.chapter_id == chapter.id,
+                    VideoGenerationBatch.request_key == body.request_key,
+                )
+                .limit(1)
+            )
+        ).scalars().first()
+        if existing is not None:
+            if existing.request_hash != request_hash:
+                raise ValueError("相同 request_key 对应了不同批次参数，请使用新的请求键")
+            return existing
     shots = (
         await db.execute(
             select(Shot).where(
@@ -142,9 +167,29 @@ async def create_video_batch(
         coverage_snapshot=coverage,
         queued_count=0,
         total_count=0,
+        request_key=body.request_key,
+        request_hash=request_hash,
     )
     db.add(batch)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError:
+        # 并发同 key：唯一约束只允许一个批次，另一个返回赢家。
+        await db.rollback()
+        existing = (
+            await db.execute(
+                select(VideoGenerationBatch)
+                .options(selectinload(VideoGenerationBatch.items))
+                .where(
+                    VideoGenerationBatch.chapter_id == chapter.id,
+                    VideoGenerationBatch.request_key == body.request_key,
+                )
+                .limit(1)
+            )
+        ).scalars().first()
+        if existing is not None and existing.request_hash == request_hash:
+            return existing
+        raise ValueError("并发批量请求冲突，请使用新的请求键后重试")
 
     for shot in shots:
         detail = await db.get(ShotDetail, shot.id)

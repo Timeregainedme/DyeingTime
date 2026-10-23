@@ -11,6 +11,7 @@ from typing import Any
 
 from fastapi import UploadFile
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.chains.prompts.ir import IRAudioReference, IRReference
@@ -826,6 +827,7 @@ async def create_snapshot(
     preview: GenerationPreviewRead,
     task_id: str | None,
     created_by: int | None,
+    request_key: str | None = None,
 ) -> ShotGenerationSnapshot:
     shot = await db.get(Shot, shot_id)
     if shot is None:
@@ -888,6 +890,7 @@ async def create_snapshot(
         ratio=preview.ratio,
         resolution=preview.resolution,
         input_hash=preview.input_hash,
+        request_key=request_key,
         created_by=created_by,
         created_at=datetime.now(UTC),
     )
@@ -944,6 +947,7 @@ async def stage_video_from_preview(
     preview: GenerationPreviewRead,
     auto_adopt: bool = False,
     created_by: int | None = None,
+    request_key: str | None = None,
 ) -> tuple[str, ShotGenerationSnapshot]:
     """基于已校验的同一份 preview 创建任务与快照；不提交、不入队。"""
     from app.core.task_manager import DeliveryMode, SqlAlchemyTaskStore, TaskManager
@@ -961,7 +965,12 @@ async def stage_video_from_preview(
     provider_cfg = await load_provider_config_by_model(db, model)
     workspace_id = await resolve_workspace_id(db, shot_id=shot_id)
     snapshot = await create_snapshot(
-        db, shot_id=shot_id, preview=preview, task_id=None, created_by=created_by
+        db,
+        shot_id=shot_id,
+        preview=preview,
+        task_id=None,
+        created_by=created_by,
+        request_key=request_key,
     )
     input_payload: dict[str, Any] = {
         "prompt": preview.prompt,
@@ -1038,14 +1047,44 @@ async def create_video_task(
         raise ValueError(
             "视频生成准备度未通过：" + "；".join(failed[:5])
         )
-    task_id, snapshot = await stage_video_from_preview(
-        db,
-        shot_id=shot_id,
-        preview=preview,
-        auto_adopt=body.auto_adopt,
-        created_by=created_by,
-    )
-    await db.commit()
+    async def _existing() -> ShotGenerationSnapshot | None:
+        if not body.request_key:
+            return None
+        return (
+            await db.execute(
+                select(ShotGenerationSnapshot)
+                .where(
+                    ShotGenerationSnapshot.shot_id == shot_id,
+                    ShotGenerationSnapshot.request_key == body.request_key,
+                )
+                .limit(1)
+            )
+        ).scalars().first()
+
+    existing = await _existing()
+    if existing is not None:
+        if existing.input_hash != preview.input_hash:
+            raise ValueError("相同 request_key 对应了不同生成输入，请使用新的请求键")
+        if not existing.task_id:
+            raise ValueError("该请求键对应的任务已丢失，请使用新的请求键重新生成")
+        return existing.task_id, existing, preview
+    try:
+        task_id, snapshot = await stage_video_from_preview(
+            db,
+            shot_id=shot_id,
+            preview=preview,
+            auto_adopt=body.auto_adopt,
+            created_by=created_by,
+            request_key=body.request_key,
+        )
+        await db.commit()
+    except IntegrityError:
+        # 两个并发请求同时通过了上面的查询：唯一约束只允许一个任务，另一个读取赢家。
+        await db.rollback()
+        existing = await _existing()
+        if existing is not None and existing.task_id and existing.input_hash == preview.input_hash:
+            return existing.task_id, existing, preview
+        raise ValueError("并发生成请求冲突，请使用新的请求键后重试")
     from app.tasks.execute_task import enqueue_task_execution
 
     enqueue_task_execution(task_id)

@@ -76,6 +76,7 @@ async def test_create_batch_stages_candidates_and_cancel(monkeypatch) -> None:
                 shot_ids=["batch-shot1", "batch-shot2"],
                 candidate_count=2,
                 concurrency=2,
+                request_key="batch-req-1",
             ),
         )
         assert batch.total_count == 4
@@ -83,6 +84,31 @@ async def test_create_batch_stages_candidates_and_cancel(monkeypatch) -> None:
         assert batch.concurrency == 2
         assert len(batch.items) == 4
         assert {item.status for item in batch.items} == {"queued"}
+        staged = counter["n"]
+        again = await video_batches.create_video_batch(
+            db,
+            chapter=chapter,
+            project=project,
+            body=VideoBatchCreate(
+                shot_ids=["batch-shot1", "batch-shot2"],
+                candidate_count=2,
+                concurrency=2,
+                request_key="batch-req-1",
+            ),
+        )
+        assert again.id == batch.id
+        assert counter["n"] == staged
+        with pytest.raises(ValueError, match="不同批次参数"):
+            await video_batches.create_video_batch(
+                db,
+                chapter=chapter,
+                project=project,
+                body=VideoBatchCreate(
+                    shot_ids=["batch-shot1"],
+                    candidate_count=1,
+                    request_key="batch-req-1",
+                ),
+            )
 
         cancelled = await video_batches.cancel_batch(db, batch_id=batch.id, reason="test")
         assert cancelled.status == "cancelled"

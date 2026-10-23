@@ -34,6 +34,7 @@ from app.services.common import (
 
 
 from app.services.studio.shot_details import build_default_shot_detail
+from app.services.studio.shot_status import normalize_shot_status
 
 
 def _build_extraction_state(
@@ -131,7 +132,7 @@ def _build_shot_read(
         index=shot.index,
         title=shot.title,
         thumbnail=shot.thumbnail or "",
-        status=shot.status,
+        status=normalize_shot_status(shot.status),
         skip_extraction=bool(shot.skip_extraction),
         script_excerpt=shot.script_excerpt or "",
         generated_video_file_id=shot.generated_video_file_id,
