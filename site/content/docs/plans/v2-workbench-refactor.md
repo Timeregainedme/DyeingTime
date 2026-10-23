@@ -310,39 +310,23 @@ C10 已实现：
 后续边界：
 - P6 才建立镜头级有序参考绑定与生成输入快照。
 
-### P6 — 多参考与视频生产
+### P6 — 多参考与视频生产（进行中）
 
-目标：显式参考绑定、自动推荐排序、H3 预览、准备度、批量任务、抽卡、版本采纳。
+状态：C11 已完成并提交；C12/C13/C14 继续。当前实现见
+[H3 多参考 Manifest 与生成输入快照](/docs/architecture/h3-reference-manifest/)。
 
-迁移：
-- `backend/sql/043-add-shot-reference-bindings.sql` — 有序参考绑定（素材文件、资产类型与对象、绑定版本、目的、排序、是否人工锁定、来源）
-- `backend/sql/044-add-generation-usage-quota.sql` — 真实调用额度与用量持久化
+C11 已实现：
+- `shot_reference_bindings`、`shot_prompt_references`、`shot_generation_snapshots`
+- 按 P5 `shot_asset_versions` 自动推荐、人工锁定/排序/删除/上传
+- `@` 角色/场景/道具/服装引用解析
+- H3 显式 manifest → IR → prompt 同源预览
+- 单镜头 P6 生成任务与不可变快照
+- 扩展 readiness；新路径默认不自动采纳
 
-新增：
-- `backend/app/services/studio/shot_reference_bindings.py` — 绑定 CRUD、排序、超限裁剪规则
-- `backend/app/services/studio/shot_reference_recommend.py` — 自动推荐（角色→场景→道具→服装→辅助）
-- `backend/app/services/studio/shot_video_batch.py` — 批量生成任务（持久化、并发、取消、重试）
-- `backend/app/services/generation_usage_quota.py` — 额度门禁（图片/视频/音频分别累计，耗尽即拦截）
-- `backend/app/api/v1/routes/studio/shot_references.py` — 参考绑定与推荐端点
-- `backend/app/api/v1/routes/studio/shot_video_batches.py` — 批量任务端点
-- `front/src/pages/aiStudio/workbench/panels/ShotReferencePanel.tsx` — 参考列表排序/锁定/替换
-- `front/src/pages/aiStudio/workbench/panels/ShotBatchPanel.tsx` — 批量参数与预估
-- `front/src/pages/aiStudio/workbench/panels/ShotReviewPanel.tsx` — 候选比较、问题标记、采纳
-
-修改：
-- `backend/app/chains/prompts/ir.py` — 参考来源改为「显式绑定优先，缺失时回落自动推荐」
-- `backend/app/services/studio/generation/video/build_context.py` — 消费绑定列表并执行裁剪规则
-- `backend/app/services/studio/shot_video_readiness.py` — 绑定完整性、数量、时长校验
-- `backend/app/api/v1/routes/film/generated_video.py` — 提交前快照一致性校验
-- `backend/app/core/integrations/compshare/video_capabilities.py` — 时长按供应商实际能力
-- `backend/app/services/studio/shot_video_versions.py` — 记录问题标记与批次来源
-
-约束：
-- 参考图片、提示词编号与实际提交 payload 必须由同一份快照生成。
-- 超出上限优先剔除低优先级自动推荐项；不得静默删除人工锁定项；无法满足时阻止生成并提示。
-- 提交状态不确定时先查询供应商任务，不直接重建（防重复计费）。
-
-验收：提交内容与预览完全一致；数量与时长校验正确；并发控制生效；额度耗尽被拦截。
+C12/C13/C14 待完成：
+- 持久化测试额度门禁
+- 批量任务/并发/恢复
+- 视频候选审核、问题标记与显式采纳
 
 ### P7 — 导出与端到端验收
 
@@ -416,7 +400,7 @@ P6 ──> P7 导出与端到端验收 ──> P8 全站迁移
 | C8 | `[feat]` | P4：资产变更影响分析（✅ 已完成） |
 | C9 | `[feat]` | P5：正式场次实体与树状管理（✅ 已完成 `008526c`） |
 | C10 | `[feat]` | P5：AI 分镜规划与镜头管理（✅ 已完成） |
-| C11 | `[feat]` | P6：镜头参考绑定与自动推荐 |
+| C11 | `[feat]` | P6：H3 多参考绑定与生成输入快照（✅ 已完成） |
 | C12 | `[feat]` | P6：额度门禁 |
 | C13 | `[feat]` | P6：批量视频生成任务与并发控制 |
 | C14 | `[feat]` | P6：抽卡审核与问题标记 |

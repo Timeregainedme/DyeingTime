@@ -4,6 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.chains.prompts.ir import IRReference
 from app.models.studio import ShotFrameImage, ShotFrameType
 from app.services.studio.generation.shared.types import GenerationContext
 
@@ -117,6 +118,9 @@ class VideoGenerationContext(GenerationContext):
     ratio: str = ""
     # 实际会提交给供应商的参考音频 file_id，顺序即 <Audio N> 编号顺序。
     reference_audio_file_ids: list[str] = []
+    # P6：显式有序参考清单；有值时 IR 不再自动从资产图片收集。
+    reference_manifest: list[IRReference] | None = None
+    natural_prompt: str = ""
 
 
 async def build_video_context(
@@ -130,6 +134,8 @@ async def build_video_context(
     model: str = "",
     ratio: str = "",
     reference_audio_file_ids: list[str] | None = None,
+    reference_manifest: list[IRReference] | None = None,
+    natural_prompt: str = "",
 ) -> VideoGenerationContext:
     resolved_images = await resolve_video_reference_images(
         db,
@@ -148,5 +154,7 @@ async def build_video_context(
         reference_audio_file_ids=[
             str(item).strip() for item in (reference_audio_file_ids or []) if str(item).strip()
         ],
+        reference_manifest=reference_manifest,
+        natural_prompt=natural_prompt,
     )
 

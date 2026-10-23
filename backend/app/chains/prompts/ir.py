@@ -486,6 +486,8 @@ def build_video_prompt_ir(
     duration_seconds: float | None = None,
     aspect_ratio: str | None = None,
     max_references: int = MAX_REFERENCE_IMAGES,
+    references_override: Sequence[IRReference] | None = None,
+    natural_prompt: str | None = None,
 ) -> IRPrompt:
     """把视频提示词上下文包整理成 IR。
 
@@ -506,13 +508,21 @@ def build_video_prompt_ir(
         warnings.append("镜头时长缺失或非法，已按默认 5 秒构建 IR")
 
     if mode == "reference":
-        references, ref_warnings = _collect_asset_references(pack, max_references=max_references)
-        warnings.extend(ref_warnings)
+        if references_override is not None:
+            references = list(references_override)
+            if len(references) > max_references:
+                warnings.append(
+                    f"参考素材超过目标模型上限（{len(references)} > {max_references}），已按顺序截断"
+                )
+                references = references[:max_references]
+        else:
+            references, ref_warnings = _collect_asset_references(pack, max_references=max_references)
+            warnings.extend(ref_warnings)
     else:
         references = []
 
     shot_description = str(getattr(pack, "shot_description", "") or "").strip()
-    visual = shot_description or str(pack.script_excerpt or "").strip()
+    visual = str(natural_prompt or "").strip() or shot_description or str(pack.script_excerpt or "").strip()
 
     shot = IRShot(
         index=1,
@@ -584,6 +594,7 @@ def build_video_prompt_ir(
             "title": pack.title,
             "reference_mode": mode,
             "duration_seconds": duration,
+            "natural_prompt": str(natural_prompt or "").strip(),
         },
     )
 

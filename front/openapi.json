@@ -12188,6 +12188,723 @@
         }
       }
     },
+    "/api/v1/studio/shots/{shot_id}/p6-readiness": {
+      "get": {
+        "tags": [
+          "studio/shot-references"
+        ],
+        "summary": "P6 H3 多参考生成准备度",
+        "operationId": "get_p6_readiness_api_api_v1_studio_shots__shot_id__p6_readiness_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Shot Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ShotVideoReadinessRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/shots/{shot_id}/reference-bindings": {
+      "get": {
+        "tags": [
+          "studio/shot-references"
+        ],
+        "summary": "镜头参考绑定列表",
+        "operationId": "list_reference_bindings_api_api_v1_studio_shots__shot_id__reference_bindings_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Shot Id"
+            }
+          },
+          {
+            "name": "active_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Active Only"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_list_ReferenceBindingRead__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/shots/{shot_id}/reference-bindings/recommend": {
+      "post": {
+        "tags": [
+          "studio/shot-references"
+        ],
+        "summary": "按 P5 资产版本自动推荐参考图",
+        "operationId": "recommend_reference_bindings_api_api_v1_studio_shots__shot_id__reference_bindings_recommend_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Shot Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_list_ReferenceBindingRead__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/shots/{shot_id}/reference-bindings/{binding_id}": {
+      "patch": {
+        "tags": [
+          "studio/shot-references"
+        ],
+        "summary": "修改参考图锁定/启停/用途",
+        "operationId": "update_reference_binding_api_api_v1_studio_shots__shot_id__reference_bindings__binding_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Shot Id"
+            }
+          },
+          {
+            "name": "binding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Binding Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReferenceBindingUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ReferenceBindingRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "studio/shot-references"
+        ],
+        "summary": "禁用参考图",
+        "operationId": "remove_reference_binding_api_api_v1_studio_shots__shot_id__reference_bindings__binding_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Shot Id"
+            }
+          },
+          {
+            "name": "binding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Binding Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_NoneType_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/shots/{shot_id}/reference-bindings/reorder": {
+      "post": {
+        "tags": [
+          "studio/shot-references"
+        ],
+        "summary": "参考图排序",
+        "operationId": "reorder_reference_bindings_api_api_v1_studio_shots__shot_id__reference_bindings_reorder_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Shot Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReferenceBindingReorder"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_list_ReferenceBindingRead__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/shots/{shot_id}/reference-bindings/upload": {
+      "post": {
+        "tags": [
+          "studio/shot-references"
+        ],
+        "summary": "上传镜头专属参考图",
+        "operationId": "upload_reference_binding_api_api_v1_studio_shots__shot_id__reference_bindings_upload_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Shot Id"
+            }
+          },
+          {
+            "name": "reference_role",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "shot_composition",
+              "title": "Reference Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_reference_binding_api_api_v1_studio_shots__shot_id__reference_bindings_upload_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ReferenceBindingRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/shots/{shot_id}/prompt/resolve": {
+      "post": {
+        "tags": [
+          "studio/shot-references"
+        ],
+        "summary": "解析 @ 资产引用",
+        "operationId": "resolve_prompt_api_api_v1_studio_shots__shot_id__prompt_resolve_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Shot Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromptResolveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_PromptResolveRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/shots/{shot_id}/prompt": {
+      "put": {
+        "tags": [
+          "studio/shot-references"
+        ],
+        "summary": "保存自然语言提示词与 @ 引用",
+        "operationId": "save_prompt_api_api_v1_studio_shots__shot_id__prompt_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Shot Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShotPromptUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_PromptResolveRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/shots/{shot_id}/generation-preview": {
+      "post": {
+        "tags": [
+          "studio/shot-references"
+        ],
+        "summary": "预览 P6 H3 参考清单与最终提示词",
+        "operationId": "generation_preview_api_api_v1_studio_shots__shot_id__generation_preview_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Shot Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/P6VideoGenerateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_GenerationPreviewRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/shots/{shot_id}/generation": {
+      "post": {
+        "tags": [
+          "studio/shot-references"
+        ],
+        "summary": "创建 P6 单镜头视频任务（显式采纳）",
+        "operationId": "create_p6_video_task_api_api_v1_studio_shots__shot_id__generation_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Shot Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/P6VideoGenerateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_P6VideoTaskCreated_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/shots/{shot_id}/generation-snapshots": {
+      "get": {
+        "tags": [
+          "studio/shot-references"
+        ],
+        "summary": "镜头生成输入快照历史",
+        "operationId": "list_generation_snapshots_api_api_v1_studio_shots__shot_id__generation_snapshots_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Shot Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_list_GenerationSnapshotRead__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/generation-snapshots/{snapshot_id}": {
+      "get": {
+        "tags": [
+          "studio/shot-references"
+        ],
+        "summary": "生成输入快照详情",
+        "operationId": "get_generation_snapshot_api_api_v1_studio_generation_snapshots__snapshot_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "snapshot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Snapshot Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_GenerationSnapshotRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/studio/files/{file_id}/download": {
       "get": {
         "tags": [
@@ -13894,6 +14611,90 @@
         "type": "object",
         "title": "ApiResponse[FileRead]"
       },
+      "ApiResponse_GenerationPreviewRead_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GenerationPreviewRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[GenerationPreviewRead]"
+      },
+      "ApiResponse_GenerationSnapshotRead_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GenerationSnapshotRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[GenerationSnapshotRead]"
+      },
       "ApiResponse_GenerationTaskLinkRead_": {
         "properties": {
           "code": {
@@ -14097,6 +14898,48 @@
         },
         "type": "object",
         "title": "ApiResponse[NoneType]"
+      },
+      "ApiResponse_P6VideoTaskCreated_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/P6VideoTaskCreated"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[P6VideoTaskCreated]"
       },
       "ApiResponse_PaginatedData_Any__": {
         "properties": {
@@ -15274,6 +16117,48 @@
         "type": "object",
         "title": "ApiResponse[ProjectTimelineRead]"
       },
+      "ApiResponse_PromptResolveRead_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromptResolveRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[PromptResolveRead]"
+      },
       "ApiResponse_PromptTemplateRead_": {
         "properties": {
           "code": {
@@ -15399,6 +16284,48 @@
         },
         "type": "object",
         "title": "ApiResponse[ProviderRead]"
+      },
+      "ApiResponse_ReferenceBindingRead_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReferenceBindingRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[ReferenceBindingRead]"
       },
       "ApiResponse_RenderedPromptResponse_": {
         "properties": {
@@ -17642,6 +18569,52 @@
         "type": "object",
         "title": "ApiResponse[list[AssetVersionRead]]"
       },
+      "ApiResponse_list_GenerationSnapshotRead__": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/GenerationSnapshotRead"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[list[GenerationSnapshotRead]]"
+      },
       "ApiResponse_list_ProjectStyleOptionRead__": {
         "properties": {
           "code": {
@@ -17779,6 +18752,52 @@
         },
         "type": "object",
         "title": "ApiResponse[list[ProviderSupportedRead]]"
+      },
+      "ApiResponse_list_ReferenceBindingRead__": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ReferenceBindingRead"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[list[ReferenceBindingRead]]"
       },
       "ApiResponse_list_SceneGroupRead__": {
         "properties": {
@@ -19571,6 +20590,20 @@
           "file"
         ],
         "title": "Body_upload_file_api_api_v1_studio_files_upload_post"
+      },
+      "Body_upload_reference_binding_api_api_v1_studio_shots__shot_id__reference_bindings_upload_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_reference_binding_api_api_v1_studio_shots__shot_id__reference_bindings_upload_post"
       },
       "Body_upload_worldbuilding_document_api_api_v1_studio_projects__project_id__script_documents_worldbuilding_post": {
         "properties": {
@@ -21684,6 +22717,293 @@
         "title": "GenerationModelOptionRead",
         "description": "项目可选模型及其能力摘要。"
       },
+      "GenerationPreviewRead": {
+        "properties": {
+          "shot_id": {
+            "type": "string",
+            "title": "Shot Id"
+          },
+          "reference_mode": {
+            "type": "string",
+            "title": "Reference Mode",
+            "default": "reference"
+          },
+          "manifest": {
+            "items": {
+              "$ref": "#/components/schemas/ReferenceBindingRead"
+            },
+            "type": "array",
+            "title": "Manifest"
+          },
+          "images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Images"
+          },
+          "audio_file_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Audio File Ids"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt",
+            "default": ""
+          },
+          "natural_prompt": {
+            "type": "string",
+            "title": "Natural Prompt",
+            "default": ""
+          },
+          "advanced_prompt": {
+            "type": "string",
+            "title": "Advanced Prompt",
+            "default": ""
+          },
+          "prompt_refs": {
+            "items": {
+              "$ref": "#/components/schemas/PromptReferenceRead"
+            },
+            "type": "array",
+            "title": "Prompt Refs"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "blocking_errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blocking Errors"
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name",
+            "default": ""
+          },
+          "provider_name": {
+            "type": "string",
+            "title": "Provider Name",
+            "default": ""
+          },
+          "ratio": {
+            "type": "string",
+            "title": "Ratio",
+            "default": ""
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "duration": {
+            "type": "integer",
+            "title": "Duration",
+            "default": 0
+          },
+          "input_hash": {
+            "type": "string",
+            "title": "Input Hash",
+            "default": ""
+          },
+          "ir": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Ir"
+          }
+        },
+        "type": "object",
+        "required": [
+          "shot_id"
+        ],
+        "title": "GenerationPreviewRead"
+      },
+      "GenerationSnapshotRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "shot_id": {
+            "type": "string",
+            "title": "Shot Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "chapter_id": {
+            "type": "string",
+            "title": "Chapter Id"
+          },
+          "scene_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Group Id"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id"
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name",
+            "default": ""
+          },
+          "provider_name": {
+            "type": "string",
+            "title": "Provider Name",
+            "default": ""
+          },
+          "reference_mode": {
+            "type": "string",
+            "title": "Reference Mode"
+          },
+          "manifest": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Manifest"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "natural_prompt": {
+            "type": "string",
+            "title": "Natural Prompt",
+            "default": ""
+          },
+          "advanced_prompt": {
+            "type": "string",
+            "title": "Advanced Prompt",
+            "default": ""
+          },
+          "prompt_refs": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Prompt Refs"
+          },
+          "audio_refs": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Audio Refs"
+          },
+          "asset_versions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Asset Versions"
+          },
+          "generation_params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Generation Params"
+          },
+          "style_snapshot": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Style Snapshot"
+          },
+          "duration": {
+            "type": "integer",
+            "title": "Duration",
+            "default": 0
+          },
+          "ratio": {
+            "type": "string",
+            "title": "Ratio",
+            "default": ""
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "input_hash": {
+            "type": "string",
+            "title": "Input Hash",
+            "default": ""
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "shot_id",
+          "project_id",
+          "chapter_id",
+          "reference_mode",
+          "prompt"
+        ],
+        "title": "GenerationSnapshotRead"
+      },
       "GenerationTaskLinkCreate": {
         "properties": {
           "task_id": {
@@ -22317,6 +23637,90 @@
         "type": "object",
         "title": "ModelUpdate",
         "description": "更新模型请求体（全部可选）。"
+      },
+      "P6VideoGenerateRequest": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "title": "Prompt",
+            "description": "自然语言 @ 引用提示词",
+            "default": ""
+          },
+          "advanced_prompt": {
+            "type": "string",
+            "title": "Advanced Prompt",
+            "description": "高级最终 H3 提示词；非空时优先",
+            "default": ""
+          },
+          "reference_mode": {
+            "type": "string",
+            "enum": [
+              "reference",
+              "text_only"
+            ],
+            "title": "Reference Mode",
+            "default": "reference"
+          },
+          "ratio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ratio"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "reference_audio_file_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reference Audio File Ids"
+          },
+          "auto_adopt": {
+            "type": "boolean",
+            "title": "Auto Adopt",
+            "description": "生成完成后是否自动采纳；P6 默认显式采纳",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "P6VideoGenerateRequest"
+      },
+      "P6VideoTaskCreated": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "title": "Task Id"
+          },
+          "snapshot_id": {
+            "type": "string",
+            "title": "Snapshot Id"
+          },
+          "preview": {
+            "$ref": "#/components/schemas/GenerationPreviewRead"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id",
+          "snapshot_id",
+          "preview"
+        ],
+        "title": "P6VideoTaskCreated"
       },
       "PaginatedData_Any_": {
         "properties": {
@@ -24659,6 +26063,123 @@
         "title": "PromptCategoryOptionRead",
         "description": "提示词类别选项（枚举值 + 中文标签 + 简介）。"
       },
+      "PromptReferenceRead": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "asset_type": {
+            "type": "string",
+            "title": "Asset Type"
+          },
+          "asset_id": {
+            "type": "string",
+            "title": "Asset Id"
+          },
+          "asset_name": {
+            "type": "string",
+            "title": "Asset Name",
+            "default": ""
+          },
+          "asset_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Version Id"
+          },
+          "mention": {
+            "type": "string",
+            "title": "Mention",
+            "default": ""
+          },
+          "start_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Index"
+          },
+          "end_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Index"
+          }
+        },
+        "type": "object",
+        "required": [
+          "asset_type",
+          "asset_id"
+        ],
+        "title": "PromptReferenceRead"
+      },
+      "PromptResolveRead": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "resolved": {
+            "items": {
+              "$ref": "#/components/schemas/PromptReferenceRead"
+            },
+            "type": "array",
+            "title": "Resolved"
+          },
+          "unresolved": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unresolved"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "title": "PromptResolveRead"
+      },
+      "PromptResolveRequest": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "title": "Prompt",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "PromptResolveRequest"
+      },
       "PromptTemplateCreate": {
         "properties": {
           "category": {
@@ -25310,6 +26831,162 @@
         "type": "object",
         "title": "ProviderUpdate",
         "description": "更新供应商时的可选字段。"
+      },
+      "ReferenceBindingRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "shot_id": {
+            "type": "string",
+            "title": "Shot Id"
+          },
+          "file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Id"
+          },
+          "file_url": {
+            "type": "string",
+            "title": "File Url",
+            "default": ""
+          },
+          "asset_type": {
+            "type": "string",
+            "title": "Asset Type",
+            "default": "shot_reference"
+          },
+          "asset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Id"
+          },
+          "asset_name": {
+            "type": "string",
+            "title": "Asset Name",
+            "default": ""
+          },
+          "asset_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Version Id"
+          },
+          "reference_role": {
+            "type": "string",
+            "title": "Reference Role",
+            "default": "shot_composition"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "default": "auto"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order",
+            "default": 0
+          },
+          "is_pinned": {
+            "type": "boolean",
+            "title": "Is Pinned",
+            "default": false
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "shot_id"
+        ],
+        "title": "ReferenceBindingRead"
+      },
+      "ReferenceBindingReorder": {
+        "properties": {
+          "binding_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Binding Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "binding_ids"
+        ],
+        "title": "ReferenceBindingReorder"
+      },
+      "ReferenceBindingUpdate": {
+        "properties": {
+          "reference_role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "character_identity",
+                  "character_appearance",
+                  "scene",
+                  "prop",
+                  "costume",
+                  "shot_composition",
+                  "previous_shot"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Role"
+          },
+          "is_pinned": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Pinned"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "title": "ReferenceBindingUpdate"
       },
       "RenderedPromptResponse": {
         "properties": {
@@ -30376,6 +32053,17 @@
         "type": "object",
         "title": "ShotPromptDialogueRead",
         "description": "用于视频提示词的结构化台词行（保留对白模式与配音文件）。"
+      },
+      "ShotPromptUpdate": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "title": "Prompt",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "ShotPromptUpdate"
       },
       "ShotRead": {
         "properties": {

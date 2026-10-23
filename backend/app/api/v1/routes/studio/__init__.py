@@ -14,6 +14,7 @@ from app.api.v1.routes.studio import (
     prompts,
     scene_groups,
     shot_plans,
+    shot_references,
     script_documents,
     script_parse,
     shots,
@@ -49,4 +50,5 @@ router.include_router(asset_profiles.router, tags=["studio/asset-profiles"])
 router.include_router(asset_impact.router, tags=["studio/asset-impact"])
 router.include_router(scene_groups.router, tags=["studio/scene-groups"])
 router.include_router(shot_plans.router, tags=["studio/shot-plans"])
+router.include_router(shot_references.router, tags=["studio/shot-references"])
 

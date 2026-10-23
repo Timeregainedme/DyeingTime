@@ -37,6 +37,7 @@ import {
 } from '../components/PanelStates'
 import { PrepStatusBadge, ReadinessBadge, RunStatusBadge } from '../components/StatusBadges'
 import { legacyShotEditPath, legacyStudioPath } from './legacyPaths'
+import { ShotReferencePanel } from './ShotReferencePanel'
 
 export function ShotPanel({
   projectId,
@@ -263,6 +264,8 @@ export function ShotPanel({
           </div>
         </CardContent>
       </Card>
+
+      <ShotReferencePanel projectId={projectId} shotId={shotId} />
 
       <div className="grid gap-3 xl:grid-cols-3">
         <Card>

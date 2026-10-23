@@ -549,6 +549,7 @@ async def persist_generated_video_to_shot(
     result: VideoGenerationResult,
     provider: str,
     api_key: str,
+    auto_adopt: bool = True,
 ) -> FileItem:
     url = (result.url or "").strip()
     if not url:
@@ -582,7 +583,8 @@ async def persist_generated_video_to_shot(
         link_row.file_id = file_obj.id
 
     shot = await session.get(Shot, shot_id)
-    if shot is not None:
+    if shot is not None and auto_adopt:
+        # P6 新路径 auto_adopt=False：生成完成只新增候选，不覆盖用户已采纳版本。
         shot.generated_video_file_id = file_obj.id
 
     await sync_usage_from_shot_context(
@@ -624,6 +626,8 @@ async def run_video_generation_task(
                 )
                 provider, api_key, base_url = cfg.provider_key, cfg.api_key, cfg.base_url
             input_dict = dict(run_args.get("input") or {})
+            auto_adopt = bool(input_dict.pop("auto_adopt", True))
+            input_dict.pop("snapshot_id", None)
 
             # payload 只存 file_id 引用；参考图/首尾帧字节到这一步（调用供应商前）才下载编码。
             input_dict = await materialize_input_references(session, input_dict=input_dict)
@@ -660,6 +664,7 @@ async def run_video_generation_task(
                 result=result,
                 provider=provider,
                 api_key=api_key,
+                auto_adopt=auto_adopt,
             )
 
             result_payload = result.model_dump()

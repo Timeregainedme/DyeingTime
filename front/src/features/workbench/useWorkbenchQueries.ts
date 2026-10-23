@@ -43,6 +43,17 @@ import {
   loadShotPlan,
   loadShotPlans,
   loadShotPlanStats,
+  loadReferenceBindings,
+  loadP6Readiness,
+  loadGenerationSnapshots,
+  recommendReferenceBindings,
+  removeReferenceBinding,
+  reorderReferenceBindings,
+  updateReferenceBinding,
+  uploadReferenceBinding,
+  saveShotPrompt,
+  previewP6Generation,
+  createP6VideoTask,
   loadScriptDocument,
   addShotPlanCandidate,
   confirmShotPlan,
@@ -404,6 +415,83 @@ export function useShotPlanStats(projectId: string, chapterId: string | undefine
     enabled: Boolean(projectId) && Boolean(chapterId),
     staleTime: 5_000,
   })
+}
+
+export function useReferenceBindings(projectId: string, shotId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.workbenchReferenceBindings(projectId, shotId ?? ''),
+    queryFn: () => loadReferenceBindings(shotId as string),
+    enabled: Boolean(projectId) && Boolean(shotId),
+    staleTime: 5_000,
+  })
+}
+
+export function useP6Readiness(projectId: string, shotId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.workbenchP6Readiness(projectId, shotId ?? ''),
+    queryFn: () => loadP6Readiness(shotId as string),
+    enabled: Boolean(projectId) && Boolean(shotId),
+    staleTime: 5_000,
+  })
+}
+
+export function useGenerationSnapshots(projectId: string, shotId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.workbenchGenerationSnapshots(projectId, shotId ?? ''),
+    queryFn: () => loadGenerationSnapshots(shotId as string),
+    enabled: Boolean(projectId) && Boolean(shotId),
+    staleTime: 30_000,
+  })
+}
+
+export function useShotReferenceActions(projectId: string, shotId: string) {
+  const queryClient = useQueryClient()
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchReferenceBindings(projectId, shotId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchP6Readiness(projectId, shotId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchShotDetail(projectId, shotId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchShot(projectId, shotId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchGenerationSnapshots(projectId, shotId) })
+  }
+  const recommend = useMutation({
+    mutationFn: () => recommendReferenceBindings(shotId),
+    onSuccess: invalidate,
+  })
+  const update = useMutation({
+    mutationFn: (payload: { bindingId: number; body: Parameters<typeof updateReferenceBinding>[2] }) =>
+      updateReferenceBinding(shotId, payload.bindingId, payload.body),
+    onSuccess: invalidate,
+  })
+  const remove = useMutation({
+    mutationFn: (bindingId: number) => removeReferenceBinding(shotId, bindingId),
+    onSuccess: invalidate,
+  })
+  const reorder = useMutation({
+    mutationFn: (bindingIds: number[]) => reorderReferenceBindings(shotId, bindingIds),
+    onSuccess: invalidate,
+  })
+  const upload = useMutation({
+    mutationFn: (payload: { file: File; referenceRole?: string }) =>
+      uploadReferenceBinding(shotId, payload.file, payload.referenceRole),
+    onSuccess: invalidate,
+  })
+  const savePrompt = useMutation({
+    mutationFn: (prompt: string) => saveShotPrompt(shotId, prompt),
+    onSuccess: invalidate,
+  })
+  const preview = useMutation({
+    mutationFn: (body: Parameters<typeof previewP6Generation>[1]) =>
+      previewP6Generation(shotId, body),
+  })
+  const generate = useMutation({
+    mutationFn: (body: Parameters<typeof createP6VideoTask>[1]) =>
+      createP6VideoTask(shotId, body),
+    onSuccess: () => {
+      invalidate()
+      void queryClient.invalidateQueries({ queryKey: ['workbench', projectId, 'tasks'] })
+    },
+  })
+  return { recommend, update, remove, reorder, upload, savePrompt, preview, generate }
 }
 
 export function useShotAssetVersions(projectId: string, shotId: string | undefined) {

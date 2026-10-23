@@ -64,6 +64,12 @@ export const queryKeys = {
     ['workbench', projectId, 'shot-plan-stats', chapterId] as const,
   workbenchShotAssetVersions: (projectId: string, shotId: string) =>
     ['workbench', projectId, 'shot-asset-versions', shotId] as const,
+  workbenchReferenceBindings: (projectId: string, shotId: string) =>
+    ['workbench', projectId, 'reference-bindings', shotId] as const,
+  workbenchP6Readiness: (projectId: string, shotId: string) =>
+    ['workbench', projectId, 'p6-readiness', shotId] as const,
+  workbenchGenerationSnapshots: (projectId: string, shotId: string) =>
+    ['workbench', projectId, 'generation-snapshots', shotId] as const,
   workbenchRuntime: (projectId: string, chapterId: string) =>
     ['workbench', projectId, 'runtime', chapterId] as const,
   workbenchAssets: (projectId: string, assetType: string) =>

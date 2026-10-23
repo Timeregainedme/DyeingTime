@@ -36,6 +36,11 @@ from app.models.studio_projects import (
 )
 from app.models.studio_script_documents import ScriptDocument, ScriptDocumentVersion
 from app.models.studio_scene_groups import SceneGroup
+from app.models.studio_shot_references import (
+    ShotGenerationSnapshot,
+    ShotPromptReference,
+    ShotReferenceBinding,
+)
 from app.models.studio_shot_plans import (
     ShotAssetVersion,
     ShotPlanAppliedShot,
@@ -106,6 +111,9 @@ __all__ = [
     "ScriptDocument",
     "ScriptDocumentVersion",
     "SceneGroup",
+    "ShotReferenceBinding",
+    "ShotPromptReference",
+    "ShotGenerationSnapshot",
     "ShotPlanDraft",
     "ShotPlanCandidate",
     "ShotAssetVersion",

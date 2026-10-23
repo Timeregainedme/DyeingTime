@@ -65,6 +65,8 @@ def _build_ir(pack: ShotVideoPromptPackRead, context: VideoGenerationContext) ->
         duration_seconds=pack.camera.duration,
         aspect_ratio=context.ratio or None,
         max_references=MAX_REFERENCE_IMAGES,
+        references_override=context.reference_manifest,
+        natural_prompt=context.natural_prompt,
     )
 
 

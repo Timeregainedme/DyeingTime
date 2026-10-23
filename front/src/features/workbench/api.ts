@@ -17,6 +17,7 @@ import {
   StudioProjectsService,
   StudioSceneGroupsService,
   StudioShotPlansService,
+  StudioShotReferencesService,
   StudioScriptDocumentsService,
   StudioScriptParseService,
   StudioShotDetailsService,
@@ -69,10 +70,17 @@ import type {
   ShotPlanRequest,
   ShotPlanStatsRead,
   ShotPreparationStateRead,
+  GenerationPreviewRead,
+  ReferenceBindingRead,
+  ReferenceBindingUpdate,
+  P6VideoGenerateRequest,
+  P6VideoTaskCreated,
+  PromptResolveRead,
+  GenerationSnapshotRead,
+  ShotVideoReadinessRead,
   ShotUpdate,
   ShotRead,
   ShotRuntimeSummaryRead,
-  ShotVideoReadinessRead,
   StyleAnalysisCapabilityRead,
   StyleAnalysisRead,
   VoiceBindingRead,
@@ -1087,6 +1095,132 @@ export async function loadAssetImpact(
     )
   if (!response.data) throw new Error('服务端没有返回影响分析')
   return response.data
+}
+
+/** P6：镜头参考绑定列表。 */
+export async function loadReferenceBindings(shotId: string): Promise<ReferenceBindingRead[]> {
+  const response =
+    await StudioShotReferencesService.listReferenceBindingsApiApiV1StudioShotsShotIdReferenceBindingsGet(
+      { shotId },
+    )
+  return response.data ?? []
+}
+
+export async function recommendReferenceBindings(shotId: string): Promise<ReferenceBindingRead[]> {
+  const response =
+    await StudioShotReferencesService.recommendReferenceBindingsApiApiV1StudioShotsShotIdReferenceBindingsRecommendPost(
+      { shotId },
+    )
+  return response.data ?? []
+}
+
+export async function updateReferenceBinding(
+  shotId: string,
+  bindingId: number,
+  body: { is_pinned?: boolean; is_active?: boolean; reference_role?: ReferenceBindingUpdate['reference_role'] },
+): Promise<ReferenceBindingRead> {
+  const response =
+    await StudioShotReferencesService.updateReferenceBindingApiApiV1StudioShotsShotIdReferenceBindingsBindingIdPatch(
+      { shotId, bindingId, requestBody: body },
+    )
+  if (!response.data) throw new Error('服务端没有返回参考绑定')
+  return response.data
+}
+
+export async function removeReferenceBinding(shotId: string, bindingId: number): Promise<void> {
+  await StudioShotReferencesService.removeReferenceBindingApiApiV1StudioShotsShotIdReferenceBindingsBindingIdDelete(
+    { shotId, bindingId },
+  )
+}
+
+export async function reorderReferenceBindings(
+  shotId: string,
+  bindingIds: number[],
+): Promise<ReferenceBindingRead[]> {
+  const response =
+    await StudioShotReferencesService.reorderReferenceBindingsApiApiV1StudioShotsShotIdReferenceBindingsReorderPost(
+      { shotId, requestBody: { binding_ids: bindingIds } },
+    )
+  return response.data ?? []
+}
+
+export async function uploadReferenceBinding(
+  shotId: string,
+  file: File,
+  referenceRole = 'shot_composition',
+): Promise<ReferenceBindingRead> {
+  const response =
+    await StudioShotReferencesService.uploadReferenceBindingApiApiV1StudioShotsShotIdReferenceBindingsUploadPost(
+      {
+        shotId,
+        referenceRole,
+        formData: { file: file as unknown as string },
+      },
+    )
+  if (!response.data) throw new Error('服务端没有返回参考绑定')
+  return response.data
+}
+
+export async function resolveShotPrompt(shotId: string, prompt: string): Promise<PromptResolveRead> {
+  const response =
+    await StudioShotReferencesService.resolvePromptApiApiV1StudioShotsShotIdPromptResolvePost({
+      shotId,
+      requestBody: { prompt },
+    })
+  if (!response.data) throw new Error('服务端没有返回引用解析')
+  return response.data
+}
+
+export async function saveShotPrompt(shotId: string, prompt: string): Promise<PromptResolveRead> {
+  const response = await StudioShotReferencesService.savePromptApiApiV1StudioShotsShotIdPromptPut({
+    shotId,
+    requestBody: { prompt },
+  })
+  if (!response.data) throw new Error('服务端没有返回提示词保存结果')
+  return response.data
+}
+
+export async function previewP6Generation(
+  shotId: string,
+  body: P6VideoGenerateRequest,
+): Promise<GenerationPreviewRead> {
+  const response =
+    await StudioShotReferencesService.generationPreviewApiApiV1StudioShotsShotIdGenerationPreviewPost({
+      shotId,
+      requestBody: body,
+    })
+  if (!response.data) throw new Error('服务端没有返回生成预览')
+  return response.data
+}
+
+export async function createP6VideoTask(
+  shotId: string,
+  body: P6VideoGenerateRequest,
+): Promise<P6VideoTaskCreated> {
+  const response =
+    await StudioShotReferencesService.createP6VideoTaskApiApiV1StudioShotsShotIdGenerationPost({
+      shotId,
+      requestBody: body,
+    })
+  if (!response.data) throw new Error('服务端没有返回视频任务')
+  return response.data
+}
+
+export async function loadP6Readiness(shotId: string): Promise<ShotVideoReadinessRead> {
+  const response =
+    await StudioShotReferencesService.getP6ReadinessApiApiV1StudioShotsShotIdP6ReadinessGet({
+      shotId,
+    })
+  if (!response.data) throw new Error('服务端没有返回 P6 准备度')
+  return response.data
+}
+
+export async function loadGenerationSnapshots(shotId: string): Promise<GenerationSnapshotRead[]> {
+  const response =
+    await StudioShotReferencesService.listGenerationSnapshotsApiApiV1StudioShotsShotIdGenerationSnapshotsGet(
+      { shotId },
+    )
+  return response.data ?? []
 }
 
 export async function loadShot(shotId: string): Promise<ShotRead> {
