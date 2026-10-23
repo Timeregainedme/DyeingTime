@@ -770,3 +770,202 @@ def test_compshare_idempotency_header_is_stable_when_task_key_supplied() -> None
     )
     assert headers["Idempotency-Key"] == "task-123"
     assert "sk-test" not in headers["Idempotency-Key"]
+
+
+def test_h3_prompt_contains_user_voice_description_and_scene_continuity() -> None:
+    from app.chains.prompts.ir import IRDialogueInput, build_video_prompt_ir
+    from app.chains.prompts.renderers.h3 import render_h3
+    from app.schemas.studio.shots import (
+        ShotPromptCameraInfo,
+        ShotPromptDialogueRead,
+        ShotPromptAssetRef,
+        ShotVideoPromptPackRead,
+    )
+
+    pack = ShotVideoPromptPackRead(
+        shot_id="s1",
+        title="双人对白",
+        shot_description="两人在办公室交谈",
+        scene=ShotPromptAssetRef(type="scene", name="办公室"),
+        camera=ShotPromptCameraInfo(camera_shot="MS", angle="EYE_LEVEL", movement="STATIC", duration=5),
+        dialogues=[
+            ShotPromptDialogueRead(
+                index=1,
+                speaker_character_id="c1",
+                speaker_name="江屿",
+                voice_description="年轻成年男性声音，音色清晰，语速适中，情绪克制。",
+                text="你先听我解释。",
+            )
+        ],
+    )
+    ir = build_video_prompt_ir(
+        pack,
+        dialogues=[
+            IRDialogueInput(
+                speaker_character_id="c1",
+                speaker_name="江屿",
+                voice_description="年轻成年男性声音，音色清晰，语速适中，情绪克制。",
+                text="你先听我解释。",
+            )
+        ],
+        reference_mode="text_only",
+    )
+    text = render_h3(ir).text
+    assert "年轻成年男性声音" in text
+    assert "[Shot 1]" in text
+    assert "one continuous scene" in text
+
+
+def test_ir_marks_silent_shot_when_no_dialogues() -> None:
+    from app.chains.prompts.ir import build_video_prompt_ir
+    from app.chains.prompts.renderers.h3 import render_h3
+    from app.schemas.studio.shots import ShotPromptCameraInfo, ShotVideoPromptPackRead
+
+    pack = ShotVideoPromptPackRead(
+        shot_id="s1",
+        title="空镜",
+        shot_description="办公室钥匙特写",
+        camera=ShotPromptCameraInfo(camera_shot="CU", angle="EYE_LEVEL", movement="STATIC", duration=5),
+    )
+    ir = build_video_prompt_ir(pack, dialogues=[], reference_mode="text_only")
+    assert "No spoken dialogue" in ir.shots[0].sound
+    assert "No spoken dialogue" in render_h3(ir).text
+
+
+def _h3_prose_without_constraints(main_body: str) -> "H3Prose":
+    from app.chains.prompts.renderers.h3 import H3Prose
+
+    return H3Prose(
+        subject_definitions="<Subject 1> is the locked lead.",
+        summary="[reference generation] A short vertical drama moment.",
+        retention_analysis="<Subject 1> (appears in [Shot 1]): fully_preserved - identity retained.",
+        detailed_description=main_body,
+        overall_soundscape="Quiet room tone.",
+        non_diegetic_music="N/A",
+    )
+
+
+def test_h3_prose_is_backfilled_with_voice_and_continuity_constraints() -> None:
+    from app.chains.prompts.ir import IRDialogueInput, build_video_prompt_ir
+    from app.chains.prompts.renderers.h3 import render_h3
+    from app.schemas.studio.shots import (
+        ShotPromptAssetRef,
+        ShotPromptCameraInfo,
+        ShotPromptDialogueRead,
+        ShotVideoPromptPackRead,
+    )
+
+    pack = ShotVideoPromptPackRead(
+        shot_id="s1",
+        title="双人对白",
+        shot_description="两人在办公室交谈",
+        scene=ShotPromptAssetRef(type="scene", name="办公室"),
+        camera=ShotPromptCameraInfo(camera_shot="MS", angle="EYE_LEVEL", movement="STATIC", duration=5),
+        dialogues=[
+            ShotPromptDialogueRead(
+                index=1,
+                speaker_character_id="c1",
+                speaker_name="江屿",
+                voice_description="年轻成年男性声音，音色清晰，语速适中。",
+                text="你先听我解释。",
+            )
+        ],
+    )
+    ir = build_video_prompt_ir(
+        pack,
+        dialogues=[
+            IRDialogueInput(
+                speaker_character_id="c1",
+                speaker_name="江屿",
+                voice_description="年轻成年男性声音，音色清晰，语速适中。",
+                text="你先听我解释。",
+            )
+        ],
+        reference_mode="reference",
+    )
+    result = render_h3(ir, prose=_h3_prose_without_constraints("[Shot 1] He turns to her."), reference_mode="reference")
+    assert "using this voice profile: 年轻成年男性声音" in result.text
+    assert "<d>[Chinese] 你先听我解释。</d>" in result.text
+    assert "do not cut to another location" in result.text
+    assert "Characters who are not speaking" in result.text
+
+
+def test_h3_prose_is_backfilled_with_silence_for_no_dialogue_shot() -> None:
+    from app.chains.prompts.ir import build_video_prompt_ir
+    from app.chains.prompts.renderers.h3 import render_h3
+    from app.schemas.studio.shots import ShotPromptAssetRef, ShotPromptCameraInfo, ShotVideoPromptPackRead
+
+    pack = ShotVideoPromptPackRead(
+        shot_id="s1",
+        title="空镜",
+        shot_description="办公室钥匙特写",
+        scene=ShotPromptAssetRef(type="scene", name="办公室"),
+        camera=ShotPromptCameraInfo(camera_shot="CU", angle="EYE_LEVEL", movement="STATIC", duration=5),
+    )
+    ir = build_video_prompt_ir(pack, dialogues=[], reference_mode="reference")
+    result = render_h3(ir, prose=_h3_prose_without_constraints("[Shot 1] A key glints on the desk."), reference_mode="reference")
+    assert "No spoken dialogue; characters do not speak" in result.text
+    assert "do not cut to another location" in result.text
+
+
+def test_h3_two_speakers_alternate_and_silent_listener_stays_silent() -> None:
+    from app.chains.prompts.ir import IRDialogueInput, build_video_prompt_ir
+    from app.chains.prompts.renderers.h3 import render_h3
+    from app.schemas.studio.shots import (
+        ShotPromptAssetRef,
+        ShotPromptCameraInfo,
+        ShotPromptDialogueRead,
+        ShotVideoPromptPackRead,
+    )
+
+    pack = ShotVideoPromptPackRead(
+        shot_id="s1",
+        title="双人对白",
+        shot_description="江屿与沈知微在办公室对峙",
+        characters=[
+            ShotPromptAssetRef(type="character", name="江屿"),
+            ShotPromptAssetRef(type="character", name="沈知微"),
+        ],
+        scene=ShotPromptAssetRef(type="scene", name="办公室"),
+        camera=ShotPromptCameraInfo(camera_shot="MS", angle="EYE_LEVEL", movement="STATIC", duration=5),
+        dialogues=[
+            ShotPromptDialogueRead(
+                index=1,
+                speaker_character_id="c1",
+                speaker_name="江屿",
+                voice_description="年轻成年男性声音，音色清晰。",
+                text="你先听我解释。",
+            ),
+            ShotPromptDialogueRead(
+                index=2,
+                speaker_character_id="c2",
+                speaker_name="沈知微",
+                voice_description="成年女性声音，冷静，语气有压迫感。",
+                text="我不想听。",
+            ),
+        ],
+    )
+    ir = build_video_prompt_ir(
+        pack,
+        dialogues=[
+            IRDialogueInput(
+                speaker_character_id="c1",
+                speaker_name="江屿",
+                voice_description="年轻成年男性声音，音色清晰。",
+                text="你先听我解释。",
+            ),
+            IRDialogueInput(
+                speaker_character_id="c2",
+                speaker_name="沈知微",
+                voice_description="成年女性声音，冷静，语气有压迫感。",
+                text="我不想听。",
+            ),
+        ],
+        reference_mode="text_only",
+    )
+    text = render_h3(ir).text
+    assert "年轻成年男性声音" in text
+    assert "成年女性声音" in text
+    assert "<d>[Chinese] 你先听我解释。</d>" in text
+    assert "<d>[Chinese] 我不想听。</d>" in text
+    assert "Characters who are not speaking" in text

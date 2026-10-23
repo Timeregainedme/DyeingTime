@@ -45,7 +45,9 @@ def _dialogue_inputs(pack: ShotVideoPromptPackRead) -> list[IRDialogueInput]:
     if pack.dialogues:
         return [
             IRDialogueInput(
+                speaker_character_id=item.speaker_character_id or "",
                 speaker_name=item.speaker_name,
+                voice_description=item.voice_description or "",
                 text=item.text,
                 emotion=item.emotion,
                 line_mode=item.line_mode,

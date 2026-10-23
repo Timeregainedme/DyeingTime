@@ -502,13 +502,15 @@ class ShotPromptCameraInfo(BaseModel):
 
 
 class ShotPromptDialogueRead(BaseModel):
-    """用于视频提示词的结构化台词行（保留对白模式与配音文件）。"""
+    """用于视频提示词的结构化台词行（保留对白模式、说话人和声音描述）。"""
 
     index: int = Field(0, description="镜头内行号")
+    speaker_character_id: str | None = Field(None, description="结构化说话角色 ID")
     speaker_name: str = Field("", description="说话人名称")
     text: str = Field("", description="台词文本")
     emotion: str | None = Field(None, description="情绪/语气")
     line_mode: str = Field("DIALOGUE", description="对白模式：DIALOGUE/VOICE_OVER/OFF_SCREEN/PHONE")
+    voice_description: str = Field("", description="角色声音描述，仅使用用户配置，不按姓名推断")
     generated_audio_file_id: str | None = Field(None, description="已生成配音的文件 ID")
 
 
@@ -559,6 +561,21 @@ class ShotVideoReadinessCheck(BaseModel):
     message: str = Field(..., description="面向前端展示的说明")
 
 
+class ShotVideoQualityCheck(BaseModel):
+    """视频生成质量检查项。
+
+    与 `ShotVideoReadinessCheck` 的区别：
+    - readiness check 回答“生成输入是否完整、能否提交”；
+    - quality check 回答“即使能提交，生成结果可能在哪里失真”，并区分
+      blocking / warning / info，避免把建议级别的提示误当成硬性阻塞。
+    """
+
+    code: str = Field(..., description="稳定规则编号")
+    level: Literal["blocking", "warning", "info"] = Field(..., description="风险级别")
+    message: str = Field(..., description="面向用户的解释")
+    fix_hint: str = Field("", description="可执行的修复建议")
+
+
 class ShotVideoReadinessRead(BaseModel):
     """镜头视频生成准备度。"""
 
@@ -566,6 +583,9 @@ class ShotVideoReadinessRead(BaseModel):
     reference_mode: str = Field(..., description="参考模式")
     ready: bool = Field(..., description="是否满足当前 reference_mode 下的视频生成条件")
     checks: list[ShotVideoReadinessCheck] = Field(default_factory=list, description="准备度检查项")
+    quality_checks: list[ShotVideoQualityCheck] = Field(
+        default_factory=list, description="生成质量风险；blocking 会阻止提交，warning/info 不阻塞"
+    )
 
 
 class ShotVideoVersionRead(BaseModel):

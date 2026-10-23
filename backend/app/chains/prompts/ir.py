@@ -39,6 +39,17 @@ MAX_REFERENCE_IMAGES = rules.MAX_REFERENCE_IMAGES
 
 DEFAULT_VIDEO_DURATION_SECONDS = 5.0
 
+# 默认单镜头连续生成约束。场景已知时带上场景名，避免模型把背景理解成抽象“某个地方”；
+# 场景未知时不虚构地点，只要求同一连续空间与一致背景。
+DEFAULT_CONTINUITY_WITH_SCENE = (
+    "Keep the entire video in one continuous scene at {scene}; "
+    "keep the background layout, lighting direction and character positions consistent; "
+    "use continuous camera movement and do not cut to another location."
+)
+DEFAULT_CONTINUITY_WITHOUT_SCENE = (
+    "Keep one continuous scene and consistent background; do not cut to another location."
+)
+
 _REFERENCE_MODES = {"reference", "first", "last", "key", "first_last", "first_last_key", "text_only"}
 
 
@@ -60,8 +71,10 @@ class IRDialogueInput(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    speaker_character_id: str = Field("", description="结构化说话角色 ID")
     speaker_name: str = Field("", description="说话人名称")
     text: str = Field("", description="台词文本")
+    voice_description: str = Field("", description="用户配置的角色声音描述")
     emotion: str | None = Field(None, description="情绪/语气")
     line_mode: str = Field("DIALOGUE", description="对白模式：DIALOGUE/VOICE_OVER/OFF_SCREEN/PHONE")
     audio_file_id: str | None = Field(None, description="该台词已生成配音的文件 ID（用作音色参考）")
@@ -97,6 +110,8 @@ class IRDialogueLine(BaseModel):
 
     speaker_name: str = Field(..., description="说话人名称")
     speaker_id: str = Field(..., description="稳定说话人编号，如 S1")
+    speaker_character_id: str = Field("", description="结构化说话角色 ID")
+    voice_description: str = Field("", description="用户配置的角色声音描述")
     text: str = Field(..., description="台词文本")
     language: str = Field("Chinese", description="台词语言（H3 需要显式语言标签）")
     emotion: str | None = Field(None, description="情绪/语气")
@@ -348,6 +363,8 @@ def _build_dialogues(
             IRDialogueLine(
                 speaker_name=name,
                 speaker_id=speaker_ids[name],
+                speaker_character_id=str(item.speaker_character_id or "").strip(),
+                voice_description=str(item.voice_description or "").strip(),
                 text=text,
                 emotion=item.emotion,
                 line_mode=str(item.line_mode or "DIALOGUE").strip().upper() or "DIALOGUE",
@@ -540,6 +557,18 @@ def build_video_prompt_ir(
         screen_direction=pack.screen_direction_guidance,
         continuity=pack.continuity_guidance,
     )
+    # 默认单镜头连续生成：不主动要求 H3 在同一条短视频内切换机位/场景；
+    # 高级多机位需求仍可通过自然提示词/高级提示词显式表达。
+    shot.continuity = " ".join(
+        part for part in [
+            str(shot.continuity or "").strip(),
+            (
+                DEFAULT_CONTINUITY_WITH_SCENE.format(scene=pack.scene.name)
+                if pack.scene is not None
+                else DEFAULT_CONTINUITY_WITHOUT_SCENE
+            ),
+        ] if part
+    )
 
     subjects = _build_subjects(
         pack,
@@ -550,6 +579,8 @@ def build_video_prompt_ir(
     dialogue_lines, dialogue_warnings = _build_dialogues(dialogues, subjects=subjects)
     warnings.extend(dialogue_warnings)
     shot.dialogues = dialogue_lines
+    if not dialogue_lines and not str(shot.sound or "").strip():
+        shot.sound = "No spoken dialogue is requested; characters do not speak. Use only ambient room tone and natural physical sounds."
 
     # 首尾帧/纯文本模式不使用全参考标签，参考音频也就没有合法的 <Audio N> 位置。
     audio_refs: list[IRAudioReference] = []

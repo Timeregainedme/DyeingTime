@@ -19,7 +19,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.studio import Chapter, PromptCategory, PromptTemplate, Shot, ShotDetail
+from app.models.studio import (
+    Chapter,
+    Character,
+    PromptCategory,
+    PromptTemplate,
+    Scene,
+    Shot,
+    ShotAssetVersion,
+    ShotDetail,
+)
 from app.schemas.studio.shots import (
     ActionBeatPhaseRead,
     ShotPromptAssetRef,
@@ -432,6 +441,34 @@ async def build_shot_video_prompt_pack(
         elif item.type == "scene" and scene is None:
             scene = ref
 
+    # 场景引用兜底：镜头可能通过 ShotDetail.scene_id 或 ShotAssetVersion(scene)
+    # 绑定场景，但没有出现在资产概览的 linked items 中。这里只补提示词上下文，
+    # 不把场景图自动塞进参考图列表，避免绕过用户的参考选择。
+    if scene is None:
+        scene_row: Scene | None = None
+        if detail is not None and getattr(detail, "scene_id", None):
+            scene_row = await db.get(Scene, str(detail.scene_id))
+        if scene_row is None:
+            scene_version = (
+                await db.execute(
+                    select(ShotAssetVersion)
+                    .where(
+                        ShotAssetVersion.shot_id == shot_id,
+                        ShotAssetVersion.asset_type == "scene",
+                    )
+                    .order_by(ShotAssetVersion.id.asc())
+                    .limit(1)
+                )
+            ).scalars().first()
+            if scene_version is not None:
+                scene_row = await db.get(Scene, str(scene_version.asset_id))
+        if scene_row is not None:
+            scene = ShotPromptAssetRef(
+                type="scene",
+                name=scene_row.name,
+                description=str(scene_row.description or ""),
+            )
+
     dialog_lines = list(getattr(detail, "dialog_lines", []) or []) if detail is not None else []
     sorted_dialog_lines = sorted(dialog_lines, key=lambda x: (x.index, x.id))
     dialogue_summary = "\n".join(
@@ -439,13 +476,35 @@ async def build_shot_video_prompt_pack(
         for line in sorted_dialog_lines
         if line.text
     )
+    speaker_ids = {
+        str(getattr(line, "speaker_character_id", "") or "").strip()
+        for line in sorted_dialog_lines
+        if str(getattr(line, "speaker_character_id", "") or "").strip()
+    }
+    speakers: dict[str, Character] = {}
+    if speaker_ids:
+        speaker_rows = (
+            await db.execute(select(Character).where(Character.id.in_(speaker_ids)))
+        ).scalars().all()
+        speakers = {item.id: item for item in speaker_rows}
+
+    def _speaker_voice(line: object) -> str:
+        """读取台词说话人的用户声音描述；缺失时返回空串，绝不按姓名推断。"""
+        speaker_id = str(getattr(line, "speaker_character_id", "") or "").strip()
+        speaker = speakers.get(speaker_id)
+        return str(getattr(speaker, "voice_description", "") or "").strip()
+
     dialogues = [
         ShotPromptDialogueRead(
             index=int(getattr(line, "index", 0) or 0),
+            speaker_character_id=(
+                str(getattr(line, "speaker_character_id", "") or "").strip() or None
+            ),
             speaker_name=str(getattr(line, "speaker_name", "") or ""),
             text=str(getattr(line, "text", "") or ""),
             emotion=getattr(line, "emotion", None),
             line_mode=_enum_value(getattr(line, "line_mode", None)) or "DIALOGUE",
+            voice_description=_speaker_voice(line),
             generated_audio_file_id=(
                 str(getattr(line, "generated_audio_file_id", "") or "").strip() or None
             ),

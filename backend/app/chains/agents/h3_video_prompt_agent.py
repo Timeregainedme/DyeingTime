@@ -59,6 +59,12 @@ _SYSTEM_PROMPT = "\n".join(
         "- 旁白写 `says in an off-screen voiceover` 并说明画面人物嘴唇不动；",
         "  画外音写 `says off-screen`；电话声写 `says through a phone speaker`；",
         "- 有 <Audio N> 时，在对应台词前写 `in the voice timbre referenced from <Audio N>`；",
+        "- 台词行提供 voice profile 时，在该句写入 `Use this voice profile: …`，逐字保留用户描述；",
+        "- 不要根据角色名、参考照片或性别刻板印象推断性别/音色；只有用户提供声音描述时才写性别化声音；",
+        "- 非说话角色保持沉默、闭口，只做身体反应；不要给沉默角色分配台词或口型；",
+        "- 没有任何台词时，必须明确写 `No spoken dialogue; characters do not speak`，并保持所有角色口型闭合；",
+        "- 默认写单一连续镜头：保持同一场景、背景布局、光线方向和人物位置，摄像机连续运动，不切到另一地点；",
+        "  只有镜头信息明确要求多机位/切镜时才写切镜，并说明切换后的机位与空间关系；",
         "- 正文写可见动作、状态变化、空间位置与声音，不写剧情摘要，不写抽象评价词；",
         "- overall_soundscape 只写环境音与物理拟音，不重复台词；",
         "- non_diegetic_music 没有背景音乐就写 N/A；",
@@ -170,12 +176,17 @@ def _dialogue_block(ir: IRPrompt) -> str:
         for line in shot.dialogues:
             emotion = f"（情绪：{line.emotion}）" if line.emotion else ""
             audio = f"，音色参考 {line.audio_label}" if line.audio_label else ""
+            voice = (
+                f"，声音描述：{line.voice_description}"
+                if str(getattr(line, "voice_description", "") or "").strip()
+                else "，声音描述：未配置（不要按姓名/照片推断）"
+            )
             mode = str(line.line_mode or "DIALOGUE").upper()
             lines.append(
                 f"[Shot {shot.index}] {line.speaker_name} ({line.speaker_id})"
-                f"（{mode}{emotion}{audio}）：{line.text}"
+                f"（{mode}{emotion}{audio}{voice}）：{line.text}"
             )
-    return "\n".join(lines) or "（本镜头没有台词）"
+    return "\n".join(lines) or "（本镜头没有台词；必须写 No spoken dialogue; characters do not speak）"
 
 
 def _shot_block(ir: IRPrompt) -> str:
@@ -194,6 +205,7 @@ def _shot_block(ir: IRPrompt) -> str:
                     f"composition_anchor={shot.composition_anchor or '-'}",
                     f"screen_direction={shot.screen_direction or '-'}",
                     f"continuity={shot.continuity or '-'}",
+                    f"sound={shot.sound or '-'}",
                 ]
             )
         )

@@ -132,6 +132,11 @@ def format_seconds(seconds: float) -> str:
     return f"{max(0.0, float(seconds or 0.0)):.2f}"
 
 
+def _trim_sentence(text: str) -> str:
+    """去掉句末重复标点，便于拼装 `Sound:` / `Continuity:` 前缀。"""
+    return str(text or "").strip().rstrip("。.!！?？")
+
+
 def word_range_for_duration(duration_seconds: float | None) -> tuple[int, int]:
     """按镜头时长给出 H3 英文正文的建议词数区间。
 
@@ -268,17 +273,19 @@ def _dialogue_fragment(ir: IRPrompt, line, *, use_labels: bool = True) -> str:
         who = f"{line.speaker_name or 'The speaker'} ({line.speaker_id})"
 
     audio = f" in the voice timbre referenced from <{line.audio_label}>" if line.audio_label else ""
+    voice_text = str(getattr(line, "voice_description", "") or "").strip().rstrip("。.!！")
+    voice = f", using this voice profile: {voice_text}," if voice_text else ""
     mode = str(line.line_mode or "DIALOGUE").strip().upper()
     if mode == "VOICE_OVER":
         return (
-            f"{who}{audio} says in an off-screen voiceover, "
+            f"{who}{audio}{voice} says in an off-screen voiceover, "
             f"<d>[{language}] {line.text}</d> while their lips remain completely closed."
         )
     if mode == "OFF_SCREEN":
-        return f"{who}{audio} says off-screen, <d>[{language}] {line.text}</d>."
+        return f"{who}{audio}{voice} says off-screen, <d>[{language}] {line.text}</d>."
     if mode == "PHONE":
-        return f"{who}{audio} says through a phone speaker, <d>[{language}] {line.text}</d>."
-    return f"{who}{audio} says, <d>[{language}] {line.text}</d>"
+        return f"{who}{audio}{voice} says through a phone speaker, <d>[{language}] {line.text}</d>."
+    return f"{who}{audio}{voice} says, <d>[{language}] {line.text}</d>"
 
 
 def _token_to_picture_label(token: str) -> str:
@@ -374,10 +381,14 @@ def _fallback_shot_block(ir: IRPrompt, shot: IRShot, *, use_labels: bool = True)
         parts.append(f"Screen direction: {shot.screen_direction}.")
     for line in shot.dialogues:
         parts.append(_dialogue_fragment(ir, line, use_labels=use_labels))
+    if shot.dialogues:
+        parts.append(
+            "Characters who are not speaking keep their mouths closed and only react physically."
+        )
     if shot.sound:
-        parts.append(f"Sound: {shot.sound}.")
+        parts.append(f"Sound: {_trim_sentence(shot.sound)}.")
     if shot.continuity:
-        parts.append(f"Continuity: {shot.continuity}.")
+        parts.append(f"Continuity: {_trim_sentence(shot.continuity)}.")
 
     body = " ".join(part for part in parts if part).strip()
     return f"{header} {body}".strip() if body else header
@@ -431,25 +442,86 @@ _FALLBACK_BUILDERS = {
 }
 
 
-def _append_missing_audio_lines(section_name: str, body: str, ir: IRPrompt) -> str:
-    """LLM 漏写音频定义/留存分析时补上骨架行，避免结构不完整。"""
-    if not ir.audio_references:
+_SILENCE_INSTRUCTION = (
+    "No spoken dialogue; characters do not speak and their mouths remain closed."
+)
+_CONTINUITY_RE = re.compile(
+    r"continuous|one continuous scene|same scene|no cut|background.{0,12}(consistent|same)"
+    r"|不切|同一(个)?场景|场景.{0,6}(一致|保持)|连续镜头",
+    re.IGNORECASE,
+)
+_SILENCE_RE = re.compile(
+    r"no spoken dialogue|characters do not speak|do not speak|silent|不说话|无对白",
+    re.IGNORECASE,
+)
+
+
+def _append_missing_shot_constraints(section_name: str, body: str, ir: IRPrompt) -> str:
+    """把声音与连续性硬约束补进 LLM 正文，避免自由改写时丢失关键输入。
+
+    LLM 负责文风，但不能决定是否保留说话人、声音描述、无对白和同一场景约束。
+    这里只补缺失项，不重写已有句子，因此不会破坏用户/LLM 已写好的镜头语言。
+    """
+    if section_name not in {"detailed_description", "integrated_multimodal_description"}:
         return body
+    use_labels = section_name == "detailed_description"
     text = str(body or "").strip()
-    if section_name == "subject_definitions":
-        missing = [line for line in _fallback_audio_definitions(ir) if line.split(" is ")[0] not in text]
-        return "\n".join([text, *missing]).strip() if missing else text
-    if section_name == "retention_analysis":
-        missing: list[str] = []
-        for audio in ir.audio_references:
-            if f"<{audio.label}>" in text:
-                continue
-            missing.append(
-                f"<{audio.label}>: reference - its vocal timbre guides the target speaker's "
-                "dialogue delivery without copying the original signal."
-            )
-        return "\n".join([text, *missing]).strip() if missing else text
-    return text
+    additions: list[str] = []
+    for shot in ir.shots:
+        if shot.dialogues:
+            for line in shot.dialogues:
+                if line.text and line.text not in text:
+                    additions.append(_dialogue_fragment(ir, line, use_labels=use_labels))
+            voice_profiles: dict[str, str] = {}
+            for line in shot.dialogues:
+                voice = str(line.voice_description or "").strip()
+                if not voice:
+                    continue
+                who = line.speaker_name or line.speaker_id
+                if voice not in text:
+                    voice_profiles[who] = voice
+            for who, voice in voice_profiles.items():
+                additions.append(f"{who} uses this voice profile: {voice}.")
+            if not re.search(
+                r"silent|not speaking|mouths? (remain )?closed|保持沉默|不出声",
+                text,
+                re.IGNORECASE,
+            ):
+                additions.append(
+                    "Characters who are not speaking keep their mouths closed and only react physically."
+                )
+        elif not _SILENCE_RE.search(text):
+            additions.append(_SILENCE_INSTRUCTION)
+        if shot.continuity and not _CONTINUITY_RE.search(text):
+            additions.append(f"Continuity: {_trim_sentence(shot.continuity)}.")
+        if shot.sound and not shot.dialogues and shot.sound not in text:
+            additions.append(f"Sound: {_trim_sentence(shot.sound)}.")
+    return " ".join([text, *additions]).strip() if additions else text
+
+
+def _append_missing_audio_lines(section_name: str, body: str, ir: IRPrompt) -> str:
+    """LLM 漏写音频定义/留存分析/关键约束时补上骨架行，避免结构不完整。"""
+    text = str(body or "").strip()
+    if ir.audio_references:
+        if section_name == "subject_definitions":
+            missing = [line for line in _fallback_audio_definitions(ir) if line.split(" is ")[0] not in text]
+            if missing:
+                text = "\n".join([text, *missing]).strip()
+        elif section_name == "retention_analysis":
+            missing: list[str] = []
+            for audio in ir.audio_references:
+                if f"<{audio.label}>" in text:
+                    continue
+                missing.append(
+                    f"<{audio.label}>: reference - its vocal timbre guides the target speaker's "
+                    "dialogue delivery without copying the original signal."
+                )
+            if missing:
+                text = "\n".join([text, *missing]).strip()
+    if section_name == "overall_soundscape" and ir.shots and not ir.shots[0].dialogues:
+        if not _SILENCE_RE.search(text):
+            text = f"{text} {_SILENCE_INSTRUCTION}".strip()
+    return _append_missing_shot_constraints(section_name, text, ir)
 
 
 def _resolve_section(name: str, ir: IRPrompt, prose: H3Prose | None) -> str:
