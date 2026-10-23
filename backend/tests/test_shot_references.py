@@ -300,3 +300,61 @@ async def test_uploaded_reference_is_pinned() -> None:
         assert binding.is_pinned is True
         assert binding.file_url
     await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_submit_rejects_stale_preview_hash(monkeypatch) -> None:
+    from app.schemas.studio.shot_references import GenerationPreviewRead, P6VideoGenerateRequest
+
+    db, engine = await _build_session()
+    async with db:
+        await _seed(db)
+
+        async def _fake_preview(*args, **kwargs):
+            return GenerationPreviewRead(
+                shot_id="ref-shot",
+                images=["ref-file-front"],
+                prompt="stable prompt",
+                input_hash="preview-hash",
+            )
+
+        monkeypatch.setattr(shot_references, "build_generation_preview", _fake_preview)
+        with pytest.raises(ValueError, match="刷新预览"):
+            await shot_references.create_video_task(
+                db,
+                shot_id="ref-shot",
+                body=P6VideoGenerateRequest(
+                    prompt="changed after preview",
+                    expected_input_hash="stale-hash",
+                ),
+            )
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_prompt_reference_survives_character_rename() -> None:
+    from sqlalchemy import delete
+
+    from app.models.studio import CharacterAlias
+
+    db, engine = await _build_session()
+    async with db:
+        seed = await _seed(db)
+        await auto_recommend(db, shot_id="ref-shot")
+        await shot_references.save_prompt(
+            db, shot_id="ref-shot", prompt="@沈总 看向窗外。"
+        )
+        character = await db.get(Character, seed["character"].id)
+        assert character is not None
+        character.name = "沈知微改名"
+        await db.execute(
+            delete(CharacterAlias).where(CharacterAlias.character_id == character.id)
+        )
+        await db.flush()
+        result = await resolve_prompt_references(
+            db, shot_id="ref-shot", prompt="@沈总 看向窗外。"
+        )
+        assert result.unresolved == []
+        assert result.resolved[0].asset_id == character.id
+        assert result.resolved[0].asset_name == "沈知微改名"
+    await engine.dispose()

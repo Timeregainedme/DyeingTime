@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { ApiResponse_dict_ } from '../models/ApiResponse_dict_';
 import type { ApiResponse_dict_str__Any__ } from '../models/ApiResponse_dict_str__Any__';
 import type { ApiResponse_list_ShotExtractedCandidateRead__ } from '../models/ApiResponse_list_ShotExtractedCandidateRead__';
 import type { ApiResponse_list_ShotExtractedDialogueCandidateRead__ } from '../models/ApiResponse_list_ShotExtractedDialogueCandidateRead__';
@@ -24,6 +25,7 @@ import type { ShotExtractedDialogueCandidateAcceptRequest } from '../models/Shot
 import type { ShotPreparationLinkRequest } from '../models/ShotPreparationLinkRequest';
 import type { ShotSkipExtractionUpdate } from '../models/ShotSkipExtractionUpdate';
 import type { ShotUpdate } from '../models/ShotUpdate';
+import type { ShotVideoReviewUpdate } from '../models/ShotVideoReviewUpdate';
 import type { ShotVideoVersionAdoptRequest } from '../models/ShotVideoVersionAdoptRequest';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
@@ -331,6 +333,58 @@ export class StudioShotsService {
             url: '/api/v1/studio/shots/{shot_id}/video-versions',
             path: {
                 'shot_id': shotId,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * 标记视频候选满意/不满意与问题标签
+     * @returns ApiResponse_dict_ Successful Response
+     * @throws ApiError
+     */
+    public static reviewShotVideoVersionApiApiV1StudioShotsShotIdVideoVersionsTaskIdReviewPost({
+        shotId,
+        taskId,
+        requestBody,
+    }: {
+        shotId: string,
+        taskId: string,
+        requestBody: ShotVideoReviewUpdate,
+    }): CancelablePromise<ApiResponse_dict_> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/studio/shots/{shot_id}/video-versions/{task_id}/review',
+            path: {
+                'shot_id': shotId,
+                'task_id': taskId,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * 按任务采纳视频候选（显式）
+     * @returns ApiResponse_ShotRead_ Successful Response
+     * @throws ApiError
+     */
+    public static adoptShotVideoVersionByTaskApiApiV1StudioShotsShotIdVideoVersionsTaskIdAdoptPost({
+        shotId,
+        taskId,
+    }: {
+        shotId: string,
+        taskId: string,
+    }): CancelablePromise<ApiResponse_ShotRead_> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/studio/shots/{shot_id}/video-versions/{task_id}/adopt',
+            path: {
+                'shot_id': shotId,
+                'task_id': taskId,
             },
             errors: {
                 422: `Validation Error`,

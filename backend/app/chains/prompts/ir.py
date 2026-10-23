@@ -488,6 +488,7 @@ def build_video_prompt_ir(
     max_references: int = MAX_REFERENCE_IMAGES,
     references_override: Sequence[IRReference] | None = None,
     natural_prompt: str | None = None,
+    audio_references_override: Sequence[IRAudioReference] | None = None,
 ) -> IRPrompt:
     """把视频提示词上下文包整理成 IR。
 

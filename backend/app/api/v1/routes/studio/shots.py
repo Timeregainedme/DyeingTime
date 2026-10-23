@@ -50,6 +50,10 @@ from app.services.studio.shots import (
     list_paginated as list_shots_paginated,
     update as update_shot_service,
 )
+from app.services.studio.shot_video_versions import (
+    adopt_shot_video_version_by_task,
+    review_shot_video_version,
+)
 from app.services.studio import (
     accept_shot_extracted_dialogue_candidate,
     build_shot_preparation_state,
@@ -108,6 +112,7 @@ from app.schemas.studio.shots import (
     ShotPreparationStateRead,
     ShotSkipExtractionUpdate,
     ShotVideoReadinessRead,
+    ShotVideoReviewUpdate,
     ShotVideoVersionAdoptRequest,
     ShotVideoVersionRead,
     ShotVideoPromptPreviewRead,
@@ -362,6 +367,62 @@ async def list_shot_video_versions_api(
     """按创建时间倒序返回该镜头的全部视频版本，历史版本一律保留。"""
     data = await list_shot_video_versions(db, shot_id=shot_id)
     return success_response(data)
+
+
+@router.post(
+    "/{shot_id}/video-versions/{task_id}/review",
+    response_model=ApiResponse[dict],
+    summary="标记视频候选满意/不满意与问题标签",
+)
+async def review_shot_video_version_api(
+    shot_id: str,
+    task_id: str,
+    body: ShotVideoReviewUpdate,
+    db: AsyncSession = Depends(get_db),
+    ctx: WorkspaceContext = Depends(get_workspace_context),
+) -> ApiResponse[dict]:
+    await get_shot_in_workspace(db, shot_id, ctx)
+    try:
+        row = await review_shot_video_version(
+            db,
+            shot_id=shot_id,
+            task_id=task_id,
+            review_status=body.review_status,
+            issue_tags=body.issue_tags,
+            note=body.note,
+            reviewed_by=ctx.user_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return success_response(
+        {
+            "task_id": row.task_id,
+            "review_status": row.review_status,
+            "issue_tags": row.issue_tags,
+            "note": row.note,
+        }
+    )
+
+
+@router.post(
+    "/{shot_id}/video-versions/{task_id}/adopt",
+    response_model=ApiResponse[ShotRead],
+    summary="按任务采纳视频候选（显式）",
+)
+async def adopt_shot_video_version_by_task_api(
+    shot_id: str,
+    task_id: str,
+    db: AsyncSession = Depends(get_db),
+    ctx: WorkspaceContext = Depends(get_workspace_context),
+) -> ApiResponse[ShotRead]:
+    await get_shot_in_workspace(db, shot_id, ctx)
+    try:
+        shot = await adopt_shot_video_version_by_task(
+            db, shot_id=shot_id, task_id=task_id
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return success_response(await build_shot_read(db, shot=shot))
 
 
 @router.post(

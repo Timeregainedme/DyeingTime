@@ -38,6 +38,8 @@ import {
   useAssetProfileActions,
   useAvailableVoices,
   useCharacterVoice,
+  useVoiceSamples,
+  useVoiceSampleActions,
   useWorkbenchGlobalAssets,
 } from '../useWorkbenchQueries'
 import { LegacyLink, PanelHeader } from '../components/PanelHeader'
@@ -293,11 +295,15 @@ function VoiceSection({
 }) {
   const voicesQuery = useAvailableVoices()
   const voiceQuery = useCharacterVoice(projectId, profile.asset_id)
+  const samplesQuery = useVoiceSamples(profile.asset_id)
+  const sampleActions = useVoiceSampleActions(profile.asset_id)
   const actions = useAssetProfileActions(projectId, profile.asset_type as WorkbenchAssetType, profile.asset_id)
+  const sampleInputRef = useRef<HTMLInputElement | null>(null)
   const [voiceId, setVoiceId] = useState(profile.voice_id ?? '')
   const [source, setSource] = useState(profile.voice_source ?? 'preset')
   const [description, setDescription] = useState(profile.voice_description ?? '')
   const [notice, setNotice] = useState('')
+  const [sampleLabel, setSampleLabel] = useState('')
   const voice = voiceQuery.data
 
   useEffect(() => {
@@ -387,6 +393,45 @@ function VoiceSection({
             音色列表读取失败：{voicesQuery.error instanceof Error ? voicesQuery.error.message : '供应商未配置'}
           </p>
         ) : null}
+        <div className="space-y-2 rounded border border-border p-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[11px] font-medium">H3 固定音色样本</p>
+            <Badge variant="outline" className="font-normal">{(samplesQuery.data ?? []).length} 个</Badge>
+            <Button size="sm" variant="outline" className="ml-auto h-7 px-2 text-[10px]" onClick={() => sampleInputRef.current?.click()} disabled={sampleActions.upload.isPending}>
+              <Upload className="h-3 w-3" />上传样本
+            </Button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input value={sampleLabel} onChange={(event) => setSampleLabel(event.target.value)} placeholder="样本标签（可选）" className="h-7 max-w-48 text-[11px]" />
+            <span className="text-[10px] text-muted-foreground">mp3/wav/m4a/aac/ogg/flac · 项目开启音色参考时必须为每个说话人准备</span>
+          </div>
+          <input
+            ref={sampleInputRef}
+            type="file"
+            accept="audio/mpeg,audio/wav,audio/mp4,audio/aac,audio/ogg,audio/flac"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              event.target.value = ''
+              if (file) {
+                sampleActions.upload.mutate({ file, label: sampleLabel }, {
+                  onSuccess: () => setNotice('固定音色样本已上传；P6 音频参考将优先使用该样本。'),
+                  onError: (error) => setNotice(error instanceof Error ? error.message : '样本上传失败'),
+                })
+              }
+            }}
+          />
+          {(samplesQuery.data ?? []).map((sample) => (
+            <div key={sample.id} className="flex flex-wrap items-center gap-2 text-[10px]">
+              <span className="min-w-24 truncate">{sample.label || sample.file_id}</span>
+              {sample.file_url ? <audio className="h-8 max-w-64" controls src={sample.file_url} /> : null}
+              <Button size="sm" variant="ghost" className="h-6 px-1.5 text-[10px] text-ready-blocked" onClick={() => sampleActions.remove.mutate(sample.id)}>
+                <Trash2 className="h-3 w-3" />停用
+              </Button>
+            </div>
+          ))}
+          {(samplesQuery.data ?? []).length === 0 ? <p className="text-[10px] text-muted-foreground">尚未上传固定音色样本。</p> : null}
+        </div>
         {notice ? <p className="text-[11px] text-muted-foreground">{notice}</p> : null}
         <Button
           size="sm"

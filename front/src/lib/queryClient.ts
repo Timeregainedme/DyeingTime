@@ -71,6 +71,8 @@ export const queryKeys = {
   workbenchGenerationSnapshots: (projectId: string, shotId: string) =>
     ['workbench', projectId, 'generation-snapshots', shotId] as const,
   generationQuota: (scope: string) => ['generation-quota', scope] as const,
+  shotVideoVersions: (projectId: string, shotId: string) => ['workbench', projectId, 'shot-video-versions', shotId] as const,
+  voiceSamples: (characterId: string) => ['workbench', 'voice-samples', characterId] as const,
   videoBatches: (projectId: string, chapterId: string) => ['workbench', projectId, 'video-batches', chapterId] as const,
   workbenchRuntime: (projectId: string, chapterId: string) =>
     ['workbench', projectId, 'runtime', chapterId] as const,

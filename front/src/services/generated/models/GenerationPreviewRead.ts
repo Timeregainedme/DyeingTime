@@ -10,6 +10,7 @@ export type GenerationPreviewRead = {
     manifest?: Array<ReferenceBindingRead>;
     images?: Array<string>;
     audio_file_ids?: Array<string>;
+    audio_refs?: Array<Record<string, any>>;
     prompt?: string;
     natural_prompt?: string;
     advanced_prompt?: string;

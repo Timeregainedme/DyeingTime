@@ -67,6 +67,7 @@ def _build_ir(pack: ShotVideoPromptPackRead, context: VideoGenerationContext) ->
         max_references=MAX_REFERENCE_IMAGES,
         references_override=context.reference_manifest,
         natural_prompt=context.natural_prompt,
+        audio_references_override=context.audio_references,
     )
 
 

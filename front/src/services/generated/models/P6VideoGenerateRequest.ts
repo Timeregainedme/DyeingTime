@@ -16,6 +16,10 @@ export type P6VideoGenerateRequest = {
     resolution?: (string | null);
     reference_audio_file_ids?: Array<string>;
     /**
+     * 预览返回的 input_hash；提交时不一致则拒绝，要求刷新预览
+     */
+    expected_input_hash?: (string | null);
+    /**
      * 生成完成后是否自动采纳；P6 默认显式采纳
      */
     auto_adopt?: boolean;

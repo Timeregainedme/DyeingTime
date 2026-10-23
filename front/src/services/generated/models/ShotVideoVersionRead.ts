@@ -42,6 +42,31 @@ export type ShotVideoVersionRead = {
      */
     error?: (string | null);
     /**
+     * 视频文件可播放 URL
+     */
+    file_url?: string;
+    /**
+     * 生成模型
+     */
+    model_name?: string;
+    /**
+     * 实际参考图数量
+     */
+    reference_count?: number;
+    /**
+     * 该候选的参考素材快照
+     */
+    manifest?: Array<Record<string, any>>;
+    /**
+     * unrated/satisfied/unsatisfied
+     */
+    review_status?: string;
+    issue_tags?: Array<string>;
+    /**
+     * 人工审核备注
+     */
+    note?: string;
+    /**
      * 创建时间
      */
     created_at?: (string | null);

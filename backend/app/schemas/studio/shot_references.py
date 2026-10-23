@@ -109,6 +109,7 @@ class GenerationPreviewRead(BaseModel):
     manifest: list[ReferenceBindingRead] = Field(default_factory=list)
     images: list[str] = Field(default_factory=list)
     audio_file_ids: list[str] = Field(default_factory=list)
+    audio_refs: list[dict[str, Any]] = Field(default_factory=list)
     prompt: str = ""
     natural_prompt: str = ""
     advanced_prompt: str = ""
@@ -131,6 +132,9 @@ class P6VideoGenerateRequest(BaseModel):
     ratio: str | None = None
     resolution: str | None = None
     reference_audio_file_ids: list[str] = Field(default_factory=list)
+    expected_input_hash: str | None = Field(
+        None, description="预览返回的 input_hash；提交时不一致则拒绝，要求刷新预览"
+    )
     auto_adopt: bool = Field(False, description="生成完成后是否自动采纳；P6 默认显式采纳")
 
 

@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.chains.prompts.ir import IRReference
+from app.chains.prompts.ir import IRAudioReference, IRReference
 from app.models.studio import ShotFrameImage, ShotFrameType
 from app.services.studio.generation.shared.types import GenerationContext
 
@@ -121,6 +121,7 @@ class VideoGenerationContext(GenerationContext):
     # P6：显式有序参考清单；有值时 IR 不再自动从资产图片收集。
     reference_manifest: list[IRReference] | None = None
     natural_prompt: str = ""
+    audio_references: list[IRAudioReference] | None = None
 
 
 async def build_video_context(
@@ -136,6 +137,7 @@ async def build_video_context(
     reference_audio_file_ids: list[str] | None = None,
     reference_manifest: list[IRReference] | None = None,
     natural_prompt: str = "",
+    audio_references: list[IRAudioReference] | None = None,
 ) -> VideoGenerationContext:
     resolved_images = await resolve_video_reference_images(
         db,
@@ -156,5 +158,6 @@ async def build_video_context(
         ],
         reference_manifest=reference_manifest,
         natural_prompt=natural_prompt,
+        audio_references=audio_references,
     )
 

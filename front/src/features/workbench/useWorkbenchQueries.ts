@@ -31,6 +31,12 @@ import {
   loadGenerationOptions,
   loadGenerationQuota,
   loadVideoBatches,
+  loadShotVideoVersions,
+  loadVoiceSamples,
+  uploadVoiceSample,
+  deleteVoiceSample,
+  reviewShotVideoVersion,
+  adoptShotVideoVersionByTask,
   createVideoBatch,
   cancelVideoBatch,
   retryVideoBatch,
@@ -474,6 +480,58 @@ export function useVideoBatchActions(projectId: string, chapterId: string) {
     onSuccess: invalidate,
   })
   return { create, cancel, retry }
+}
+
+export function useVoiceSamples(characterId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.voiceSamples(characterId ?? ''),
+    queryFn: () => loadVoiceSamples(characterId as string),
+    enabled: Boolean(characterId),
+    staleTime: 5_000,
+  })
+}
+
+export function useVoiceSampleActions(characterId: string) {
+  const queryClient = useQueryClient()
+  const invalidate = () =>
+    void queryClient.invalidateQueries({ queryKey: queryKeys.voiceSamples(characterId) })
+  const upload = useMutation({
+    mutationFn: (payload: { file: File; label?: string }) =>
+      uploadVoiceSample(characterId, payload.file, payload.label),
+    onSuccess: invalidate,
+  })
+  const remove = useMutation({
+    mutationFn: (sampleId: number) => deleteVoiceSample(characterId, sampleId),
+    onSuccess: invalidate,
+  })
+  return { upload, remove }
+}
+
+export function useShotVideoVersions(projectId: string, shotId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.shotVideoVersions(projectId, shotId ?? ''),
+    queryFn: () => loadShotVideoVersions(shotId as string),
+    enabled: Boolean(projectId) && Boolean(shotId),
+    staleTime: 3_000,
+  })
+}
+
+export function useVideoReviewActions(projectId: string, shotId: string) {
+  const queryClient = useQueryClient()
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.shotVideoVersions(projectId, shotId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workbenchShot(projectId, shotId) })
+  }
+  const review = useMutation({
+    mutationFn: (payload: { taskId: string; body: { review_status: string; issue_tags?: string[]; note?: string } }) =>
+      reviewShotVideoVersion(shotId, payload.taskId, payload.body),
+    onSuccess: invalidate,
+  })
+  const adopt = useMutation({
+    mutationFn: (taskId: string) => adoptShotVideoVersionByTask(shotId, taskId),
+    onSuccess: invalidate,
+  })
+  return { review, adopt }
 }
 
 export function useGenerationQuota(scope = 'v2-acceptance') {

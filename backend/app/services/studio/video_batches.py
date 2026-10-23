@@ -105,6 +105,11 @@ async def create_video_batch(
         shots = [item for item in shots if item.scene_group_id == body.scene_group_id]
         if not shots:
             raise ValueError("所选场次没有可生成的镜头")
+    not_ready = [item.id for item in shots if item.status != "ready"]
+    if not_ready:
+        raise ValueError(
+            "以下镜头尚未完成信息确认，不能批量生成：" + "、".join(not_ready)
+        )
 
     from app.services.studio.shot_plans import get_stats
 

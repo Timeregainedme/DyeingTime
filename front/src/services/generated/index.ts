@@ -49,6 +49,7 @@ export type { ApiResponse_list_ShotRead__ } from './models/ApiResponse_list_Shot
 export type { ApiResponse_list_ShotRuntimeSummaryRead__ } from './models/ApiResponse_list_ShotRuntimeSummaryRead__';
 export type { ApiResponse_list_ShotVideoVersionRead__ } from './models/ApiResponse_list_ShotVideoVersionRead__';
 export type { ApiResponse_list_VoiceItem__ } from './models/ApiResponse_list_VoiceItem__';
+export type { ApiResponse_list_VoiceSampleRead__ } from './models/ApiResponse_list_VoiceSampleRead__';
 export type { ApiResponse_ModelRead_ } from './models/ApiResponse_ModelRead_';
 export type { ApiResponse_ModelSettingsRead_ } from './models/ApiResponse_ModelSettingsRead_';
 export type { ApiResponse_NoneType_ } from './models/ApiResponse_NoneType_';
@@ -137,6 +138,7 @@ export type { ApiResponse_VideoBatchRead_ } from './models/ApiResponse_VideoBatc
 export type { ApiResponse_VideoGenerationOptionsRead_ } from './models/ApiResponse_VideoGenerationOptionsRead_';
 export type { ApiResponse_VideoPromptPreviewResponse_ } from './models/ApiResponse_VideoPromptPreviewResponse_';
 export type { ApiResponse_VoiceBindingRead_ } from './models/ApiResponse_VoiceBindingRead_';
+export type { ApiResponse_VoiceSampleRead_ } from './models/ApiResponse_VoiceSampleRead_';
 export type { AssetImageCandidateRead } from './models/AssetImageCandidateRead';
 export type { AssetImpactRead } from './models/AssetImpactRead';
 export type { AssetImpactShot } from './models/AssetImpactShot';
@@ -154,6 +156,7 @@ export type { Body_upload_asset_candidate_api_api_v1_studio_projects__project_id
 export type { Body_upload_episode_document_api_api_v1_studio_projects__project_id__chapters__chapter_id__script_document_post } from './models/Body_upload_episode_document_api_api_v1_studio_projects__project_id__chapters__chapter_id__script_document_post';
 export type { Body_upload_file_api_api_v1_studio_files_upload_post } from './models/Body_upload_file_api_api_v1_studio_files_upload_post';
 export type { Body_upload_reference_binding_api_api_v1_studio_shots__shot_id__reference_bindings_upload_post } from './models/Body_upload_reference_binding_api_api_v1_studio_shots__shot_id__reference_bindings_upload_post';
+export type { Body_upload_voice_sample_api_api_v1_studio_characters__character_id__voice_samples_post } from './models/Body_upload_voice_sample_api_api_v1_studio_characters__character_id__voice_samples_post';
 export type { Body_upload_worldbuilding_document_api_api_v1_studio_projects__project_id__script_documents_worldbuilding_post } from './models/Body_upload_worldbuilding_document_api_api_v1_studio_projects__project_id__script_documents_worldbuilding_post';
 export type { CameraAngle } from './models/CameraAngle';
 export type { CameraMovement } from './models/CameraMovement';
@@ -382,6 +385,7 @@ export type { ShotVideoPromptPackRead } from './models/ShotVideoPromptPackRead';
 export type { ShotVideoPromptPreviewRead } from './models/ShotVideoPromptPreviewRead';
 export type { ShotVideoReadinessCheck } from './models/ShotVideoReadinessCheck';
 export type { ShotVideoReadinessRead } from './models/ShotVideoReadinessRead';
+export type { ShotVideoReviewUpdate } from './models/ShotVideoReviewUpdate';
 export type { ShotVideoVersionAdoptRequest } from './models/ShotVideoVersionAdoptRequest';
 export type { ShotVideoVersionRead } from './models/ShotVideoVersionRead';
 export type { StudioAssetDraft } from './models/StudioAssetDraft';
@@ -429,6 +433,7 @@ export type { VideoPromptPreviewResponse } from './models/VideoPromptPreviewResp
 export type { VoiceBindingRead } from './models/VoiceBindingRead';
 export type { VoiceBindingUpdate } from './models/VoiceBindingUpdate';
 export type { VoiceItem } from './models/VoiceItem';
+export type { VoiceSampleRead } from './models/VoiceSampleRead';
 
 export { AuthService } from './services/AuthService';
 export { DefaultService } from './services/DefaultService';
@@ -460,3 +465,4 @@ export { StudioShotsService } from './services/StudioShotsService';
 export { StudioStylesService } from './services/StudioStylesService';
 export { StudioTimelineService } from './services/StudioTimelineService';
 export { StudioVideoBatchesService } from './services/StudioVideoBatchesService';
+export { StudioVoiceSamplesService } from './services/StudioVoiceSamplesService';

@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui
 import { Input } from '../../../components/ui/input'
 import type { ShotRead, VideoBatchRead } from '../../../services/generated'
 import {
+  useShotPlanStats,
   useVideoBatchActions,
   useVideoBatches,
 } from '../useWorkbenchQueries'
@@ -60,6 +61,7 @@ export function VideoBatchPanel({
   shots: ShotRead[]
 }) {
   const batchesQuery = useVideoBatches(projectId, chapterId)
+  const statsQuery = useShotPlanStats(projectId, chapterId)
   const actions = useVideoBatchActions(projectId, chapterId)
   const [selected, setSelected] = useState<string[]>([])
   const [candidateCount, setCandidateCount] = useState(1)
@@ -103,6 +105,16 @@ export function VideoBatchPanel({
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
+        {statsQuery.data ? (
+          <div className="flex flex-wrap items-center gap-2 rounded border border-border bg-muted/20 p-2 text-[10px]">
+            <Badge variant="outline">镜头 {statsQuery.data.shot_count ?? 0}</Badge>
+            <Badge variant="outline">覆盖 {Math.round(Number(statsQuery.data.coverage_ratio ?? 0) * 100)}%</Badge>
+            <Badge variant="outline">总时长 {statsQuery.data.total_duration ?? 0}s</Badge>
+            {(statsQuery.data.blocking_issue_count ?? 0) > 0 ? <Badge variant="outline" className="border-ready-blocked/40 text-ready-blocked">阻塞 {statsQuery.data.blocking_issue_count}</Badge> : null}
+            {(statsQuery.data.warning_count ?? 0) > 0 ? <Badge variant="outline" className="border-state-pending/40 text-state-pending">警告 {statsQuery.data.warning_count}</Badge> : null}
+            {Number(statsQuery.data.coverage_ratio ?? 0) < 0.6 ? <span className="text-state-pending">覆盖率低于 60%，批量前请检查未覆盖剧情；继续需勾选下方风险确认。</span> : null}
+          </div>
+        ) : null}
         {notice ? <p className="rounded border border-state-pending/40 bg-state-pending/10 p-2 text-[11px]">{notice}</p> : null}
         <div className="max-h-48 overflow-auto rounded border border-border p-2">
           {shots.length === 0 ? <p className="text-[11px] text-muted-foreground">本集还没有镜头。</p> : (

@@ -26,6 +26,7 @@ import {
   StudioStylesService,
   StudioTimelineService,
   StudioVideoBatchesService,
+  StudioVoiceSamplesService,
 } from '../../services/generated'
 import type {
   AssetImpactRead,
@@ -83,6 +84,7 @@ import type {
   VideoBatchCreate,
   VideoBatchRead,
   ShotVideoReadinessRead,
+  ShotVideoVersionRead,
   ShotUpdate,
   ShotRead,
   ShotRuntimeSummaryRead,
@@ -91,6 +93,7 @@ import type {
   VoiceBindingRead,
   VoiceBindingUpdate,
   VoiceItem,
+  VoiceSampleRead,
 } from '../../services/generated'
 import type { WorkbenchAssetItem } from './types'
 import type { WorkbenchAssetType } from './routes'
@@ -1268,6 +1271,66 @@ export async function retryVideoBatch(
       requestBody: { item_ids: itemIds ?? null },
     })
   if (!response.data) throw new Error('服务端没有返回重试结果')
+  return response.data
+}
+
+export async function loadVoiceSamples(characterId: string): Promise<VoiceSampleRead[]> {
+  const response =
+    await StudioVoiceSamplesService.listVoiceSamplesApiApiV1StudioCharactersCharacterIdVoiceSamplesGet({
+      characterId,
+    })
+  return response.data ?? []
+}
+
+export async function uploadVoiceSample(
+  characterId: string,
+  file: File,
+  label = '',
+): Promise<VoiceSampleRead> {
+  const response =
+    await StudioVoiceSamplesService.uploadVoiceSampleApiApiV1StudioCharactersCharacterIdVoiceSamplesPost({
+      characterId,
+      formData: { file: file as unknown as string, label },
+    })
+  if (!response.data) throw new Error('服务端没有返回音色样本')
+  return response.data
+}
+
+export async function deleteVoiceSample(characterId: string, sampleId: number): Promise<void> {
+  await StudioVoiceSamplesService.deleteVoiceSampleApiApiV1StudioCharactersCharacterIdVoiceSamplesSampleIdDelete(
+    { characterId, sampleId },
+  )
+}
+
+export async function loadShotVideoVersions(shotId: string): Promise<ShotVideoVersionRead[]> {
+  const response =
+    await StudioShotsService.listShotVideoVersionsApiApiV1StudioShotsShotIdVideoVersionsGet({
+      shotId,
+    })
+  return response.data ?? []
+}
+
+export async function reviewShotVideoVersion(
+  shotId: string,
+  taskId: string,
+  body: { review_status: string; issue_tags?: string[]; note?: string },
+): Promise<Record<string, unknown>> {
+  const response =
+    await StudioShotsService.reviewShotVideoVersionApiApiV1StudioShotsShotIdVideoVersionsTaskIdReviewPost(
+      { shotId, taskId, requestBody: body },
+    )
+  return (response.data ?? {}) as Record<string, unknown>
+}
+
+export async function adoptShotVideoVersionByTask(
+  shotId: string,
+  taskId: string,
+): Promise<ShotRead> {
+  const response =
+    await StudioShotsService.adoptShotVideoVersionByTaskApiApiV1StudioShotsShotIdVideoVersionsTaskIdAdoptPost(
+      { shotId, taskId },
+    )
+  if (!response.data) throw new Error('服务端没有返回采纳结果')
   return response.data
 }
 

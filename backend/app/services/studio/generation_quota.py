@@ -144,6 +144,8 @@ async def settle(
 async def settle_task(
     db: AsyncSession, *, task_id: str, media_type: str, commit: bool
 ) -> None:
+    if not quota_enabled():
+        return
     row = (
         await db.execute(
             select(GenerationUsageReservation)

@@ -32,4 +32,5 @@ description: "记录当前真实生效的系统结构、状态流转、页面边
 - [H3 多参考 Manifest 与生成输入快照](/docs/architecture/h3-reference-manifest/)
 - [生成测试额度与原子预留](/docs/architecture/generation-test-quota/)
 - [视频批量生成与并发协调](/docs/architecture/video-batches/)
+- [视频抽卡审核与显式采纳](/docs/architecture/video-review/)
 - [分镜页面职责边界](/docs/architecture/shot-page-boundary/)

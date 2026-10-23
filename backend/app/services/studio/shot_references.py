@@ -13,7 +13,7 @@ from fastapi import UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.chains.prompts.ir import IRReference
+from app.chains.prompts.ir import IRAudioReference, IRReference
 from app.core import storage
 from app.models.studio import (
     AssetImageCandidate,
@@ -522,12 +522,21 @@ async def resolve_prompt_references(
     characters = (
         await db.execute(select(Character).where(Character.project_id == project_id))
     ).scalars().all()
-    lookup: dict[str, tuple[str, str, str | None]] = {}
+    lookup: dict[str, list[tuple[str, str, str | None]]] = {}
+
+    def _add(name: str, target: tuple[str, str, str | None]) -> None:
+        key = _normalize(name)
+        if not key:
+            return
+        bucket = lookup.setdefault(key, [])
+        if target not in bucket:
+            bucket.append(target)
+
     for item in characters:
-        key = _normalize(item.name)
-        lookup[key] = ("character", item.id, item.identity_version_id)
+        target = ("character", item.id, item.identity_version_id)
+        _add(item.name, target)
         for alias in await list_aliases(db, character_id=item.id):
-            lookup[_normalize(alias.alias)] = ("character", item.id, item.identity_version_id)
+            _add(alias.alias, target)
     for asset_type in ("scene", "prop", "costume"):
         model = _ASSET_MODELS[asset_type]
         rows = (
@@ -535,22 +544,54 @@ async def resolve_prompt_references(
         ).scalars().all()
         for item in rows:
             if await _project_asset(db, asset_type=asset_type, asset_id=item.id, project_id=project_id):
-                lookup[_normalize(item.name)] = (
-                    asset_type,
-                    item.id,
-                    getattr(item, "current_version_id", None),
+                _add(
+                    item.name,
+                    (asset_type, item.id, getattr(item, "current_version_id", None)),
                 )
+    # 角色改名后，历史 @ 引用仍按已保存的稳定对象解析。
+    persisted_rows = (
+        await db.execute(
+            select(ShotPromptReference).where(ShotPromptReference.shot_id == shot_id)
+        )
+    ).scalars().all()
+    persisted: dict[str, tuple[str, str, str | None]] = {}
+    for item in persisted_rows:
+        persisted.setdefault(
+            _normalize(item.mention),
+            (item.asset_type, item.asset_id, item.asset_version_id),
+        )
+
     resolved: list[PromptReferenceRead] = []
     unresolved: list[str] = []
     warnings: list[str] = []
     for match in _AT_REF_RE.finditer(prompt or ""):
         mention = match.group(1)
-        target = lookup.get(_normalize(mention))
+        key = _normalize(mention)
+        candidates = lookup.get(key, [])
+        unique = list(dict.fromkeys(candidates))
+        target: tuple[str, str, str | None] | None = None
+        if len(unique) == 1:
+            target = unique[0]
+        elif len(unique) > 1:
+            saved = persisted.get(key)
+            if saved is not None and saved in unique:
+                target = saved
+            else:
+                warnings.append(
+                    f"@ {mention} 对应多个同名/别名资产，请人工选择后再生成"
+                )
+        if target is None:
+            # 仅使用该镜头已保存的 @ 引用兜底，避免按名字猜测到别家资产。
+            target = persisted.get(key)
         if target is None:
             unresolved.append(mention)
             continue
         asset_type, asset_id, version_id = target
-        name, _ = await _asset_name_version(db, asset_type=asset_type, asset_id=asset_id)
+        name, temp_version = await _asset_name_version(
+            db, asset_type=asset_type, asset_id=asset_id
+        )
+        if version_id is None:
+            version_id = temp_version
         resolved.append(
             PromptReferenceRead(
                 asset_type=asset_type,
@@ -639,8 +680,12 @@ def _validate_advanced_prompt(prompt: str, manifest: list[dict[str, Any]]) -> li
     for label, number in re.findall(r"<(Picture|Subject|Audio) (\d+)>", prompt or ""):
         if label == "Picture" and int(number) > max_picture:
             errors.append(f"高级提示词引用了不存在的 <Picture {number}>")
+        if label == "Subject" and int(number) > max_picture:
+            errors.append(f"高级提示词引用了不存在的 <Subject {number}>")
         if label == "Audio" and int(number) > MAX_REFERENCE_AUDIOS:
             errors.append(f"高级提示词引用了不存在的 <Audio {number}>")
+        if label == "Video":
+            errors.append("P6 高级提示词不支持 <Video N> 参考视频")
     return errors
 
 
@@ -673,18 +718,28 @@ async def build_generation_preview(
         db, shot_id=shot_id, prompt=natural_prompt or ""
     )
     errors: list[str] = list(ref_result.warnings if ref_result.unresolved else [])
+    errors.extend(
+        warning
+        for warning in manifest_warnings
+        if "不存在" in warning or "缺少文件" in warning
+    )
     if len(manifest) > MAX_REFERENCE_IMAGES:
         errors.append(f"参考图超过 {MAX_REFERENCE_IMAGES} 张上限")
     if advanced_prompt:
         errors.extend(_validate_advanced_prompt(advanced_prompt, manifest))
-    from app.services.film.generated_video import resolve_video_reference_audio_file_ids
+    from app.services.studio.voice_samples import resolve_p6_audio_references
 
-    audio_ids = await resolve_video_reference_audio_file_ids(
-        db,
-        shot_id=shot_id,
-        reference_mode=reference_mode,
-        explicit_file_ids=reference_audio_file_ids,
-    )
+    audio_details: list[dict[str, Any]] = []
+    if reference_mode == REFERENCE_MODE:
+        try:
+            audio_details = await resolve_p6_audio_references(
+                db,
+                shot_id=shot_id,
+                explicit_file_ids=reference_audio_file_ids,
+            )
+        except ValueError as exc:
+            errors.append(str(exc))
+    audio_ids = [str(item["file_id"]) for item in audio_details]
     try:
         model, provider_cfg, resolved_ratio, resolved_resolution, duration = await _resolve_options(
             db, shot_id=shot_id, ratio=ratio, resolution=resolution
@@ -695,6 +750,8 @@ async def build_generation_preview(
         resolved_resolution = resolution
         duration = 0
         errors.append(f"模型配置不可用：{exc}")
+    if duration and not 4 <= int(duration) <= 15:
+        errors.append(f"镜头时长 {duration}s 超出项目 4–15 秒业务限制")
     prompt = advanced_prompt.strip() if advanced_prompt.strip() else ""
     warnings = list(manifest_warnings) + list(ref_result.warnings)
     if not prompt:
@@ -708,6 +765,16 @@ async def build_generation_preview(
                 model=getattr(model, "name", "") or "",
                 ratio=resolved_ratio,
                 reference_audio_file_ids=audio_ids,
+                audio_references=[
+                    IRAudioReference(
+                        label=str(item["label"]),
+                        file_id=str(item["file_id"]),
+                        speaker_name=str(item.get("speaker_name") or ""),
+                        speaker_id=str(item.get("speaker_id") or ""),
+                        source_line_index=item.get("line_index"),
+                    )
+                    for item in audio_details
+                ] if audio_details else None,
                 reference_manifest=refs,
                 natural_prompt=natural_prompt,
             )
@@ -736,6 +803,7 @@ async def build_generation_preview(
         manifest=bindings,
         images=[item.file_id for item in refs if item.file_id],
         audio_file_ids=audio_ids,
+        audio_refs=audio_details,
         prompt=prompt,
         natural_prompt=natural_prompt,
         advanced_prompt=advanced_prompt,
@@ -767,6 +835,21 @@ async def create_snapshot(
     chapter = await db.get(Chapter, shot.chapter_id)
     if chapter is None:
         raise ValueError("章节不存在")
+    from app.models.studio import Project
+
+    project = await db.get(Project, chapter.project_id)
+    style_snapshot = (
+        {
+            "style": str(project.style or ""),
+            "visual_style": str(project.visual_style or ""),
+            "unify_style": bool(project.unify_style),
+            "default_reference_mode": str(project.default_reference_mode or ""),
+            "default_video_ratio": project.default_video_ratio,
+            "default_video_resolution": project.default_video_resolution,
+        }
+        if project is not None
+        else {}
+    )
     rows = (
         await db.execute(select(ShotAssetVersion).where(ShotAssetVersion.shot_id == shot_id))
     ).scalars().all()
@@ -785,7 +868,7 @@ async def create_snapshot(
         natural_prompt=preview.natural_prompt,
         advanced_prompt=preview.advanced_prompt,
         prompt_refs=[item.model_dump() for item in preview.prompt_refs],
-        audio_refs=list(preview.audio_file_ids),
+        audio_refs=list(preview.audio_refs),
         asset_versions=[
             {
                 "asset_type": item.asset_type,
@@ -800,7 +883,7 @@ async def create_snapshot(
             "resolution": preview.resolution,
             "duration": preview.duration,
         },
-        style_snapshot={},
+        style_snapshot=style_snapshot,
         duration=preview.duration,
         ratio=preview.ratio,
         resolution=preview.resolution,
@@ -941,12 +1024,20 @@ async def create_video_task(
         resolution=body.resolution,
         reference_audio_file_ids=body.reference_audio_file_ids,
     )
+    if body.expected_input_hash and body.expected_input_hash != preview.input_hash:
+        raise ValueError("生成输入已变化（参考图/提示词/参数与预览不一致），请刷新预览后重试")
     if preview.blocking_errors:
         raise ValueError("；".join(preview.blocking_errors))
     if not preview.images:
         raise ValueError("没有可提交的参考图片")
     if not preview.prompt.strip():
         raise ValueError("最终提示词为空")
+    readiness = await get_p6_readiness(db, shot_id=shot_id)
+    if not readiness.ready:
+        failed = [item.message for item in readiness.checks if not item.ok]
+        raise ValueError(
+            "视频生成准备度未通过：" + "；".join(failed[:5])
+        )
     task_id, snapshot = await stage_video_from_preview(
         db,
         shot_id=shot_id,

@@ -3678,6 +3678,128 @@
         }
       }
     },
+    "/api/v1/studio/shots/{shot_id}/video-versions/{task_id}/review": {
+      "post": {
+        "tags": [
+          "studio/shots"
+        ],
+        "summary": "标记视频候选满意/不满意与问题标签",
+        "operationId": "review_shot_video_version_api_api_v1_studio_shots__shot_id__video_versions__task_id__review_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Shot Id"
+            }
+          },
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShotVideoReviewUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/shots/{shot_id}/video-versions/{task_id}/adopt": {
+      "post": {
+        "tags": [
+          "studio/shots"
+        ],
+        "summary": "按任务采纳视频候选（显式）",
+        "operationId": "adopt_shot_video_version_by_task_api_api_v1_studio_shots__shot_id__video_versions__task_id__adopt_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Shot Id"
+            }
+          },
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ShotRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/studio/shots/{shot_id}/video-versions/adopt": {
       "post": {
         "tags": [
@@ -13393,6 +13515,164 @@
         }
       }
     },
+    "/api/v1/studio/characters/{character_id}/voice-samples": {
+      "get": {
+        "tags": [
+          "studio/voice-samples"
+        ],
+        "summary": "角色固定音色样本列表",
+        "operationId": "list_voice_samples_api_api_v1_studio_characters__character_id__voice_samples_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "character_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Character Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_list_VoiceSampleRead__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "studio/voice-samples"
+        ],
+        "summary": "上传角色固定音色样本",
+        "operationId": "upload_voice_sample_api_api_v1_studio_characters__character_id__voice_samples_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "character_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Character Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_voice_sample_api_api_v1_studio_characters__character_id__voice_samples_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_VoiceSampleRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/characters/{character_id}/voice-samples/{sample_id}": {
+      "delete": {
+        "tags": [
+          "studio/voice-samples"
+        ],
+        "summary": "停用角色固定音色样本",
+        "operationId": "delete_voice_sample_api_api_v1_studio_characters__character_id__voice_samples__sample_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "character_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Character Id"
+            }
+          },
+          {
+            "name": "sample_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sample Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_NoneType_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/studio/files/{file_id}/download": {
       "get": {
         "tags": [
@@ -18957,6 +19237,48 @@
         "type": "object",
         "title": "ApiResponse[VoiceBindingRead]"
       },
+      "ApiResponse_VoiceSampleRead_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VoiceSampleRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[VoiceSampleRead]"
+      },
       "ApiResponse_dict_": {
         "properties": {
           "code": {
@@ -20010,6 +20332,52 @@
         },
         "type": "object",
         "title": "ApiResponse[list[VoiceItem]]"
+      },
+      "ApiResponse_list_VoiceSampleRead__": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/VoiceSampleRead"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[list[VoiceSampleRead]]"
       },
       "ApiResponse_list_dict_str__Any___": {
         "properties": {
@@ -21310,6 +21678,25 @@
           "file"
         ],
         "title": "Body_upload_reference_binding_api_api_v1_studio_shots__shot_id__reference_bindings_upload_post"
+      },
+      "Body_upload_voice_sample_api_api_v1_studio_characters__character_id__voice_samples_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_voice_sample_api_api_v1_studio_characters__character_id__voice_samples_post"
       },
       "Body_upload_worldbuilding_document_api_api_v1_studio_projects__project_id__script_documents_worldbuilding_post": {
         "properties": {
@@ -23455,6 +23842,14 @@
             "type": "array",
             "title": "Audio File Ids"
           },
+          "audio_refs": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Audio Refs"
+          },
           "prompt": {
             "type": "string",
             "title": "Prompt",
@@ -24395,6 +24790,18 @@
             },
             "type": "array",
             "title": "Reference Audio File Ids"
+          },
+          "expected_input_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Input Hash",
+            "description": "预览返回的 input_hash；提交时不一致则拒绝，要求刷新预览"
           },
           "auto_adopt": {
             "type": "boolean",
@@ -33624,6 +34031,32 @@
         "title": "ShotVideoReadinessRead",
         "description": "镜头视频生成准备度。"
       },
+      "ShotVideoReviewUpdate": {
+        "properties": {
+          "review_status": {
+            "type": "string",
+            "title": "Review Status",
+            "description": "unrated/satisfied/unsatisfied"
+          },
+          "issue_tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Issue Tags"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "review_status"
+        ],
+        "title": "ShotVideoReviewUpdate"
+      },
       "ShotVideoVersionAdoptRequest": {
         "properties": {
           "file_id": {
@@ -33716,6 +34149,52 @@
             ],
             "title": "Error",
             "description": "失败原因（仅失败版本有值）"
+          },
+          "file_url": {
+            "type": "string",
+            "title": "File Url",
+            "description": "视频文件可播放 URL",
+            "default": ""
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name",
+            "description": "生成模型",
+            "default": ""
+          },
+          "reference_count": {
+            "type": "integer",
+            "title": "Reference Count",
+            "description": "实际参考图数量",
+            "default": 0
+          },
+          "manifest": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Manifest",
+            "description": "该候选的参考素材快照"
+          },
+          "review_status": {
+            "type": "string",
+            "title": "Review Status",
+            "description": "unrated/satisfied/unsatisfied",
+            "default": "unrated"
+          },
+          "issue_tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Issue Tags"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "description": "人工审核备注",
+            "default": ""
           },
           "created_at": {
             "anyOf": [
@@ -36458,6 +36937,50 @@
         },
         "type": "object",
         "title": "VoiceItem"
+      },
+      "VoiceSampleRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "character_id": {
+            "type": "string",
+            "title": "Character Id"
+          },
+          "file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Id"
+          },
+          "file_url": {
+            "type": "string",
+            "title": "File Url",
+            "default": ""
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "default": ""
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "character_id"
+        ],
+        "title": "VoiceSampleRead"
       }
     },
     "securitySchemes": {

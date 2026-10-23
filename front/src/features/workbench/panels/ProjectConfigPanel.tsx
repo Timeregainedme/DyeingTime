@@ -624,7 +624,7 @@ export function ProjectConfigPanel({
               <span>
                 使用角色音色作为参考音频
                 <span className="mt-0.5 block text-[11px] font-normal leading-4 text-muted-foreground">
-                  默认关闭。开启后，已确认的角色/台词配音会作为 H3 音色参考，最终对白仍由 H3 生成。
+                  默认关闭。开启后，按镜头对白说话人读取角色固定音色样本作为 H3 音色参考；样本缺失会阻止 P6 生成，最终对白仍由 H3 生成。
                 </span>
               </span>
             </label>

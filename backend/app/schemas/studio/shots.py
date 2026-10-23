@@ -583,6 +583,13 @@ class ShotVideoVersionRead(BaseModel):
     seconds: float | None = Field(None, description="该版本时长（秒）")
     prompt: str | None = Field(None, description="该版本实际提交给模型的提示词")
     error: str | None = Field(None, description="失败原因（仅失败版本有值）")
+    file_url: str = Field("", description="视频文件可播放 URL")
+    model_name: str = Field("", description="生成模型")
+    reference_count: int = Field(0, description="实际参考图数量")
+    manifest: list[dict] = Field(default_factory=list, description="该候选的参考素材快照")
+    review_status: str = Field("unrated", description="unrated/satisfied/unsatisfied")
+    issue_tags: list[str] = Field(default_factory=list)
+    note: str = Field("", description="人工审核备注")
     created_at: datetime | None = Field(None, description="创建时间")
 
 
@@ -599,3 +606,9 @@ class ShotRuntimeSummaryRead(BaseModel):
     has_active_prompt_tasks: bool = Field(..., description="是否存在进行中的提示词任务")
     has_active_frame_tasks: bool = Field(..., description="是否存在进行中的分镜帧图片任务")
     active_task_count: int = Field(..., description="进行中的唯一任务数")
+
+
+class ShotVideoReviewUpdate(BaseModel):
+    review_status: str = Field(..., description="unrated/satisfied/unsatisfied")
+    issue_tags: list[str] = Field(default_factory=list)
+    note: str = ""

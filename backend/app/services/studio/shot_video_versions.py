@@ -18,7 +18,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.studio import Shot
+from app.models.studio import FileItem, Shot, ShotGenerationSnapshot, ShotVideoReview
 from app.models.task import GenerationTask
 from app.models.task_links import GenerationTaskLink
 from app.schemas.studio.shots import ShotVideoVersionRead
@@ -125,6 +125,31 @@ async def list_shot_video_versions(
         }
 
     current_file_id = str(shot.generated_video_file_id or "").strip() or None
+    file_ids = [str(item.file_id) for item in links.values() if item.file_id]
+    file_map = {
+        item.id: item
+        for item in (
+            await db.execute(select(FileItem).where(FileItem.id.in_(file_ids)))
+        ).scalars().all()
+    } if file_ids else {}
+    snapshot_map = {
+        item.task_id: item
+        for item in (
+            await db.execute(
+                select(ShotGenerationSnapshot).where(
+                    ShotGenerationSnapshot.task_id.in_(task_ids)
+                )
+            )
+        ).scalars().all()
+    } if task_ids else {}
+    review_map = {
+        item.task_id: item
+        for item in (
+            await db.execute(
+                select(ShotVideoReview).where(ShotVideoReview.task_id.in_(task_ids))
+            )
+        ).scalars().all()
+    } if task_ids else {}
 
     versions: list[ShotVideoVersionRead] = []
     for link_id, task_id in ordered:
@@ -133,10 +158,19 @@ async def list_shot_video_versions(
         if link is None or task is None:
             continue
         file_id = str(link.file_id or "").strip() or None
+        snapshot = snapshot_map.get(task.id)
+        review = review_map.get(task.id)
         versions.append(
             ShotVideoVersionRead(
                 task_id=task.id,
                 file_id=file_id,
+                file_url=(file_map[file_id].thumbnail or "") if file_id in file_map else "",
+                model_name=(snapshot.model_name if snapshot else "") or "",
+                reference_count=(len(snapshot.manifest) if snapshot else 0),
+                manifest=(snapshot.manifest if snapshot else []),
+                review_status=(review.review_status if review else "unrated"),
+                issue_tags=(review.issue_tags if review else []),
+                note=(review.note if review else ""),
                 status=_enum_text(task.status),
                 is_current=bool(file_id and current_file_id and file_id == current_file_id),
                 ratio=str(_version_input(task.payload).get("ratio") or "").strip() or None,
@@ -180,3 +214,65 @@ async def adopt_shot_video_version(
     shot.generated_video_file_id = target
     await db.flush()
     return shot
+
+
+async def review_shot_video_version(
+    db: AsyncSession,
+    *,
+    shot_id: str,
+    task_id: str,
+    review_status: str,
+    issue_tags: list[str] | None = None,
+    note: str = "",
+    reviewed_by: int | None = None,
+) -> ShotVideoReview:
+    if review_status not in {"unrated", "satisfied", "unsatisfied"}:
+        raise ValueError("review_status 只支持 unrated/satisfied/unsatisfied")
+    link = (
+        await db.execute(
+            select(GenerationTaskLink)
+            .where(
+                GenerationTaskLink.task_id == task_id,
+                GenerationTaskLink.resource_type == VIDEO_RESOURCE_TYPE,
+                GenerationTaskLink.relation_type == VIDEO_RELATION_TYPE,
+                GenerationTaskLink.relation_entity_id == shot_id,
+            )
+            .limit(1)
+        )
+    ).scalars().first()
+    if link is None:
+        raise ValueError("视频候选不属于该镜头")
+    row = (
+        await db.execute(select(ShotVideoReview).where(ShotVideoReview.task_id == task_id))
+    ).scalars().first()
+    if row is None:
+        row = ShotVideoReview(shot_id=shot_id, task_id=task_id, file_id=link.file_id)
+        db.add(row)
+    row.file_id = link.file_id
+    row.review_status = review_status
+    row.issue_tags = list(issue_tags or [])
+    row.note = note or ""
+    row.reviewed_by = reviewed_by
+    row.reviewed_at = __import__("datetime").datetime.now(__import__("datetime").UTC)
+    await db.flush()
+    return row
+
+
+async def adopt_shot_video_version_by_task(
+    db: AsyncSession, *, shot_id: str, task_id: str
+) -> Shot:
+    link = (
+        await db.execute(
+            select(GenerationTaskLink)
+            .where(
+                GenerationTaskLink.task_id == task_id,
+                GenerationTaskLink.resource_type == VIDEO_RESOURCE_TYPE,
+                GenerationTaskLink.relation_type == VIDEO_RELATION_TYPE,
+                GenerationTaskLink.relation_entity_id == shot_id,
+            )
+            .limit(1)
+        )
+    ).scalars().first()
+    if link is None or not link.file_id:
+        raise ValueError("该视频候选没有可用文件")
+    return await adopt_shot_video_version(db, shot_id=shot_id, file_id=str(link.file_id))

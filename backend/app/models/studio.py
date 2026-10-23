@@ -38,6 +38,8 @@ from app.models.studio_script_documents import ScriptDocument, ScriptDocumentVer
 from app.models.studio_scene_groups import SceneGroup
 from app.models.studio_generation_quota import GenerationQuota, GenerationUsageReservation
 from app.models.studio_video_batches import VideoGenerationBatch, VideoGenerationBatchItem
+from app.models.studio_voice_samples import CharacterVoiceSample
+from app.models.studio_video_reviews import ShotVideoReview
 from app.models.studio_shot_references import (
     ShotGenerationSnapshot,
     ShotPromptReference,
@@ -117,6 +119,8 @@ __all__ = [
     "GenerationUsageReservation",
     "VideoGenerationBatch",
     "VideoGenerationBatchItem",
+    "ShotVideoReview",
+    "CharacterVoiceSample",
     "ShotReferenceBinding",
     "ShotPromptReference",
     "ShotGenerationSnapshot",

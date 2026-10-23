@@ -53,7 +53,7 @@ ShotAssetVersion
 - manifest（文件、资产、版本、角色、顺序）
 - 最终 prompt / 自然语言 prompt / 高级 prompt
 - @ 引用
-- 音频参考
+- 音频参考（file_id、说话人、标签）
 - 镜头资产版本
 - 比例、分辨率、时长、input_hash
 
@@ -83,8 +83,8 @@ ShotAssetVersion
 
 - 角色正式名 + `character_aliases` 别名；
 - 场景、道具、服装名称；
-- 同名/别名歧义返回未解析，要求人工处理；
-- 解析结果保存稳定 asset_id/version_id，角色改名后引用仍指向同一 Character；
+- 同名/别名歧义返回未解析或使用该镜头已保存的明确引用，不做随机绑定；
+- 解析结果保存稳定 asset_id/version_id；角色改名后，历史 @ 引用仍按 `shot_prompt_references` 指向同一 Character；
 - 未解析 `@` 进入阻塞错误。
 
 ## 5. 预览与生成
@@ -97,6 +97,12 @@ ShotAssetVersion
 4. 生成最终 H3 prompt；
 5. 返回参考文件顺序、音频、prompt、warnings、blocking_errors、input_hash。
 
+提交前一致性校验：
+
+- `create_video_task` 接受预览返回的 `expected_input_hash`；
+- 若提交时重新构建的 manifest/prompt/音频/参数 hash 不一致，返回冲突并要求刷新预览；
+- 不静默使用新的自动推荐或最新资产版本。
+
 高级 prompt：
 
 - 可覆盖最终 prompt；
@@ -106,7 +112,24 @@ ShotAssetVersion
 `create_video_task` 使用同一 preview 构建 run_args，并写 `shot_generation_snapshots`。
 新路径默认 `auto_adopt=false`：生成完成只新增候选，不自动覆盖当前视频。
 
-## 6. 准备度
+## 6. 固定音色样本与音频参考
+
+P6 正式路径区分：
+
+- `characters.voice_id`：供应商 TTS 音色 ID；
+- `character_voice_samples`：可提交给 H3 的固定音频样本 FileItem。
+
+项目 `use_dialog_audio_as_reference` 关闭时，不添加任何参考音频。开启时：
+
+- 按镜头对白说话人查找已启用固定样本；
+- 说话人不明确、缺少样本或超过 3 人时阻止 P6 生成；
+- 不使用其他角色音频兜底；
+- 音频编号与最终 H3 prompt 的 `<Audio N>` 使用同一份快照；
+- 旧视频入口继续保留原有台词配音参考行为，供历史任务兼容。
+
+上传接口：`POST /api/v1/studio/characters/{id}/voice-samples`；迁移 `047-add-character-voice-samples.sql`。
+
+## 7. 准备度
 
 在既有 readiness 上追加：
 
@@ -117,7 +140,7 @@ ShotAssetVersion
 - 提示词 @ 引用均可解析；
 - 既有模型/供应商/时长/任务/参考帧检查继续生效。
 
-## 7. API
+## 8. API
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
@@ -132,9 +155,10 @@ ShotAssetVersion
 | `POST` | `.../generation` | 单镜头生成 |
 | `GET` | `.../generation-snapshots` | 快照历史 |
 | `GET` | `/api/v1/studio/generation-snapshots/{id}` | 快照详情 |
+| `GET/POST/DELETE` | `/api/v1/studio/characters/{id}/voice-samples` | 固定音色样本 |
 
-## 8. 当前边界
+## 9. 当前边界
 
 - 图片上传只做镜头参考，不自动生成图片；
-- 音频参考仍复用现有台词配音文件；固定音色样本扩展由 P6 音频链路确认；
+- 旧视频入口仍支持台词配音参考；P6 正式路径使用固定音色样本；
 - 额度门禁、批量任务、视频审核在 C12/C13/C14 继续。

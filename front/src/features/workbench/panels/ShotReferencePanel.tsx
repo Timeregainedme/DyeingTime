@@ -19,6 +19,8 @@ import {
   useP6Readiness,
   useReferenceBindings,
   useShotReferenceActions,
+  useWorkbenchCharacters,
+  useWorkbenchGlobalAssets,
   useWorkbenchShotDetail,
 } from '../useWorkbenchQueries'
 
@@ -50,7 +52,13 @@ export function ShotReferencePanel({
   const [preview, setPreview] = useState<GenerationPreviewRead | null>(null)
   const [notice, setNotice] = useState('')
   const [role, setRole] = useState('shot_composition')
+  const [mention, setMention] = useState<{ query: string; start: number } | null>(null)
   const uploadRef = useRef<HTMLInputElement | null>(null)
+  const promptRef = useRef<HTMLTextAreaElement | null>(null)
+  const charactersQuery = useWorkbenchCharacters(projectId)
+  const scenesQuery = useWorkbenchGlobalAssets(projectId, 'scene')
+  const propsQuery = useWorkbenchGlobalAssets(projectId, 'prop')
+  const costumesQuery = useWorkbenchGlobalAssets(projectId, 'costume')
 
   useEffect(() => {
     setPrompt(detailQuery.data?.video_prompt_draft ?? '')
@@ -65,6 +73,7 @@ export function ShotReferencePanel({
     advanced_prompt: advancedPrompt,
     reference_mode: 'reference',
     reference_audio_file_ids: [],
+    expected_input_hash: preview?.input_hash ?? null,
     auto_adopt: false,
   })
   const readiness = readinessQuery.data
@@ -197,7 +206,49 @@ export function ShotReferencePanel({
         <CardHeader className="pb-2"><CardTitle className="text-sm">提示词与生成预览</CardTitle></CardHeader>
         <CardContent className="space-y-2">
           <label className="text-[11px] text-muted-foreground">自然语言提示词（支持 @角色 / @场景 / @道具）</label>
-          <Textarea value={prompt} rows={3} onChange={(event) => setPrompt(event.target.value)} className="text-xs" />
+          <div className="relative">
+            <Textarea
+              ref={promptRef}
+              value={prompt}
+              rows={3}
+              onChange={(event) => {
+                const value = event.target.value
+                setPrompt(value)
+                const cursor = event.target.selectionStart ?? value.length
+                const match = value.slice(0, cursor).match(/@([^\s@]*)$/)
+                setMention(match ? { query: match[1], start: cursor - match[1].length } : null)
+              }}
+              className="text-xs"
+            />
+            {mention ? (
+              <div className="absolute left-1 top-full z-20 mt-1 max-h-44 w-64 overflow-auto rounded-md border border-border bg-popover p-1 shadow-lg">
+                {[...(charactersQuery.data ?? []), ...(scenesQuery.data ?? []), ...(propsQuery.data ?? []), ...(costumesQuery.data ?? [])]
+                  .filter((item) => item.name.toLowerCase().includes(mention.query.toLowerCase()))
+                  .slice(0, 8)
+                  .map((item) => (
+                    <button
+                      key={`${item.id}-${item.name}`}
+                      type="button"
+                      className="block w-full rounded px-2 py-1 text-left text-[11px] hover:bg-muted"
+                      onClick={() => {
+                        const next = `${prompt.slice(0, mention.start)}@${item.name} ${prompt.slice(mention.start + mention.query.length + 1)}`
+                        setPrompt(next)
+                        setMention(null)
+                        requestAnimationFrame(() => promptRef.current?.focus())
+                      }}
+                    >
+                      {item.name}
+                    </button>
+                  ))}
+                {(charactersQuery.data ?? []).length +
+                  (scenesQuery.data ?? []).length +
+                  (propsQuery.data ?? []).length +
+                  (costumesQuery.data ?? []).length === 0 ? (
+                  <p className="px-2 py-1 text-[10px] text-muted-foreground">没有可引用的项目资产</p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
           <label className="text-[11px] text-muted-foreground">高级最终 H3 提示词（可选；非空时优先）</label>
           <Textarea value={advancedPrompt} rows={3} onChange={(event) => setAdvancedPrompt(event.target.value)} className="text-xs" />
           <div className="flex flex-wrap gap-1">
