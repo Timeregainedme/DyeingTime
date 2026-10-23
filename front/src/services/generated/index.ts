@@ -15,6 +15,7 @@ export type { ApiResponse_AudioGenerationOptionsRead_ } from './models/ApiRespon
 export type { ApiResponse_ChapterRead_ } from './models/ApiResponse_ChapterRead_';
 export type { ApiResponse_CharacterAliasRead_ } from './models/ApiResponse_CharacterAliasRead_';
 export type { ApiResponse_CharacterPortraitAnalysisResult_ } from './models/ApiResponse_CharacterPortraitAnalysisResult_';
+export type { ApiResponse_ClipsExportPrecheckRead_ } from './models/ApiResponse_ClipsExportPrecheckRead_';
 export type { ApiResponse_CostumeInfoAnalysisResult_ } from './models/ApiResponse_CostumeInfoAnalysisResult_';
 export type { ApiResponse_dict_ } from './models/ApiResponse_dict_';
 export type { ApiResponse_dict_str__Any__ } from './models/ApiResponse_dict_str__Any__';
@@ -173,6 +174,10 @@ export type { CharacterLockRequest } from './models/CharacterLockRequest';
 export type { CharacterPortraitAnalysisRequest } from './models/CharacterPortraitAnalysisRequest';
 export type { CharacterPortraitAnalysisResult } from './models/CharacterPortraitAnalysisResult';
 export type { CharacterRecurrenceRead } from './models/CharacterRecurrenceRead';
+export type { ClipsExportItemRead } from './models/ClipsExportItemRead';
+export type { ClipsExportPrecheckRead } from './models/ClipsExportPrecheckRead';
+export type { ClipsExportRequest } from './models/ClipsExportRequest';
+export type { ClipsExportSelection } from './models/ClipsExportSelection';
 export type { CostumeInfoAnalysisRequest } from './models/CostumeInfoAnalysisRequest';
 export type { CostumeInfoAnalysisResult } from './models/CostumeInfoAnalysisResult';
 export type { CostumeTimeline } from './models/CostumeTimeline';

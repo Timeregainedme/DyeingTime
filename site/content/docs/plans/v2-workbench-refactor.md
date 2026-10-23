@@ -347,18 +347,24 @@ C14 已实现：
 
 Mock 验收脚本：`backend/scripts/p6_mock_acceptance.py`（12 镜、参考排序/锁定、@ 引用、批量、审核采纳、额度状态）。
 
-### P7 — 导出与端到端验收
+### P7 — 导出与端到端验收（进行中）
+
+状态：C15 已实现选择式 MP4 ZIP；C16 继续模板、纵向验收与真实供应商验证计划。
 
 目标：选择镜头、轻量 ZIP 导出、规范命名，跑通真实链路。
 
-修改：
-- `backend/app/services/studio/timeline.py` — 支持选择筛选、`E01_SC02_SH003.mp4` 命名
-- `backend/app/api/v1/routes/studio/timeline.py` — 导出参数化
-- `front/src/pages/aiStudio/workbench/panels/ExportPanel.tsx` — 筛选与下载
+C15 已实现：
+- `services/studio/timeline.py`：选择范围、预检查、plan hash、MP4-only ZIP、流式临时文件
+- `api/v1/routes/studio/timeline.py`：`clips-precheck` / `clips-export`
+- `ExportPanel.tsx`：剧集/场次/镜头筛选、全选、预检查、ZIP 下载
+- `builder` 使用当前 `shots.generated_video_file_id`，未采纳候选不进入 ZIP
+- 旧 `clips-archive` 与 ffmpeg 成片接口保持兼容
 
-新增：
-- `scripts/e2e_single_episode.py` — 单集端到端验收脚本（结构全量真实、真实视频不超过 4 镜）
-- `docs/test-scripts/` — 三类空白剧本模板（`.docx` + `.md`）
+C16 待完成：
+- 三类 DOCX/Markdown 空白模板与非空 Fixtures
+- P1–P7 Mock 纵向验收脚本
+- 导出内容、版本切换、失败/重试与浏览器环境验证
+- 真实供应商验证计划（不自动付费调用）
 
 验收：单集约 12 镜结构可完整生产；真实视频调用数严格不超过 4；导出命名与顺序正确。
 

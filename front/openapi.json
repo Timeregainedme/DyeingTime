@@ -7583,6 +7583,115 @@
         }
       }
     },
+    "/api/v1/studio/timeline/projects/{project_id}/clips-precheck": {
+      "post": {
+        "tags": [
+          "studio/timeline"
+        ],
+        "summary": "选择式 MP4 ZIP 导出预检查",
+        "description": "返回镜头顺序、规范化文件名、已采纳文件及所有阻塞项。",
+        "operationId": "precheck_project_clips_export_api_api_v1_studio_timeline_projects__project_id__clips_precheck_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClipsExportSelection"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ClipsExportPrecheckRead_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/timeline/projects/{project_id}/clips-export": {
+      "post": {
+        "tags": [
+          "studio/timeline"
+        ],
+        "summary": "选择式 MP4 ZIP 导出下载",
+        "description": "严格按预检查计划生成 MP4-only ZIP。\n\n该接口不修改任何镜头状态、不触发媒体生成、不删除旧视频。",
+        "operationId": "export_selected_clips_api_api_v1_studio_timeline_projects__project_id__clips_export_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClipsExportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/studio/image-tasks/actors/{actor_id}/image-tasks": {
       "post": {
         "tags": [
@@ -15127,6 +15236,48 @@
         "type": "object",
         "title": "ApiResponse[CharacterPortraitAnalysisResult]"
       },
+      "ApiResponse_ClipsExportPrecheckRead_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "与 HTTP 状态码一致",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "提示信息",
+            "default": "success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClipsExportPrecheckRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际数据"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "附加元信息"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[ClipsExportPrecheckRead]"
+      },
       "ApiResponse_CostumeInfoAnalysisResult_": {
         "properties": {
           "code": {
@@ -22211,6 +22362,309 @@
         ],
         "title": "CharacterRecurrenceRead",
         "description": "单个角色的跨集出现情况。\n\n存在的意义：角色要不要绑定演员取决于它出现在几集里 —— 跨集反复出现的必须绑，\n只在一集内出现的不需要（用户口径 m09145）。把章节数直接给前端，编辑角色时就能标出来。"
+      },
+      "ClipsExportItemRead": {
+        "properties": {
+          "shot_id": {
+            "type": "string",
+            "title": "Shot Id"
+          },
+          "chapter_id": {
+            "type": "string",
+            "title": "Chapter Id"
+          },
+          "chapter_index": {
+            "type": "integer",
+            "title": "Chapter Index"
+          },
+          "chapter_title": {
+            "type": "string",
+            "title": "Chapter Title",
+            "default": ""
+          },
+          "scene_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Group Id"
+          },
+          "scene_index": {
+            "type": "integer",
+            "title": "Scene Index",
+            "default": 0
+          },
+          "scene_title": {
+            "type": "string",
+            "title": "Scene Title",
+            "default": ""
+          },
+          "shot_index": {
+            "type": "integer",
+            "title": "Shot Index"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "default": ""
+          },
+          "duration": {
+            "type": "integer",
+            "title": "Duration",
+            "default": 0
+          },
+          "file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Id"
+          },
+          "file_name": {
+            "type": "string",
+            "title": "File Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "ok/no_accepted/file_missing/storage_unavailable/unsupported_format",
+            "default": "ok"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes",
+            "default": 0
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "shot_id",
+          "chapter_id",
+          "chapter_index",
+          "shot_index",
+          "file_name"
+        ],
+        "title": "ClipsExportItemRead",
+        "description": "预检查中的单个镜头导出项。"
+      },
+      "ClipsExportPrecheckRead": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "project_name": {
+            "type": "string",
+            "title": "Project Name"
+          },
+          "selected_count": {
+            "type": "integer",
+            "title": "Selected Count"
+          },
+          "exportable_count": {
+            "type": "integer",
+            "title": "Exportable Count"
+          },
+          "no_accepted_count": {
+            "type": "integer",
+            "title": "No Accepted Count"
+          },
+          "file_missing_count": {
+            "type": "integer",
+            "title": "File Missing Count"
+          },
+          "unsupported_count": {
+            "type": "integer",
+            "title": "Unsupported Count"
+          },
+          "total_duration": {
+            "type": "number",
+            "title": "Total Duration"
+          },
+          "estimated_size": {
+            "type": "integer",
+            "title": "Estimated Size",
+            "default": 0
+          },
+          "plan_hash": {
+            "type": "string",
+            "title": "Plan Hash"
+          },
+          "can_download": {
+            "type": "boolean",
+            "title": "Can Download"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ClipsExportItemRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "blockers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blockers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "project_name",
+          "selected_count",
+          "exportable_count",
+          "no_accepted_count",
+          "file_missing_count",
+          "unsupported_count",
+          "total_duration",
+          "plan_hash",
+          "can_download"
+        ],
+        "title": "ClipsExportPrecheckRead",
+        "description": "选择式 ZIP 导出的预检查结果。"
+      },
+      "ClipsExportRequest": {
+        "properties": {
+          "shot_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shot Ids",
+            "description": "自定义镜头 ID 列表；按数据库业务顺序重排，不按传入顺序"
+          },
+          "chapter_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Ids",
+            "description": "剧集 ID 列表"
+          },
+          "scene_group_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Group Ids",
+            "description": "场次 ID 列表"
+          },
+          "include_all": {
+            "type": "boolean",
+            "title": "Include All",
+            "description": "选择项目内全部镜头",
+            "default": false
+          },
+          "expected_plan_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Plan Hash",
+            "description": "预检查返回的 plan_hash；不一致时拒绝导出"
+          }
+        },
+        "type": "object",
+        "title": "ClipsExportRequest",
+        "description": "正式导出请求；expected_plan_hash 用于防止预检查后采纳版本变化。"
+      },
+      "ClipsExportSelection": {
+        "properties": {
+          "shot_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shot Ids",
+            "description": "自定义镜头 ID 列表；按数据库业务顺序重排，不按传入顺序"
+          },
+          "chapter_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Ids",
+            "description": "剧集 ID 列表"
+          },
+          "scene_group_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Group Ids",
+            "description": "场次 ID 列表"
+          },
+          "include_all": {
+            "type": "boolean",
+            "title": "Include All",
+            "description": "选择项目内全部镜头",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ClipsExportSelection",
+        "description": "选择式片段导出范围；shot_ids 优先，其次场次、剧集，最后 include_all。"
       },
       "CostumeInfoAnalysisRequest": {
         "properties": {
@@ -35638,6 +36092,27 @@
           "chapter_title": {
             "type": "string",
             "title": "Chapter Title"
+          },
+          "scene_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Group Id"
+          },
+          "scene_index": {
+            "type": "integer",
+            "title": "Scene Index",
+            "default": 0
+          },
+          "scene_title": {
+            "type": "string",
+            "title": "Scene Title",
+            "default": ""
           },
           "index": {
             "type": "integer",

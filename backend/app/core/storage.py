@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, BinaryIO
 
 from anyio import to_thread
@@ -181,6 +182,33 @@ async def download_file(*, key: str, byte_range: tuple[int, int] | None = None) 
         return body  # type: ignore[no-any-return]
 
     return await to_thread.run_sync(_download)
+
+
+async def download_file_to_path(*, key: str, path: Path) -> None:
+    """把对象流式下载到本地临时文件，避免整段视频驻留内存。
+
+    ZIP 导出会逐个文件写入临时目录，再用 ZIP_STORED 打包；此函数提供
+    受控的磁盘缓冲，单个对象按 1MB 分块读取。
+    """
+    client = _build_s3_client()
+    bucket = settings.s3_bucket_name
+    if bucket is None:
+        raise RuntimeError("S3 未配置：缺少 s3_bucket_name")
+
+    s3_key = _normalize_key(key)
+
+    def _download() -> None:
+        obj = client.get_object(Bucket=bucket, Key=s3_key)
+        body = obj["Body"]
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("wb") as fh:
+            while True:
+                chunk = body.read(1024 * 1024)
+                if not chunk:
+                    break
+                fh.write(chunk)
+
+    await to_thread.run_sync(_download)
 
 
 async def get_file_info(*, key: str) -> StoredFileInfo:

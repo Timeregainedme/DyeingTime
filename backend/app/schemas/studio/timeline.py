@@ -40,6 +40,9 @@ class TimelineClipRead(BaseModel):
     chapter_id: str
     chapter_index: int
     chapter_title: str
+    scene_group_id: str | None = None
+    scene_index: int = 0
+    scene_title: str = ""
     index: int
     title: str
     status: str
@@ -79,3 +82,60 @@ class TimelineExportRead(BaseModel):
     download_path: str
     clip_count: int
     duration: float
+
+
+class ClipsExportSelection(BaseModel):
+    """选择式片段导出范围；shot_ids 优先，其次场次、剧集，最后 include_all。"""
+
+    shot_ids: list[str] | None = Field(
+        None, description="自定义镜头 ID 列表；按数据库业务顺序重排，不按传入顺序"
+    )
+    chapter_ids: list[str] | None = Field(None, description="剧集 ID 列表")
+    scene_group_ids: list[str] | None = Field(None, description="场次 ID 列表")
+    include_all: bool = Field(False, description="选择项目内全部镜头")
+
+
+class ClipsExportRequest(ClipsExportSelection):
+    """正式导出请求；expected_plan_hash 用于防止预检查后采纳版本变化。"""
+
+    expected_plan_hash: str | None = Field(
+        None, description="预检查返回的 plan_hash；不一致时拒绝导出"
+    )
+
+
+class ClipsExportItemRead(BaseModel):
+    """预检查中的单个镜头导出项。"""
+
+    shot_id: str
+    chapter_id: str
+    chapter_index: int
+    chapter_title: str = ""
+    scene_group_id: str | None = None
+    scene_index: int = 0
+    scene_title: str = ""
+    shot_index: int
+    title: str = ""
+    duration: int = 0
+    file_id: str | None = None
+    file_name: str
+    status: str = Field("ok", description="ok/no_accepted/file_missing/storage_unavailable/unsupported_format")
+    size_bytes: int = 0
+    error: str = ""
+
+
+class ClipsExportPrecheckRead(BaseModel):
+    """选择式 ZIP 导出的预检查结果。"""
+
+    project_id: str
+    project_name: str
+    selected_count: int
+    exportable_count: int
+    no_accepted_count: int
+    file_missing_count: int
+    unsupported_count: int
+    total_duration: float
+    estimated_size: int = 0
+    plan_hash: str
+    can_download: bool
+    items: list[ClipsExportItemRead] = Field(default_factory=list)
+    blockers: list[str] = Field(default_factory=list)

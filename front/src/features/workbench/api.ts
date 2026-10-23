@@ -27,7 +27,9 @@ import {
   StudioTimelineService,
   StudioVideoBatchesService,
   StudioVoiceSamplesService,
+  OpenAPI,
 } from '../../services/generated'
+import { getStoredToken } from '../../store/useAuthStore'
 import type {
   AssetImpactRead,
   AssetImageCandidateRead,
@@ -35,6 +37,9 @@ import type {
   AssetProfileUpdate,
   ChapterRead,
   CharacterAliasRead,
+  ClipsExportPrecheckRead,
+  ClipsExportRequest,
+  ClipsExportSelection,
   CreateDerivedVersionRequest,
   GenerateCandidatesRequest,
   ProjectGenerationConfigRead,
@@ -1377,6 +1382,75 @@ export async function loadShotReadiness(shotId: string): Promise<ShotVideoReadin
     })
   if (!response.data) throw new Error('服务端没有返回视频准备度')
   return response.data
+}
+
+export type ClipsExportDownload = {
+  blob: Blob
+  filename: string
+  planHash: string
+}
+
+/** 选择式导出预检查：走 OpenAPI generated client。 */
+export async function precheckClipsExport(
+  projectId: string,
+  body: ClipsExportSelection,
+): Promise<ClipsExportPrecheckRead> {
+  const response =
+    await StudioTimelineService.precheckProjectClipsExportApiApiV1StudioTimelineProjectsProjectIdClipsPrecheckPost(
+      { projectId, requestBody: body },
+    )
+  if (!response.data) throw new Error('服务端没有返回导出预检查')
+  return response.data
+}
+
+/**
+ * 二进制 ZIP 下载。
+ *
+ * 说明：当前 openapi-typescript-codegen 的 fetch 客户端没有 binary response
+ * 支持，ZIP 会被当作文本读取。这里仍使用 generated client 初始化的同源 BASE
+ * 与鉴权 token，只替换二进制响应解析，避免手写一套后端协议。
+ */
+export async function downloadClipsExport(
+  projectId: string,
+  body: ClipsExportRequest,
+): Promise<ClipsExportDownload> {
+  const token = await getStoredToken()
+  const response = await fetch(
+    `${OpenAPI.BASE}/api/v1/studio/timeline/projects/${encodeURIComponent(projectId)}/clips-export`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+    },
+  )
+  if (!response.ok) {
+    let detail = `导出失败（HTTP ${response.status}）`
+    try {
+      const payload = await response.json()
+      detail = typeof payload?.detail === 'string' ? payload.detail : detail
+    } catch {
+      // 保留状态码错误文案
+    }
+    throw new Error(detail)
+  }
+  const disposition = response.headers.get('Content-Disposition') ?? ''
+  const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
+  const plain = disposition.match(/filename="?([^";]+)"?/i)?.[1]
+  let filename = 'DyeingTime_clips.zip'
+  try {
+    if (encoded) filename = decodeURIComponent(encoded)
+    else if (plain) filename = plain
+  } catch {
+    // 保留默认文件名
+  }
+  return {
+    blob: await response.blob(),
+    filename,
+    planHash: response.headers.get('X-Export-Plan-Hash') ?? '',
+  }
 }
 
 export async function loadProjectTimeline(projectId: string): Promise<ProjectTimelineRead> {

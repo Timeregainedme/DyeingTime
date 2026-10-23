@@ -7,20 +7,32 @@
 from __future__ import annotations
 
 import io
+import shutil
+from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from starlette.background import BackgroundTask
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.scoping import get_project_in_workspace, require_scoped_resource
 from app.dependencies import get_db
 from app.schemas.common import ApiResponse, success_response
-from app.schemas.studio.timeline import ProjectTimelineRead, TimelineExportRead
+from app.schemas.studio.timeline import (
+    ClipsExportPrecheckRead,
+    ClipsExportRequest,
+    ClipsExportSelection,
+    ProjectTimelineRead,
+    TimelineExportRead,
+)
 from app.services.studio.timeline import (
+    ClipsExportConflict,
     build_clips_archive,
+    build_selected_clips_archive,
     export_project_timeline,
     get_project_timeline,
+    precheck_clips_export,
 )
 
 router = APIRouter(
@@ -79,3 +91,55 @@ async def export_project_clips_archive_api(
         "Content-Length": str(len(content)),
     }
     return StreamingResponse(io.BytesIO(content), media_type="application/zip", headers=headers)
+
+
+@router.post(
+    "/projects/{project_id}/clips-precheck",
+    response_model=ApiResponse[ClipsExportPrecheckRead],
+    summary="选择式 MP4 ZIP 导出预检查",
+)
+async def precheck_project_clips_export_api(
+    project_id: str,
+    body: ClipsExportSelection,
+    db: AsyncSession = Depends(get_db),
+) -> ApiResponse[ClipsExportPrecheckRead]:
+    """返回镜头顺序、规范化文件名、已采纳文件及所有阻塞项。"""
+    try:
+        result = await precheck_clips_export(db, project_id=project_id, selection=body)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return success_response(result)
+
+
+@router.post(
+    "/projects/{project_id}/clips-export",
+    summary="选择式 MP4 ZIP 导出下载",
+    response_class=FileResponse,
+)
+async def export_selected_clips_api(
+    project_id: str,
+    body: ClipsExportRequest,
+    db: AsyncSession = Depends(get_db),
+) -> FileResponse:
+    """严格按预检查计划生成 MP4-only ZIP。
+
+    该接口不修改任何镜头状态、不触发媒体生成、不删除旧视频。
+    """
+    try:
+        zip_path, filename, count, plan_hash = await build_selected_clips_archive(
+            db, project_id=project_id, request=body
+        )
+    except ClipsExportConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return FileResponse(
+        path=zip_path,
+        media_type="application/zip",
+        filename=filename,
+        headers={
+            "X-Export-Plan-Hash": plan_hash,
+            "X-Export-Count": str(count),
+        },
+        background=BackgroundTask(shutil.rmtree, Path(zip_path).parent, True),
+    )

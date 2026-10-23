@@ -2,8 +2,11 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { ApiResponse_ClipsExportPrecheckRead_ } from '../models/ApiResponse_ClipsExportPrecheckRead_';
 import type { ApiResponse_ProjectTimelineRead_ } from '../models/ApiResponse_ProjectTimelineRead_';
 import type { ApiResponse_TimelineExportRead_ } from '../models/ApiResponse_TimelineExportRead_';
+import type { ClipsExportRequest } from '../models/ClipsExportRequest';
+import type { ClipsExportSelection } from '../models/ClipsExportSelection';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
@@ -70,6 +73,60 @@ export class StudioTimelineService {
             path: {
                 'project_id': projectId,
             },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * 选择式 MP4 ZIP 导出预检查
+     * 返回镜头顺序、规范化文件名、已采纳文件及所有阻塞项。
+     * @returns ApiResponse_ClipsExportPrecheckRead_ Successful Response
+     * @throws ApiError
+     */
+    public static precheckProjectClipsExportApiApiV1StudioTimelineProjectsProjectIdClipsPrecheckPost({
+        projectId,
+        requestBody,
+    }: {
+        projectId: string,
+        requestBody: ClipsExportSelection,
+    }): CancelablePromise<ApiResponse_ClipsExportPrecheckRead_> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/studio/timeline/projects/{project_id}/clips-precheck',
+            path: {
+                'project_id': projectId,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * 选择式 MP4 ZIP 导出下载
+     * 严格按预检查计划生成 MP4-only ZIP。
+     *
+     * 该接口不修改任何镜头状态、不触发媒体生成、不删除旧视频。
+     * @returns any Successful Response
+     * @throws ApiError
+     */
+    public static exportSelectedClipsApiApiV1StudioTimelineProjectsProjectIdClipsExportPost({
+        projectId,
+        requestBody,
+    }: {
+        projectId: string,
+        requestBody: ClipsExportRequest,
+    }): CancelablePromise<any> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/studio/timeline/projects/{project_id}/clips-export',
+            path: {
+                'project_id': projectId,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
             errors: {
                 422: `Validation Error`,
             },

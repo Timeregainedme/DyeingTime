@@ -45,6 +45,8 @@ import {
   loadProjectCharacters,
   loadProjectStyleState,
   loadProjectTimeline,
+  precheckClipsExport,
+  downloadClipsExport,
   loadRuntimeSummary,
   loadSceneGroup,
   loadSceneGroups,
@@ -1023,6 +1025,18 @@ export function useWorkbenchShotReadiness(projectId: string, shotId: string | un
     enabled: Boolean(projectId) && Boolean(shotId),
     staleTime: 10_000,
   })
+}
+
+export function useClipsExportActions(projectId: string) {
+  const precheck = useMutation({
+    mutationFn: (body: Parameters<typeof precheckClipsExport>[1]) =>
+      precheckClipsExport(projectId, body),
+  })
+  const download = useMutation({
+    mutationFn: (body: Parameters<typeof downloadClipsExport>[1]) =>
+      downloadClipsExport(projectId, body),
+  })
+  return { precheck, download }
 }
 
 export function useWorkbenchTimeline(projectId: string) {

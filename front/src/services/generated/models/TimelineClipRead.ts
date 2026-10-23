@@ -12,6 +12,9 @@ export type TimelineClipRead = {
     chapter_id: string;
     chapter_index: number;
     chapter_title: string;
+    scene_group_id?: (string | null);
+    scene_index?: number;
+    scene_title?: string;
     index: number;
     title: string;
     status: string;
