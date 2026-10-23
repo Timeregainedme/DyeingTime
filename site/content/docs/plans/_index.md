@@ -24,3 +24,5 @@ description: "记录当前正在推进的开发计划、改造方案与阶段性
 - [P9-A 浏览器与真实后端验收结果](/docs/plans/p9-a-e2e-results/)
 
 - [P9-B1 H3 真实供应商预检查](/docs/plans/p9-b1-h3-preflight/)
+
+- [P9-B2 真实 MiniMax H3 生成结果](/docs/plans/p9-b2-real-h3-results/)

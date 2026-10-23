@@ -13,8 +13,8 @@ weight: 8
 | 项 | 官方值 | 当前代码 |
 | --- | --- | --- |
 | 模型 | `MiniMax-H3` | `MiniMax-H3` |
-| 时长 | 4–15 秒整数 | 4–15 秒 |
-| 分辨率 | 768P / 2K | 768P / 2K（P9-B1 已修正） |
+| 时长 | 4–30 秒整数 | 项目业务 4–15 秒 |
+| 分辨率 | 480P/768P/1080P/2K/4K | 全部支持；项目 768P |
 | 比例 | 文档支持 ratio | 业务限制交集 |
 | 参考图 | 最多 9 张 | 最多 9 张 |
 | 参考音频 | 最多 3 个，不能单独 | 最多 3 个，不能单独 |
@@ -23,7 +23,7 @@ weight: 8
 | 查询 | `GET /v2/query/video_generation/{task_id}` | 同上封装 |
 | 成功结果 | `task.content.url` | `video_url_from_task` |
 
-**仍未经真实网关验证：** 优云智算的 `/minimax` 前缀、鉴权、`RetCode`/`task_id` 外层、价格、并发、Data URL 图片实际接受度。
+**P9-B2 已由真实调用验证：** `/minimax` 路径、Bearer 鉴权、`task_id`、查询、Data URL 参考图、768P 实际生成与 MP4 下载均可用。
 
 ## 2. 四个准备镜头
 
@@ -46,7 +46,7 @@ weight: 8
 
 - [ ] 用户明确批准测试 1 的单次付费调用
 - [ ] 确认优云智算账户/渠道和 `MiniMax-H3` 模型可用
-- [ ] 确认单次价格（当前未核实）
+- [x] 已确认供应商积分扣费：单条 5 秒 768P 为 50 points；法币账单未由供应商确认
 - [ ] 启用 `generation_test_quota_enabled=true`，scope=`v2-acceptance`
 - [ ] 查询 video 额度仍为 4，并验证并发抢占
 - [ ] 视频并发临时设为 1

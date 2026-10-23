@@ -1,0 +1,60 @@
+{
+  "scope": "v2-acceptance",
+  "model": "MiniMax-H3",
+  "provider": "compshare_model_api",
+  "provider_account_points": {
+    "before": 9993.02,
+    "after_two_successes": 9893.02,
+    "points_used": 100
+  },
+  "calls": [
+    {
+      "shot_id": "s-e2e-1",
+      "task_id": "3adb6fa28f2c47d4b1a174a797f7b026",
+      "provider_task_id": "01a168f7-6bb2-7ec4-b574-a92aa98d29f5",
+      "input_hash": "5767d116ad3711155e2ac0312a9599adb4239d6dd24ef0b13b0555e17c9e2cc1",
+      "status": "succeeded",
+      "duration": 5.175,
+      "width": 768,
+      "height": 1344,
+      "reference_images": 2,
+      "file_id": "03884933-f923-40ec-b235-4be2d27763e1",
+      "file_bytes": 2279477,
+      "local_quota_reserved_committed": 1,
+      "provider_points": 50
+    },
+    {
+      "shot_id": "s-e2e-2",
+      "task_id": "92aa30e950b04a50a7803fb0fd4f0a2a",
+      "provider_task_id": "01a168fd-10d7-78bb-be26-dcd4fa51d6aa",
+      "input_hash": "39cf21753926e0016c72d165230e13d0c3f455602af52baee0a5404d5d30d03e",
+      "status": "succeeded",
+      "duration": 5.175,
+      "width": 768,
+      "height": 1344,
+      "reference_images": 3,
+      "file_id": "a56f5198-112b-4cfc-af85-461bc7e78bd5",
+      "file_bytes": 2267477,
+      "local_quota_reserved_committed": 1,
+      "provider_points": 50
+    }
+  ],
+  "failed_protocol_probe": {
+    "shot_id": "s-e2e-1",
+    "task_id": "f2d99a0cb2054d0f8b52d655fa12d94b",
+    "provider_retcode": 220,
+    "provider_message": "Params [Width], should be in [256, 5760]",
+    "provider_points": 0,
+    "local_quota_reserved_committed": 1,
+    "cause": "E2E seed used invalid placeholder PNG; replaced with valid 1024px images"
+  },
+  "local_quota": {
+    "image": {"limit": 20, "consumed": 0, "remaining": 20},
+    "video": {"limit": 4, "consumed": 3, "remaining": 1},
+    "audio": {"limit": 500, "consumed": 0, "remaining": 500}
+  },
+  "fiat_cost": {
+    "confirmed": false,
+    "note": "供应商返回积分，不返回本单法币账单；积分包显示 12000 points / total_price 9900，单位未由接口声明。"
+  }
+}

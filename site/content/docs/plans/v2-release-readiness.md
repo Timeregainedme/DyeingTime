@@ -156,9 +156,9 @@ uv run python scripts/scan_generation_task_secrets.py
 
 ### P0 阻止生产
 
-- L3 真实供应商 API 未验证。
 - L4 人工视频质量未验收。
 - 生产迁移/部署未执行。
+- 法币账单未由供应商确认；真实视频仅在本地测试存储。
 
 ### P1 上线前应修复
 
