@@ -388,6 +388,7 @@ export type { ShotStatus } from './models/ShotStatus';
 export type { ShotUpdate } from './models/ShotUpdate';
 export type { ShotVideoPromptPackRead } from './models/ShotVideoPromptPackRead';
 export type { ShotVideoPromptPreviewRead } from './models/ShotVideoPromptPreviewRead';
+export type { ShotVideoQualityCheck } from './models/ShotVideoQualityCheck';
 export type { ShotVideoReadinessCheck } from './models/ShotVideoReadinessCheck';
 export type { ShotVideoReadinessRead } from './models/ShotVideoReadinessRead';
 export type { ShotVideoReviewUpdate } from './models/ShotVideoReviewUpdate';

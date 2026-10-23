@@ -33772,6 +33772,18 @@
             "description": "镜头内行号",
             "default": 0
           },
+          "speaker_character_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker Character Id",
+            "description": "结构化说话角色 ID"
+          },
           "speaker_name": {
             "type": "string",
             "title": "Speaker Name",
@@ -33802,6 +33814,12 @@
             "description": "对白模式：DIALOGUE/VOICE_OVER/OFF_SCREEN/PHONE",
             "default": "DIALOGUE"
           },
+          "voice_description": {
+            "type": "string",
+            "title": "Voice Description",
+            "description": "角色声音描述，仅使用用户配置，不按姓名推断",
+            "default": ""
+          },
           "generated_audio_file_id": {
             "anyOf": [
               {
@@ -33817,7 +33835,7 @@
         },
         "type": "object",
         "title": "ShotPromptDialogueRead",
-        "description": "用于视频提示词的结构化台词行（保留对白模式与配音文件）。"
+        "description": "用于视频提示词的结构化台词行（保留对白模式、说话人和声音描述）。"
       },
       "ShotPromptUpdate": {
         "properties": {
@@ -34436,6 +34454,44 @@
         "title": "ShotVideoPromptPreviewRead",
         "description": "视频提示词预览结果。"
       },
+      "ShotVideoQualityCheck": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "稳定规则编号"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "blocking",
+              "warning",
+              "info"
+            ],
+            "title": "Level",
+            "description": "风险级别"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "面向用户的解释"
+          },
+          "fix_hint": {
+            "type": "string",
+            "title": "Fix Hint",
+            "description": "可执行的修复建议",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "level",
+          "message"
+        ],
+        "title": "ShotVideoQualityCheck",
+        "description": "视频生成质量检查项。\n\n与 `ShotVideoReadinessCheck` 的区别：\n- readiness check 回答“生成输入是否完整、能否提交”；\n- quality check 回答“即使能提交，生成结果可能在哪里失真”，并区分\n  blocking / warning / info，避免把建议级别的提示误当成硬性阻塞。"
+      },
       "ShotVideoReadinessCheck": {
         "properties": {
           "key": {
@@ -34487,6 +34543,14 @@
             "type": "array",
             "title": "Checks",
             "description": "准备度检查项"
+          },
+          "quality_checks": {
+            "items": {
+              "$ref": "#/components/schemas/ShotVideoQualityCheck"
+            },
+            "type": "array",
+            "title": "Quality Checks",
+            "description": "生成质量风险；blocking 会阻止提交，warning/info 不阻塞"
           }
         },
         "type": "object",

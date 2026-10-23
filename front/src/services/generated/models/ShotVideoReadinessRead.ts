@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { ShotVideoQualityCheck } from './ShotVideoQualityCheck';
 import type { ShotVideoReadinessCheck } from './ShotVideoReadinessCheck';
 /**
  * 镜头视频生成准备度。
@@ -23,5 +24,9 @@ export type ShotVideoReadinessRead = {
      * 准备度检查项
      */
     checks?: Array<ShotVideoReadinessCheck>;
+    /**
+     * 生成质量风险；blocking 会阻止提交，warning/info 不阻塞
+     */
+    quality_checks?: Array<ShotVideoQualityCheck>;
 };
 

@@ -244,8 +244,8 @@ async def test_at_reference_and_preview_snapshot_consistent() -> None:
         # 避免测试依赖真实视频/文本模型配置。
         async def _fake_options(_db, *, shot_id, ratio, resolution):
             return (
-                type("M", (), {"name": "mock-video", "id": "m1"})(),
-                type("P", (), {"provider": "mock", "base_url": None})(),
+                type("M", (), {"name": "MiniMax-H3", "id": "m1"})(),
+                type("P", (), {"provider": "compshare_model_api", "base_url": None})(),
                 ratio or "9:16",
                 resolution or "768p",
                 5,
@@ -467,4 +467,179 @@ async def test_p6_readiness_uses_active_bindings_not_old_ir(monkeypatch) -> None
         reference_check = next(item for item in result.checks if item.key == "reference_images_ready")
         assert reference_check.ok is True
         assert "有序参考图" in reference_check.message
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_generation_quality_checks_cover_voice_and_continuity() -> None:
+    from app.models.studio import ShotDialogLine
+
+    db, engine = await _build_session()
+    async with db:
+        seed = await _seed(db)
+        detail = await db.get(ShotDetail, "ref-shot")
+        assert detail is not None
+        detail.scene_id = "ref-scene"
+        character = seed["character"]
+        character.voice_description = "年轻成年男性声音，音色清晰，语速适中。"
+        db.add(
+            ShotDialogLine(
+                shot_detail_id="ref-shot",
+                index=1,
+                text="你先听我解释。",
+                speaker_character_id=character.id,
+                speaker_name="沈知微",
+            )
+        )
+        await auto_recommend(db, shot_id="ref-shot")
+        await db.flush()
+        checks = await shot_references.collect_generation_quality_checks(
+            db,
+            shot_id="ref-shot",
+            advanced_prompt="<Subject 1> talks to the camera.",
+        )
+        codes = {item.code: item for item in checks}
+        assert codes["advanced_prompt_missing_dialogue"].level == "warning"
+        assert codes["advanced_prompt_missing_continuity"].level == "warning"
+        assert codes["scene_reference_ready"].level == "info"
+        assert "prompt_voice_gender_conflict" not in codes
+        assert not any(item.level == "blocking" for item in checks)
+
+        # 短镜头多机位线索应提示拆分，而不是简单禁用“切”字。
+        detail = await db.get(ShotDetail, "ref-shot")
+        assert detail is not None
+        detail.video_prompt_draft = "先特写男性，再切双人远景，最后切女性面部特写。"
+        await db.flush()
+        checks = await shot_references.collect_generation_quality_checks(
+            db, shot_id="ref-shot"
+        )
+        assert any(item.code == "short_shot_multi_camera" and item.level == "warning" for item in checks)
+
+        # 用户主动移除场景参考后保留其选择，但明确提示空间连续性风险。
+        active = await shot_references.list_bindings(db, shot_id="ref-shot", active_only=True)
+        scene_binding = next(item for item in active if item.file_id == "ref-file-scene")
+        await remove_binding(db, binding_id=scene_binding.id, shot_id="ref-shot")
+        checks = await shot_references.collect_generation_quality_checks(
+            db, shot_id="ref-shot"
+        )
+        assert any(item.code == "scene_reference_missing" and item.level == "warning" for item in checks)
+
+        # 声音描述缺失是 warning，而不是把镜头直接判死。
+        character.voice_description = ""
+        await db.flush()
+        checks = await shot_references.collect_generation_quality_checks(
+            db, shot_id="ref-shot", advanced_prompt=""
+        )
+        assert any(item.code == "character_voice_missing" and item.level == "warning" for item in checks)
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_generation_quality_blocking_for_unknown_speaker() -> None:
+    from app.models.studio import ShotDialogLine
+
+    db, engine = await _build_session()
+    async with db:
+        await _seed(db)
+        db.add(
+            ShotDialogLine(
+                shot_detail_id="ref-shot",
+                index=1,
+                text="无效说话人。",
+                speaker_character_id="missing-char",
+                speaker_name="未知",
+            )
+        )
+        await db.flush()
+        checks = await shot_references.collect_generation_quality_checks(
+            db, shot_id="ref-shot"
+        )
+        blocking = [item for item in checks if item.level == "blocking"]
+        assert any(item.code == "dialogue_speaker_unknown" for item in blocking)
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_preview_input_hash_changes_with_voice_and_continuity(monkeypatch) -> None:
+    from app.chains.prompts import ir as ir_module
+    from app.models.studio import ShotDialogLine
+
+    db, engine = await _build_session()
+    async with db:
+        seed = await _seed(db)
+        detail = await db.get(ShotDetail, "ref-shot")
+        assert detail is not None
+        detail.scene_id = "ref-scene"
+        character = seed["character"]
+        character.voice_description = "年轻成年男性声音，音色清晰，语速适中。"
+        db.add(
+            ShotDialogLine(
+                shot_detail_id="ref-shot",
+                index=1,
+                text="你先听我解释。",
+                speaker_character_id=character.id,
+                speaker_name="沈知微",
+            )
+        )
+        await auto_recommend(db, shot_id="ref-shot")
+        await db.flush()
+
+        async def _fake_options(_db, *, shot_id, ratio, resolution):
+            return (
+                type("M", (), {"name": "MiniMax-H3", "id": "m1"})(),
+                type("P", (), {"provider": "compshare_model_api", "base_url": None})(),
+                ratio or "9:16",
+                resolution or "768p",
+                5,
+            )
+
+        monkeypatch.setattr(shot_references, "_resolve_options", _fake_options)
+        first = await build_generation_preview(
+            db, shot_id="ref-shot", natural_prompt="@沈总 看着窗外。"
+        )
+        assert "using this voice profile" in first.prompt
+        assert "do not cut to another location" in first.prompt
+        assert first.input_hash
+
+        character.voice_description = "成年女性声音，冷静。"
+        await db.flush()
+        second = await build_generation_preview(
+            db, shot_id="ref-shot", natural_prompt="@沈总 看着窗外。"
+        )
+        assert second.input_hash != first.input_hash
+
+        monkeypatch.setattr(
+            ir_module,
+            "DEFAULT_CONTINUITY_WITH_SCENE",
+            "Keep one locked office background; use a continuous camera and no cut.",
+        )
+        third = await build_generation_preview(
+            db, shot_id="ref-shot", natural_prompt="@沈总 看着窗外。"
+        )
+        assert third.input_hash != second.input_hash
+        assert "locked office background" in third.prompt
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_generation_quality_blocking_for_unknown_scene() -> None:
+    db, engine = await _build_session()
+    async with db:
+        await _seed(db)
+        row = (
+            await db.execute(
+                select(ShotAssetVersion).where(
+                    ShotAssetVersion.shot_id == "ref-shot",
+                    ShotAssetVersion.asset_type == "scene",
+                )
+            )
+        ).scalars().first()
+        assert row is not None
+        row.asset_id = "missing-scene"
+        await db.flush()
+        checks = await shot_references.collect_generation_quality_checks(
+            db, shot_id="ref-shot"
+        )
+        blocking = [item for item in checks if item.level == "blocking"]
+        assert any(item.code == "scene_asset_unknown" for item in blocking)
     await engine.dispose()
