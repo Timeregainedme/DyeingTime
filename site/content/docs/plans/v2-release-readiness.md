@@ -88,22 +88,32 @@ uv run python scripts/v2_full_acceptance.py
 
 ## 6. 浏览器 E2E
 
-已尝试：
+P9-A 已实际启动 Chromium 并执行页面断言。
 
-- Node 22 通过 `pnpm dlx node@22` 可用。
-- Playwright 1.64.1 CLI 可列出 25 个 E2E 用例。
-- 实际 launch Chromium 失败：
+- Node 22.23.4（`pnpm dlx node@22`）。
+- Playwright 1.64.1。
+- 本机缺少的 `libatk/libatspi/libXcomposite/libXdamage` 通过 Ubuntu noble deb 解包到本地临时 sysroot，`LD_LIBRARY_PATH` 指向后 Chromium 正常启动；生产环境未修改。
+- 原有 25 个前端 Mock E2E 全部通过（25 passed）。
+- 新增真实后端 E2E：
+  - React/Vite 7801
+  - FastAPI 8010
+  - 独立 MySQL `p8_e2e`
+  - 本地 S3 mock（moto）
+  - 仅外部 AI 供应商未调用
+  - 2 个用例通过：真实页面纵向检查 + ZIP 下载；4 个桌面分辨率截图。
+- 截图：`docs/p9-screens/`（32 张，8 页面 × 4 分辨率）。
+- 截图显示中文、导航、三栏工作台、制作流程、导出页；1280 宽度核心操作可滚动访问。
 
-```text
-error while loading shared libraries: libatk-1.0.so.0
-```
+限制：
 
-当前主机缺少 Chromium 系统库且无可用 apt 候选包。已新增 `.github/workflows/v2-browser-e2e.yml`，在 GitHub Actions Node 22 + `playwright install --with-deps` 环境执行：
+- 真实后端用例的 P3/P4/P5 数据是确定性 Mock 业务对象，不是浏览器中重新执行 AI 上传/解析/规划。
+- 真实后端用例覆盖项目列表、工作台总览、配置、风格、剧本、角色、剧集、镜头、导出与 ZIP 下载。
+- 真实后端的创建项目、上传文件、AI 解析、视频生成任务仍需继续补浏览器级操作。
+- CI 工作流：
+  - `.github/workflows/v2-browser-e2e.yml`
+  - `.github/workflows/v2-real-backend-e2e.yml`
 
-- `pnpm test`（Vitest，Node22 本地已 49/49 通过）
-- `pnpm test:e2e`（当前工作台 Mock E2E）
-
-**本机未完成页面断言，不能声明浏览器 E2E 通过。** 真实后端 + 测试数据库的浏览器纵向验收仍需在 CI/staging 补充。
+本机已验证真实 Chromium 页面断言通过；CI 工作流尚未实际运行。
 
 ## 7. 安全检查
 
@@ -149,11 +159,12 @@ uv run python scripts/scan_generation_task_secrets.py
 
 - L3 真实供应商 API 未验证。
 - L4 人工视频质量未验收。
-- 浏览器 E2E 页面断言未在本机通过。
+- 生产迁移/部署未执行。
 
 ### P1 上线前应修复
 
-- 真实后端 + MySQL 的浏览器纵向 E2E 尚未接入 CI。
+- 真实后端浏览器 E2E 目前覆盖 8 个页面/导出，尚未覆盖 UI 创建项目、上传、AI 解析、视频生成全操作。
+- CI 的 real-backend workflow 尚未实际运行。
 - 历史任务 api_key 只读扫描已有，脱敏方案未执行。
 - 单任务幂等边界不覆盖供应商侧 exactly-once；需人工查询/恢复流程。
 

@@ -398,6 +398,15 @@ P8 前置阻塞：
 
 ---
 
+### P9-A — 真实浏览器与 Staging 验收
+
+- C-P9-A1：真实 Chromium 环境、真实 FastAPI + MySQL + moto S3、真实后端 Playwright 验收。
+- C-P9-A2：工作台 E2E 测试与 P5/P8 节点结构对齐。
+- C-P9-A3：P9-A 验收文档、截图与真实供应商准备更新。
+- 25 个前端 Mock E2E + 2 个真实后端 E2E 通过。
+- 32 张 4 分辨率截图：`docs/p9-screens/`。
+- L3/L4 仍未执行。
+
 ## 阶段依赖关系
 
 ```text

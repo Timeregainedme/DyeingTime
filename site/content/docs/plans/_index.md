@@ -20,3 +20,5 @@ description: "记录当前正在推进的开发计划、改造方案与阶段性
 - [P7 真实供应商验证计划（待批准）](/docs/plans/p7-real-provider-validation/)
 
 - [V2 交付就绪检查](/docs/plans/v2-release-readiness/)
+
+- [P9-A 浏览器与真实后端验收结果](/docs/plans/p9-a-e2e-results/)
