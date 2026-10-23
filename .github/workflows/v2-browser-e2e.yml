@@ -4,6 +4,9 @@ name: V2 Browser E2E
 # 当前工作台 E2E 使用 VITE_USE_MOCK=true；真实后端数据库 E2E 仍需要独立的 MySQL/Redis 测试环境。
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - refactor/v2-worktree-foundation
   pull_request:
     paths:
       - 'front/**'

@@ -3,6 +3,9 @@ name: V2 Real Backend Browser E2E
 # P9-A：真实 React + Vite + FastAPI + MySQL + 本地 S3(moto)，仅外部 AI 供应商不调用。
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - refactor/v2-worktree-foundation
   pull_request:
     paths:
       - 'backend/**'
