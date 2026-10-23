@@ -436,3 +436,35 @@ def test_legacy_generating_status_is_read_as_pending() -> None:
     assert normalize_shot_status("generating") == "pending"
     assert normalize_shot_status("ready") == "ready"
     assert normalize_shot_status("pending") == "pending"
+
+
+@pytest.mark.asyncio
+async def test_p6_readiness_uses_active_bindings_not_old_ir(monkeypatch) -> None:
+    from app.schemas.studio.shots import ShotVideoReadinessCheck, ShotVideoReadinessRead
+    from app.services.studio import shot_video_readiness as base_readiness
+
+    db, engine = await _build_session()
+    async with db:
+        await _seed(db)
+        await auto_recommend(db, shot_id="ref-shot")
+
+        async def _fake_base(*args, **kwargs):
+            return ShotVideoReadinessRead(
+                shot_id="ref-shot",
+                reference_mode="reference",
+                ready=False,
+                checks=[
+                    ShotVideoReadinessCheck(
+                        key="reference_images_ready",
+                        ok=False,
+                        message="旧 IR 自动收集不到参考图",
+                    )
+                ],
+            )
+
+        monkeypatch.setattr(base_readiness, "get_shot_video_readiness", _fake_base)
+        result = await shot_references.get_p6_readiness(db, shot_id="ref-shot")
+        reference_check = next(item for item in result.checks if item.key == "reference_images_ready")
+        assert reference_check.ok is True
+        assert "有序参考图" in reference_check.message
+    await engine.dispose()

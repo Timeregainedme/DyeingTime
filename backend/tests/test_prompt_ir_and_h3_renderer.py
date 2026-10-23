@@ -740,3 +740,27 @@ def test_h3_word_range_is_adaptive_by_duration() -> None:
     assert word_range_for_duration(5) == (200, 300)
     assert word_range_for_duration(8) == (300, 400)
     assert word_range_for_duration(12) == (350, 500)
+
+
+def test_compshare_h3_capabilities_match_official_4_to_15s_and_768p_2k() -> None:
+    from app.core.contracts.video_generation import VideoGenerationInput
+    from app.core.integrations.compshare.video_capabilities import (
+        resolve_compshare_video_capability,
+        validate_compshare_video_options,
+    )
+
+    capability = resolve_compshare_video_capability("MiniMax-H3")
+    assert capability.min_seconds == 4
+    assert capability.max_seconds == 15
+    assert capability.allowed_resolutions == {"768p", "2k"}
+    validate_compshare_video_options(
+        VideoGenerationInput(prompt="test", model="MiniMax-H3", ratio="9:16", seconds=15, resolution="2k")
+    )
+    with pytest.raises(ValueError, match="duration|seconds|15"):
+        validate_compshare_video_options(
+            VideoGenerationInput(prompt="test", model="MiniMax-H3", ratio="9:16", seconds=16, resolution="2k")
+        )
+    with pytest.raises(ValueError, match="resolution"):
+        validate_compshare_video_options(
+            VideoGenerationInput(prompt="test", model="MiniMax-H3", ratio="9:16", seconds=5, resolution="1080p")
+        )

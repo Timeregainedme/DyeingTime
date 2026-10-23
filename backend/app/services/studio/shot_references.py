@@ -1180,7 +1180,21 @@ async def get_p6_readiness(db: AsyncSession, *, shot_id: str) -> Any:
             else "无法解析的 @ 引用：" + "、".join(prompt_refs.unresolved)
         ),
     }
-    checks = list(base.checks) + [ShotVideoReadinessCheck(**item) for item in [binding_check, limit_check, version_check, lock_check, prompt_check]]
+    # P6 正式路径的参考图来源是 active bindings，而不是旧 IR 的自动收集；
+    # 旧 readiness 的 reference_images_ready 只按剧本语料推断，会把已显式绑定的镜头误判为阻塞。
+    base_checks: list[ShotVideoReadinessCheck] = []
+    for check in base.checks:
+        if check.key == "reference_images_ready" and active and files_ok:
+            base_checks.append(
+                ShotVideoReadinessCheck(
+                    key=check.key,
+                    ok=True,
+                    message=f"已启用 {len(active)} 张有序参考图",
+                )
+            )
+        else:
+            base_checks.append(check)
+    checks = base_checks + [ShotVideoReadinessCheck(**item) for item in [binding_check, limit_check, version_check, lock_check, prompt_check]]
     return ShotVideoReadinessRead(
         shot_id=shot_id,
         reference_mode=REFERENCE_MODE,

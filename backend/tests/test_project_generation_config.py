@@ -222,7 +222,7 @@ async def test_confirm_rejects_invalid_duration_ratio_and_concurrency() -> None:
                 project=project,
                 body=ProjectGenerationConfigUpdate(video_concurrency=17, confirm=True),
             )
-        # 业务范围不允许擅自扩大到 H3 的 30 秒。
+        # 业务范围不允许擅自扩大到供应商 15 秒以上。
         with pytest.raises(ValueError):
             await save_project_generation_config(
                 db,
