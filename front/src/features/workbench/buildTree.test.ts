@@ -103,8 +103,18 @@ describe('buildWorkbenchTree', () => {
     expect(episodes.map((node) => node.label)).toEqual(['第 1 集', '第 2 集'])
 
     const episode2 = findNode(tree, 'episode:c2')
-    expect(episode2?.children.map((node) => node.id)).toEqual(['shot:s-a', 'shot:s-b'])
-    expect(episode2?.children.map((node) => node.label)).toEqual(['镜头 01', '镜头 02'])
+    // P5 后未分配场次镜头统一进入「未分配场次」节点，不再直接挂在剧集下。
+    expect(episode2?.children.map((node) => node.id)).toEqual([
+      'scene-group:unassigned:c2',
+    ])
+    expect(episode2?.children[0]?.children.map((node) => node.id)).toEqual([
+      'shot:s-a',
+      'shot:s-b',
+    ])
+    expect(episode2?.children[0]?.children.map((node) => node.label)).toEqual([
+      '镜头 01',
+      '镜头 02',
+    ])
   })
 
   it('超过 100 个镜头不会截断', () => {
@@ -117,7 +127,8 @@ describe('buildWorkbenchTree', () => {
         shotsByChapter: { c1: shots },
       }),
     )
-    expect(findNode(tree, 'episode:c1')?.children).toHaveLength(150)
+    expect(findNode(tree, 'episode:c1')?.children).toHaveLength(1)
+    expect(findNode(tree, 'scene-group:unassigned:c1')?.children).toHaveLength(150)
     expect(findNode(tree, 'shot:shot-149')).toBeDefined()
   })
 
@@ -182,10 +193,16 @@ describe('filterWorkbenchTree', () => {
     const filtered = filterWorkbenchTree(tree, '镜头标题 2')
     expect(filtered).not.toBeNull()
     const episode1 = findNode(filtered as WorkbenchTreeNode, 'episode:c1')
-    expect(episode1?.children.map((node) => node.id)).toEqual(['shot:s2'])
+    expect(episode1?.children.map((node) => node.id)).toEqual([
+      'scene-group:unassigned:c1',
+    ])
+    expect(episode1?.children[0]?.children.map((node) => node.id)).toEqual(['shot:s2'])
     // 搜索不会因为父节点命中就把整集铺开
     const episode2 = findNode(filtered as WorkbenchTreeNode, 'episode:c2')
-    expect(episode2?.children.map((node) => node.id)).toEqual(['shot:s4'])
+    expect(episode2?.children.map((node) => node.id)).toEqual([
+      'scene-group:unassigned:c2',
+    ])
+    expect(episode2?.children[0]?.children.map((node) => node.id)).toEqual(['shot:s4'])
   })
 
   it('剧集标题命中时保留剧集节点', () => {

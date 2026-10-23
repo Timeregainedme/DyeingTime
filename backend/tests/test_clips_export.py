@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import zipfile
+from pathlib import Path
 from datetime import UTC, datetime
 
 import pytest
@@ -31,17 +32,19 @@ from app.services.studio.timeline import (
     precheck_clips_export,
 )
 
-MP4_A = b"\x00\x00\x00\x18ftypmp42" + b"A" * 64
-MP4_B = b"\x00\x00\x00\x18ftypmp42" + b"B" * 64
-MP4_C = b"\x00\x00\x00\x18ftypmp42" + b"C" * 64
-MP4_D = b"\x00\x00\x00\x18ftypmp42" + b"D" * 64
+_FIXTURES = Path(__file__).parent / "fixtures"
+MP4_A = (_FIXTURES / "p7_tiny_red.mp4").read_bytes()
+MP4_B = (_FIXTURES / "p7_tiny_blue.mp4").read_bytes()
+MP4_C = MP4_A
+MP4_D = MP4_B
 MOV = b"\x00\x00\x00\x14ftypqt  " + b"M" * 64
 PAYLOADS = {
     "p7-f1": MP4_A,
     "p7-f2": MP4_B,
     "p7-f4": MP4_C,
     "p7-f6": MP4_D,
-    "p7-f1b": b"\x00\x00\x00\x18ftypmp42" + b"Z" * 64,
+    "p7-f1b": MP4_B,
+    "p7-f7": MP4_A,
 }
 
 
@@ -156,6 +159,7 @@ def _storage(monkeypatch):
             "videos/f5.mov": "p7-f5",
             "videos/f6.mp4": "p7-f6",
             "videos/f1b.mp4": "p7-f1b",
+            "videos/f7.mp4": "p7-f7",
         }.get(key)
         if file_id is None:
             raise FileNotFoundError(key)
@@ -172,6 +176,7 @@ def _storage(monkeypatch):
             "videos/f5.mov": "p7-f5",
             "videos/f6.mp4": "p7-f6",
             "videos/f1b.mp4": "p7-f1b",
+            "videos/f7.mp4": "p7-f7",
         }[key]
         data = PAYLOADS[file_id]
         if byte_range:
@@ -187,6 +192,7 @@ def _storage(monkeypatch):
             "videos/f5.mov": "p7-f5",
             "videos/f6.mp4": "p7-f6",
             "videos/f1b.mp4": "p7-f1b",
+            "videos/f7.mp4": "p7-f7",
         }[key]
         path.write_bytes(PAYLOADS[file_id])
 
@@ -335,4 +341,45 @@ async def test_storage_missing_and_unowned_file_are_blocked() -> None:
         assert by_shot["p7-s2"].status == "file_missing"
         assert "不属于当前项目" in by_shot["p7-s2"].error
         assert result.can_download is False
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_chapter_and_scene_selection_and_cross_chapter_export() -> None:
+    maker, engine = await _build()
+    async with maker() as db:
+        await _seed(db)
+        chapter2 = Chapter(id="p7-ch2", project_id="p7-project", index=2, title="第2集", raw_text="")
+        scene3 = SceneGroup(
+            id="p7-g3", project_id="p7-project", chapter_id=chapter2.id, index=1,
+            title="第二集第一场", description="", location="天台", time_of_day="清晨", story_event="",
+        )
+        shot7 = Shot(id="p7-s7", chapter_id=chapter2.id, scene_group_id=scene3.id, index=1, title="跨集镜头", status="ready", generated_video_file_id="p7-f7")
+        db.add_all([
+            chapter2, scene3, shot7,
+            ShotDetail(id="p7-s7", camera_shot="MS", angle="EYE_LEVEL", movement="STATIC", duration=4),
+            FileItem(id="p7-f7", type="video", name="f7", thumbnail="https://mock/f7", tags=[], storage_key="videos/f7.mp4"),
+            FileUsage(file_id="p7-f7", project_id="p7-project", chapter_id=chapter2.id, shot_id="p7-s7", usage_kind="generated_video", source_ref="test:s7"),
+        ])
+        await db.commit()
+
+        by_chapter = await precheck_clips_export(
+            db, project_id="p7-project", selection=ClipsExportSelection(chapter_ids=["p7-ch"])
+        )
+        assert by_chapter.selected_count == 6
+        assert all(item.chapter_id == "p7-ch" for item in by_chapter.items)
+
+        by_scene = await precheck_clips_export(
+            db, project_id="p7-project", selection=ClipsExportSelection(scene_group_ids=["p7-g2"])
+        )
+        assert [item.shot_id for item in by_scene.items] == ["p7-s3", "p7-s5", "p7-s6"]
+
+        cross = await precheck_clips_export(
+            db, project_id="p7-project", selection=ClipsExportSelection(shot_ids=["p7-s7", "p7-s1"])
+        )
+        assert [item.file_name for item in cross.items] == [
+            "E01_SC01_SH001.mp4",
+            "E02_SC01_SH001.mp4",
+        ]
+        assert cross.can_download
     await engine.dispose()
