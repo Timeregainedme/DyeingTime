@@ -385,6 +385,7 @@ def _fallback_shot_block(ir: IRPrompt, shot: IRShot, *, use_labels: bool = True)
         parts.append(
             "Characters who are not speaking keep their mouths closed and only react physically."
         )
+        parts.append(_NO_NARRATION_INSTRUCTION)
     if shot.sound:
         parts.append(f"Sound: {_trim_sentence(shot.sound)}.")
     if shot.continuity:
@@ -445,6 +446,10 @@ _FALLBACK_BUILDERS = {
 _SILENCE_INSTRUCTION = (
     "No spoken dialogue; characters do not speak and their mouths remain closed."
 )
+_NO_NARRATION_INSTRUCTION = (
+    "Only the dialogue lines are spoken; do not read the shot description, subject definitions, "
+    "summary, retention analysis, or continuity text aloud. No narration or voiceover."
+)
 _CONTINUITY_RE = re.compile(
     r"continuous|one continuous scene|same scene|no cut|background.{0,12}(consistent|same)"
     r"|不切|同一(个)?场景|场景.{0,6}(一致|保持)|连续镜头",
@@ -490,6 +495,12 @@ def _append_missing_shot_constraints(section_name: str, body: str, ir: IRPrompt)
                 additions.append(
                     "Characters who are not speaking keep their mouths closed and only react physically."
                 )
+            if not re.search(
+                r"only the dialogue lines are spoken|do not read .*aloud|no narration|no voiceover",
+                text,
+                re.IGNORECASE,
+            ):
+                additions.append(_NO_NARRATION_INSTRUCTION)
         elif not _SILENCE_RE.search(text):
             additions.append(_SILENCE_INSTRUCTION)
         if shot.continuity and not _CONTINUITY_RE.search(text):
@@ -549,7 +560,7 @@ def render_h3_reference(
     if prose is None or not any(
         str(getattr(prose, name, "") or "").strip() for name in REFERENCE_SECTION_ORDER
     ):
-        warnings.append("未提供英文正文（H3Prose），已输出结构化骨架：结构与标签合规，但正文语言与 IR 一致")
+        warnings.append("未提供英文正文（H3Prose），已输出结构化骨架：结构与标签合规，但正文语言与 IR 一致；H3 可能把非 <d> 文本朗读成旁白，建议配置文本模型或提供英文高级提示词")
 
     sections: list[str] = []
     for name in REFERENCE_SECTION_ORDER:
@@ -582,7 +593,7 @@ def render_h3_base(
         warnings.append("H3 只接收首帧与尾帧；关键帧不会上传，提示词不应把它写成画面锚点")
 
     if prose is None or not str(getattr(prose, "integrated_multimodal_description", "") or "").strip():
-        warnings.append("未提供英文正文（H3Prose），已输出结构化骨架：结构与标签合规，但正文语言与 IR 一致")
+        warnings.append("未提供英文正文（H3Prose），已输出结构化骨架：结构与标签合规，但正文语言与 IR 一致；H3 可能把非 <d> 文本朗读成旁白，建议配置文本模型或提供英文高级提示词")
 
     sections: list[str] = []
     for name in BASE_SECTION_ORDER:

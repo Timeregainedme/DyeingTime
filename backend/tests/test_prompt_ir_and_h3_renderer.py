@@ -886,8 +886,10 @@ def test_h3_prose_is_backfilled_with_voice_and_continuity_constraints() -> None:
     result = render_h3(ir, prose=_h3_prose_without_constraints("[Shot 1] He turns to her."), reference_mode="reference")
     assert "using this voice profile: 年轻成年男性声音" in result.text
     assert "<d>[Chinese] 你先听我解释。</d>" in result.text
+    assert result.text.count("<d>") == result.text.count("</d>")
     assert "do not cut to another location" in result.text
     assert "Characters who are not speaking" in result.text
+    assert "Only the dialogue lines are spoken" in result.text
 
 
 def test_h3_prose_is_backfilled_with_silence_for_no_dialogue_shot() -> None:
@@ -969,3 +971,4 @@ def test_h3_two_speakers_alternate_and_silent_listener_stays_silent() -> None:
     assert "<d>[Chinese] 你先听我解释。</d>" in text
     assert "<d>[Chinese] 我不想听。</d>" in text
     assert "Characters who are not speaking" in text
+    assert "Only the dialogue lines are spoken" in text

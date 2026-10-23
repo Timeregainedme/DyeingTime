@@ -303,10 +303,21 @@ H3 正文由文本模型生成，但文本模型不能决定是否保留关键�
 - 缺少台词时补 `_dialogue_fragment`；
 - 缺少 voice profile 时补 voice profile；
 - 缺少“非说话角色沉默”时补该句；
+- 缺少“只有对白行会被朗读”时补 no-narration 约束；
 - 无对白但正文未声明时补 `No spoken dialogue`；
 - 缺少连续性时补 `Continuity:`。
 
 这样即使文本模型改写或省略，最终 Prompt 仍保留结构化的说话人、声音和场景约束。
+
+### 正文语言与旁白风险
+
+H3 官方正文以英文为主，`<d>` 内保留原语言台词。P9-D1 实测发现：使用中文结构骨架时，H3 会把非 `<d>` 的画面描述朗读成旁白。
+
+因此当前行为：
+
+- 有结构化台词时追加：`Only the dialogue lines are spoken; do not read the shot description, subject definitions, summary, retention analysis, or continuity text aloud. No narration or voiceover.`
+- 文本模型不可用、回落到中文骨架时，预览 warning 明确提示“H3 可能把非 `<d>` 文本朗读成旁白”；
+- 需要干净对白测试时，应配置可用文本模型，或在高级提示词中使用英文正文并显式声明 no narration。
 
 ### 质量检查分级
 
