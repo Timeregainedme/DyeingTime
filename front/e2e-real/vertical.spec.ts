@@ -22,6 +22,16 @@ test('真实后端：工作台、配置、风格、剧本、资产、镜头与 Z
   await login(page)
 
   await expect(page.getByText('E2E 都市短剧').first()).toBeVisible()
+
+  // 真实创建项目：前端表单 → FastAPI → MySQL。
+  const createdName = `P9 浏览器项目 ${Date.now()}`
+  await page.getByRole('button', { name: '新建项目' }).click()
+  await page.getByLabel('项目名称').fill(createdName)
+  await page.getByLabel('简介').fill('P9-A 浏览器真实创建')
+  await page.getByRole('button', { name: '创建项目' }).click()
+  await expect(page).toHaveURL(/\/projects\/[^/]+\/workbench$/)
+  await expect(page.getByRole('main', { name: '工作区' }).getByRole('heading', { name: createdName })).toBeVisible()
+
   await page.goto(WORKBENCH)
   await expect(page.getByRole('main', { name: '工作区' }).getByRole('heading', { name: 'E2E 都市短剧' })).toBeVisible()
   await expect(page.getByText('制作流程')).toBeVisible()
@@ -30,6 +40,8 @@ test('真实后端：工作台、配置、风格、剧本、资产、镜头与 Z
   await page.goto(`${WORKBENCH}/config`)
   await expect(page.getByRole('main', { name: '工作区' }).getByRole('heading', { name: '项目配置' })).toBeVisible()
   await expect(page.getByText('视频批量并发数').first()).toBeVisible()
+  await page.getByRole('button', { name: '保存草稿' }).click()
+  await expect(page.getByText(/草稿已保存/)).toBeVisible()
 
   await page.goto(`${WORKBENCH}/style`)
   await expect(page.getByText('风格圣经').first()).toBeVisible()
