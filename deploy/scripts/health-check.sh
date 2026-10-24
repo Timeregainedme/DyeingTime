@@ -40,7 +40,7 @@ warn() { WARNINGS+=("$1"); [[ $QUIET -eq 0 ]] && printf '  ! %s\n' "$1"; return 
 
 # ---------- 1. systemd 单元 ----------
 [[ $QUIET -eq 0 ]] && echo "[服务状态]"
-for unit in nginx dyeingtime-api dyeingtime-celery dyeingtime-go; do
+for unit in nginx dyeingtime-api dyeingtime-celery dyeingtime-celery-image dyeingtime-celery-video dyeingtime-go; do
     state=$(systemctl is-active "$unit" 2>/dev/null || true)
     if [[ "$state" == "active" ]]; then
         ok "$unit active"
@@ -81,11 +81,11 @@ else
     fail "/api/v1/ready 异常：${ready_body:0:80}"
 fi
 
-py_body=$(curl -s --max-time 5 http://127.0.0.1:8000/health 2>/dev/null || true)
+py_body=$(curl -s --max-time 5 http://127.0.0.1:8002/health 2>/dev/null || true)
 if [[ "$py_body" == *'"status":"ok"'* ]]; then
     ok "Python /health 正常"
 else
-    fail "Python 不可达（127.0.0.1:8000）"
+    fail "Python 不可达（127.0.0.1:8002）"
 fi
 
 # ---------- 3. 资源 ----------

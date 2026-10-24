@@ -15,5 +15,6 @@ interface Window {
   __ENV?: {
     BACKEND_URL?: string
     GOOGLE_CLIENT_ID?: string
+    GENERATION_QUOTA_SCOPE?: string
   }
 }

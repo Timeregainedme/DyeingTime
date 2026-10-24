@@ -78,13 +78,19 @@ def main() -> int:
         args += ["--socket", socket]
     else:
         args += ["-h", host, "-P", port]
-    with tmp.open("wb") as raw:
-        with gzip.GzipFile(fileobj=raw, mode="wb", compresslevel=6) as gz:
-            proc = subprocess.run(args, env=env, stdout=gz, stderr=subprocess.PIPE)
-            if proc.returncode != 0:
-                print(proc.stderr.decode(errors="replace"), file=sys.stderr)
-                tmp.unlink(missing_ok=True)
-                return proc.returncode
+    with gzip.open(tmp, "wb", compresslevel=6) as gz:
+        proc = subprocess.Popen(args, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        assert proc.stdout is not None
+        while True:
+            chunk = proc.stdout.read(1024 * 1024)
+            if not chunk:
+                break
+            gz.write(chunk)
+        stderr = proc.stderr.read() if proc.stderr is not None else b""
+        if proc.wait() != 0:
+            print(stderr.decode(errors="replace"), file=sys.stderr)
+            tmp.unlink(missing_ok=True)
+            return proc.returncode
     tmp.replace(final)
     os.chmod(final, 0o600)
     digest = hashlib.sha256(final.read_bytes()).hexdigest()

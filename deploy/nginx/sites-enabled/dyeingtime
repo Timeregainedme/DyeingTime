@@ -68,7 +68,7 @@ server {
     location = /env.js {
         add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" always;
         default_type application/javascript;
-        return 200 'window.__ENV = window.__ENV || {};\nwindow.__ENV.BACKEND_URL = "";\nwindow.__ENV.GOOGLE_CLIENT_ID = "110364971932-sa3mmor060sq6ahum6m96b2jsk2p2a2a.apps.googleusercontent.com";\n';
+        return 200 'window.__ENV = window.__ENV || {};\nwindow.__ENV.BACKEND_URL = "";\nwindow.__ENV.GENERATION_QUOTA_SCOPE = "production-internal";\nwindow.__ENV.GOOGLE_CLIENT_ID = "110364971932-sa3mmor060sq6ahum6m96b2jsk2p2a2a.apps.googleusercontent.com";\n';
     }
 
     # ---- SPA 入口不缓存 ----
@@ -89,7 +89,7 @@ server {
     # 必须放在 /api/v1/ 之前，且不能用 ^~，否则正则不会参与匹配。
     # 回滚：注释本块 → nginx -t → reload。
     location ~ ^/api/v1/studio/files/([^/]+)/download$ {
-        proxy_pass http://127.0.0.1:8001;
+        proxy_pass http://127.0.0.1:8002;
         include snippets/dyeingtime-proxy.conf;
         # 下载走 302 到对象存储，正常应在毫秒级返回；60s 是为私有桶的流式兜底。
         proxy_read_timeout 60s;
@@ -100,7 +100,7 @@ server {
     # 取消是写操作（且需要 revoke Celery 任务），仍在 Python；
     # 列表接口带 relation 过滤与导航目标解析，逻辑更重，也留在 Python。
     location ~ ^/api/v1/film/tasks/[^/]+/(status|result)$ {
-        proxy_pass http://127.0.0.1:8001;
+        proxy_pass http://127.0.0.1:8002;
         include snippets/dyeingtime-proxy.conf;
         # 轮询接口应毫秒级返回；10s 足够，过长会掩盖 Go 侧卡死。
         proxy_read_timeout 10s;
@@ -111,31 +111,31 @@ server {
     # 列表用精确匹配，单条用正则；正则的 [^/]+$ 保证只匹配单段 ID，
     # 不会误吃 /projects/{id}/production-readiness 这类子路径。
     location = /api/v1/studio/projects {
-        proxy_pass http://127.0.0.1:8001;
+        proxy_pass http://127.0.0.1:8002;
         include snippets/dyeingtime-proxy.conf;
         proxy_read_timeout 30s;
     }
     location = /api/v1/studio/chapters {
-        proxy_pass http://127.0.0.1:8001;
+        proxy_pass http://127.0.0.1:8002;
         include snippets/dyeingtime-proxy.conf;
         proxy_read_timeout 30s;
     }
     location ~ ^/api/v1/studio/(projects|chapters)/[^/]+$ {
-        proxy_pass http://127.0.0.1:8001;
+        proxy_pass http://127.0.0.1:8002;
         include snippets/dyeingtime-proxy.conf;
         proxy_read_timeout 30s;
     }
 
     # 任务中心全局列表。精确匹配，优先于下面的 status|result 正则。
     location = /api/v1/film/tasks {
-        proxy_pass http://127.0.0.1:8001;
+        proxy_pass http://127.0.0.1:8002;
         include snippets/dyeingtime-proxy.conf;
         proxy_read_timeout 30s;
     }
 
     # 素材列表。精确匹配，不干扰下面的 /files/{id}/download 正则。
     location = /api/v1/studio/files {
-        proxy_pass http://127.0.0.1:8001;
+        proxy_pass http://127.0.0.1:8002;
         include snippets/dyeingtime-proxy.conf;
         proxy_read_timeout 30s;
     }
@@ -158,30 +158,30 @@ server {
     # runtime-summary、{id}/assets-overview、{id}/video-readiness 等大量子路径，
     # 用 [^/]+$ 会把它们当成 shot_id 全转给 Go 而 404。
     location = /api/v1/studio/shots {
-        proxy_pass http://127.0.0.1:8001;
+        proxy_pass http://127.0.0.1:8002;
         include snippets/dyeingtime-proxy.conf;
         proxy_read_timeout 30s;
     }
     location = /api/v1/studio/shot-frame-images {
-        proxy_pass http://127.0.0.1:8001;
+        proxy_pass http://127.0.0.1:8002;
         include snippets/dyeingtime-proxy.conf;
         proxy_read_timeout 30s;
     }
     location ~ ^/api/v1/studio/shot-details/[^/]+$ {
-        proxy_pass http://127.0.0.1:8001;
+        proxy_pass http://127.0.0.1:8002;
         include snippets/dyeingtime-proxy.conf;
         proxy_read_timeout 30s;
     }
     location = /api/v1/film/task-links {
-        proxy_pass http://127.0.0.1:8001;
+        proxy_pass http://127.0.0.1:8002;
         include snippets/dyeingtime-proxy.conf;
         proxy_read_timeout 30s;
     }
 
-    # ---- Go 控制面已接管路径（逐条切流开关）----
-    # 精确匹配（=）优先于下面的 /api/v1/ 前缀匹配，因此单条接管不需要改前缀规则。
-    # 回滚方式：注释或删除对应 location 块 → nginx -t → systemctl reload nginx，
-    # 无需停 Go 进程，也不影响其他路径。
+    # ---- P10 内部 Beta：业务 API 统一回 Python ----
+    # 旧版 Go 控制面只保留 /health 与 /api/v1/ready 探针；其只读包装层在
+    # POST/PATCH/DELETE 上会返回 503，不能继续承接写请求。
+    # 回滚到 Go 切流时，将对应 location 的 8002 改回 8001 并 reload。
     # Go 独有的就绪探针（查 DB）。
     # 不转发的话会落进 location /api/v1/ → Python，返回 {"detail":"Not Found"}，
     # 让「就绪检查」变成一条永远失败的路径。
@@ -192,7 +192,7 @@ server {
     }
 
     location = /api/v1/auth/me {
-        proxy_pass http://127.0.0.1:8001;
+        proxy_pass http://127.0.0.1:8002;
         include snippets/dyeingtime-proxy.conf;
         # 只读单行查询，30s 足够；比 Python 段的 300s 更短，避免异常连接长期占用。
         proxy_read_timeout 30s;
@@ -242,7 +242,7 @@ server {
     #
     # 文件名带内容 hash，可长缓存；替换部署时 hash 变化会自然失效。
     location /static/ {
-        alias /srv/dyeingtime/front/dist/static/;
+        alias /srv/dyeingtime/current/front/dist/static/;
         expires 7d;
         access_log off;
         try_files $uri =404;

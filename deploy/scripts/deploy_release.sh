@@ -40,6 +40,7 @@ PY
 )
 for f in "$RELEASE_DIR"/backend/sql/*.sql; do
   n=$(basename "$f" | sed 's/^\([0-9]\+\).*/\1/')
+  n=$((10#$n))
   if (( n >= 34 )); then
     echo "  apply $(basename "$f")"
     mysql "$DB_NAME" < "$f"

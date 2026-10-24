@@ -536,7 +536,14 @@ export function useVideoReviewActions(projectId: string, shotId: string) {
   return { review, adopt }
 }
 
-export function useGenerationQuota(scope = 'v2-acceptance') {
+function defaultGenerationQuotaScope(): string {
+  // 生产/验收使用不同 scope；优先读取 nginx 注入的运行时值，避免把 v2 验收额度
+  // 误显示成公司正式预算。开发环境未注入时仍回退到 v2-acceptance。
+  const runtime = window.__ENV?.GENERATION_QUOTA_SCOPE?.trim()
+  return runtime || 'v2-acceptance'
+}
+
+export function useGenerationQuota(scope = defaultGenerationQuotaScope()) {
   return useQuery({
     queryKey: queryKeys.generationQuota(scope),
     queryFn: () => loadGenerationQuota(scope),
