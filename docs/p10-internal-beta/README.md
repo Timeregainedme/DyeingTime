@@ -1,6 +1,6 @@
 # P10-A 公司内部 Beta 部署记录
 
-> 后续版本与真实验收见 [`p10-b-acceptance.md`](./p10-b-acceptance.md)（`v2-internal-beta.2`）与 [`p10-c-acceptance.md`](./p10-c-acceptance.md)（`v2-internal-beta.3`）。
+> 后续版本与真实验收见 [`p10-b-acceptance.md`](./p10-b-acceptance.md)（`v2-internal-beta.2`）与 [`p10-c-acceptance.md`](./p10-c-acceptance.md)（`v2-internal-beta.3`）与 [`p10-c2-acceptance.md`](./p10-c2-acceptance.md)（`v2-internal-beta.5`）。
 
 > 状态：**Production Internal 已启动并可访问；内部 Beta 可用。**
 >

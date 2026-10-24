@@ -38,3 +38,5 @@ description: "记录当前正在推进的开发计划、改造方案与阶段性
 - [P10-B 内部 Beta 2 与真实验收](/docs/plans/p10-b-internal-beta2/)
 
 - [P10-C 全功能验收](/docs/plans/p10-c-acceptance/)
+
+- [P10-C2 AI 分镜修复与 DeepSeek 验收](/docs/plans/p10-c2-acceptance/)

@@ -24,9 +24,9 @@ weight: 21
 ## 发布目录
 
 ```text
-/srv/dyeingtime/releases/v2-internal-beta.3   # 当前 release（01b5564）
-/srv/dyeingtime/current -> releases/v2-internal-beta.3
-/srv/dyeingtime/previous -> releases/v2-internal-beta.2   # 上一个已验证 release
+/srv/dyeingtime/releases/v2-internal-beta.5   # 当前 release（98f56b3）
+/srv/dyeingtime/current -> releases/v2-internal-beta.5
+/srv/dyeingtime/previous -> releases/v2-internal-beta.4   # 上一个已验证 release
 ```
 
 运行代码、venv、front dist 都从 `current` 读取。`/srv/dyeingtime` 不再直接对外服务，只用于回滚。
@@ -140,5 +140,5 @@ sudo /usr/local/sbin/dyeingtime-health-check.sh --quiet
 | Go 切流已收回 | 仅保留 health/ready；恢复切流前必须解决写方法 503 与审计 |
 | 平台管理员 | 目前使用 workspace admin/owner，不是独立平台角色 |
 | 生产真实生成 | 图片/TTS 已在隔离验收库真实验证，生产未付费调用；视频质量由用户 L4 判断 |
-| 文本模型解析 | 隔离验收已用免费 `beam-free` 完成真实解析；生产 `script_parse_runs` 仍为 0 |
-| 分镜规划质量 | 免费模型场次切分不合格，需更强模型或提示词改进 |
+| 文本模型解析 | 隔离验收已用真实 `deepseek-v4.1-flash` 完成解析与分镜（$0.0192）；生产 `script_parse_runs` 仍为 0 |
+| 分镜规划质量 | 首次 DeepSeek 输出覆盖 3 场 6 镜，标题/描述/Prompt/对白均通过；短信按 `SCREEN_TEXT` 不朗读 |
