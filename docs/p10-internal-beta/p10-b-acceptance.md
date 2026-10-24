@@ -153,6 +153,7 @@ resize2fs /dev/nvme0n1p1
 | --- | --- |
 | 生产 1440 | `docs/p10-internal-beta/screens/p10b-prod-home.png` |
 | 1366 | `docs/p10-internal-beta/screens/p10b-home-1366.png` |
+| 1600 | `docs/p10-internal-beta/screens/p10b-home-1600.png` |
 | 1920 | `docs/p10-internal-beta/screens/p10b-home-1920.png` |
 | 深色模式 | `docs/p10-internal-beta/screens/p10b-home-dark.png` |
 | 手机 390 | `docs/p10-internal-beta/screens/p10b-home-mobile.png` |
