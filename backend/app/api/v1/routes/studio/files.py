@@ -25,13 +25,14 @@ router = APIRouter(
     dependencies=[Depends(require_scoped_resource("file_id", get_file_in_workspace))],
 )
 
-# 匿名路由：仅「下载二进制内容」。
+# 下载路由：仍然单独拆出，但必须经过登录与工作区文件归属校验。
 #
-# 为什么单独拆出来：
-# - 浏览器 <img src> / <video src> 无法携带 Authorization 头，若下载端点
-#   要求登录会一律 401，导致所有素材在前端裂图（实测 24 处前端调用受影响）。
-# - 素材本身存放于已配置公共读的对象存储（Cloudflare R2），且 file_id 与
-#   对象 key 均为不可枚举的 UUID/hash，匿名按 file_id 取用不比现状更不安全。
+# 说明：
+# - 前端图片/视频大多直接使用对象存储 URL（见 FileItem.thumbnail），因此不会
+#   因为本路由要求 Authorization 而裂图；
+# - API 下载入口统一加 `require_scoped_resource`，禁止通过猜 file_id 读取
+#   其他工作区文件；
+# - 对象存储本身的公开读仍是独立的安全边界，生产环境应改为私有桶 + 签名 URL。
 public_router = APIRouter()
 
 
@@ -139,7 +140,8 @@ async def _serve_download(file_id: str, request: Request, db: AsyncSession):
 @public_router.get(
     "/{file_id}/download",
     operation_id="download_file",
-    summary="下载文件二进制内容（匿名可访问，重定向到对象存储公开 URL）",
+    summary="下载文件二进制内容（需登录且校验工作区归属）",
+    dependencies=[Depends(require_scoped_resource("file_id", get_file_in_workspace))],
 )
 async def download_file_api(
     file_id: str,
@@ -148,8 +150,8 @@ async def download_file_api(
 ):
     """下载/内联展示素材二进制。
 
-    必须匿名可访问：浏览器 <img>/<video> 无法携带 Authorization 头。
-    若对象存储已给出公开 URL（files.thumbnail），直接 302 重定向：
+    必须登录并通过文件工作区归属校验；对象存储公开 URL 的存在不等于 API
+    可以匿名放行。若对象存储已给出公开 URL（files.thumbnail），直接 302 重定向：
       - 不占用 EC2 出网带宽（视频可达数百 MB）
       - Range 请求由对象存储处理，播放器可正常 seek
       - 可被 CDN 缓存
@@ -161,7 +163,8 @@ async def download_file_api(
 @public_router.head(
     "/{file_id}/download",
     operation_id="download_file_head",
-    summary="探测文件可下载性（HEAD，返回 Content-Length / Accept-Ranges）",
+    summary="探测文件可下载性（HEAD，需登录且校验工作区归属）",
+    dependencies=[Depends(require_scoped_resource("file_id", get_file_in_workspace))],
 )
 async def download_file_head_api(
     file_id: str,

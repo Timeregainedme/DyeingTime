@@ -181,11 +181,11 @@ export class StudioFilesService {
         });
     }
     /**
-     * 下载文件二进制内容（匿名可访问，重定向到对象存储公开 URL）
+     * 下载文件二进制内容（需登录且校验工作区归属）
      * 下载/内联展示素材二进制。
      *
-     * 必须匿名可访问：浏览器 <img>/<video> 无法携带 Authorization 头。
-     * 若对象存储已给出公开 URL（files.thumbnail），直接 302 重定向：
+     * 必须登录并通过文件工作区归属校验；对象存储公开 URL 的存在不等于 API
+     * 可以匿名放行。若对象存储已给出公开 URL（files.thumbnail），直接 302 重定向：
      * - 不占用 EC2 出网带宽（视频可达数百 MB）
      * - Range 请求由对象存储处理，播放器可正常 seek
      * - 可被 CDN 缓存
@@ -210,7 +210,7 @@ export class StudioFilesService {
         });
     }
     /**
-     * 探测文件可下载性（HEAD，返回 Content-Length / Accept-Ranges）
+     * 探测文件可下载性（HEAD，需登录且校验工作区归属）
      * HEAD 探测，与 GET 共用同一套响应头。
      *
      * 为什么必须有：浏览器 <video>/<audio> 与部分下载器会先发 HEAD 探测

@@ -1,0 +1,21 @@
+[Unit]
+Description=DyeingTime Celery worker (default queue)
+After=network.target redis-server.service
+Requires=redis-server.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/srv/dyeingtime/current/backend
+EnvironmentFile=/etc/dyeingtime/backend.env
+Environment=PATH=/srv/dyeingtime/current/backend/.venv/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/srv/dyeingtime/current/backend/.venv/bin/celery -A app.core.celery_app.celery_app worker --loglevel=INFO --concurrency=1 --hostname=default@dyeingtime
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=300
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

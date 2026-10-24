@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db
+from app.dependencies import WorkspaceContext, get_db, require_admin
 from app.models.llm import ModelCategoryKey
 from app.schemas.common import ApiResponse, PaginatedData, created_response, empty_response, success_response
 from app.schemas.llm import (
@@ -134,6 +134,7 @@ async def get_audio_generation_options(
 async def create_provider(
     body: ProviderCreate,
     db: AsyncSession = Depends(get_db),
+    _ctx: WorkspaceContext = Depends(require_admin),
 ) -> ApiResponse[ProviderRead]:
     provider = await create_provider_service(db, body=body)
     return created_response(ProviderRead.model_validate(provider))
@@ -161,6 +162,7 @@ async def update_provider(
     provider_id: str,
     body: ProviderUpdate,
     db: AsyncSession = Depends(get_db),
+    _ctx: WorkspaceContext = Depends(require_admin),
 ) -> ApiResponse[ProviderRead]:
     provider = await update_provider_service(db, provider_id=provider_id, body=body)
     return success_response(ProviderRead.model_validate(provider))
@@ -175,6 +177,7 @@ async def update_provider(
 async def delete_provider(
     provider_id: str,
     db: AsyncSession = Depends(get_db),
+    _ctx: WorkspaceContext = Depends(require_admin),
 ) -> ApiResponse[None]:
     await delete_provider_service(db, provider_id=provider_id)
     return empty_response()
@@ -220,6 +223,7 @@ async def list_models(
 async def create_model(
     body: ModelCreate,
     db: AsyncSession = Depends(get_db),
+    _ctx: WorkspaceContext = Depends(require_admin),
 ) -> ApiResponse[ModelRead]:
     model = await create_model_service(db, body=body)
     return created_response(ModelRead.model_validate(model))
@@ -247,6 +251,7 @@ async def update_model(
     model_id: str,
     body: ModelUpdate,
     db: AsyncSession = Depends(get_db),
+    _ctx: WorkspaceContext = Depends(require_admin),
 ) -> ApiResponse[ModelRead]:
     model = await update_model_service(db, model_id=model_id, body=body)
     return success_response(ModelRead.model_validate(model))
@@ -261,6 +266,7 @@ async def update_model(
 async def delete_model(
     model_id: str,
     db: AsyncSession = Depends(get_db),
+    _ctx: WorkspaceContext = Depends(require_admin),
 ) -> ApiResponse[None]:
     await delete_model_service(db, model_id=model_id)
     return empty_response()
@@ -289,6 +295,7 @@ async def get_model_settings(
 async def update_model_settings(
     body: ModelSettingsUpdate,
     db: AsyncSession = Depends(get_db),
+    _ctx: WorkspaceContext = Depends(require_admin),
 ) -> ApiResponse[ModelSettingsRead]:
     settings = await update_model_settings_service(db, body=body)
     return success_response(ModelSettingsRead.model_validate(settings))

@@ -8,7 +8,8 @@ from datetime import UTC, datetime
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dependencies import get_db
+from app.dependencies import WorkspaceContext, get_db, get_workspace_context
+from app.models.types import WorkspaceRole
 from app.models.llm import Model, ModelCategoryKey, ModelSettings, Provider, ProviderStatus
 from tests.support.llm_api_app import build_llm_only_app
 
@@ -18,8 +19,15 @@ llm_app = build_llm_only_app()
 
 @pytest.fixture
 def client() -> Iterator[TestClient]:
+    # 每个测试重新注入 owner 上下文：部分用例会在 finally 里 clear 全部 overrides。
+    llm_app.dependency_overrides[get_workspace_context] = lambda: WorkspaceContext(
+        workspace_id="ws-test",
+        user_id=1,
+        role=WorkspaceRole.owner,
+    )
     with TestClient(llm_app) as c:
         yield c
+    llm_app.dependency_overrides.clear()
 
 
 class _FakeLlmDB:

@@ -101,8 +101,8 @@ async def main() -> None:
             default_shot_duration=5, video_duration_min=4, video_duration_max=15,
             video_concurrency=4, created_by=9001,
         )
-        chapter = Chapter(id="c-e2e", project_id=project.id, index=1, title="第1集：夜班", raw_text="林晚与周沉在医院值班室对话。")
-        g1 = SceneGroup(id="g-e2e-1", project_id=project.id, chapter_id=chapter.id, index=1, title="值班室", description="", location="医院值班室", time_of_day="夜", story_event="发现钥匙")
+        chapter = Chapter(id="c-e2e", project_id=project.id, index=1, title="第1集：夜班", raw_text="林晚与周沉在现代办公室对话。")
+        g1 = SceneGroup(id="g-e2e-1", project_id=project.id, chapter_id=chapter.id, index=1, title="办公室", description="", location="现代办公室", time_of_day="夜", story_event="发现钥匙")
         g2 = SceneGroup(id="g-e2e-2", project_id=project.id, chapter_id=chapter.id, index=2, title="走廊", description="", location="医院走廊", time_of_day="夜", story_event="追问")
         db.add_all([project, chapter])
         await db.flush()
@@ -114,8 +114,8 @@ async def main() -> None:
         ))
         await db.flush()
 
-        scene = Scene(id="scene-e2e", name="医院值班室", description="", style=project.style, visual_style=project.visual_style)
-        scene_version = AssetVersion(id="av-scene", project_id=project.id, asset_type="scene", asset_id=scene.id, version_no=1, version_kind="base", variant_type="base", name="医院值班室基础", status="active")
+        scene = Scene(id="scene-e2e", name="现代办公室", description="", style=project.style, visual_style=project.visual_style)
+        scene_version = AssetVersion(id="av-scene", project_id=project.id, asset_type="scene", asset_id=scene.id, version_no=1, version_kind="base", variant_type="base", name="现代办公室基础", status="active")
         scene.current_version_id = scene_version.id
         char1 = Character(id="char-e2e-1", project_id=project.id, name="林晚", description="护士", style=project.style, visual_style=project.visual_style, identity_locked_at=datetime.now(UTC), identity_lock_version=1)
         char2 = Character(id="char-e2e-2", project_id=project.id, name="周沉", description="医生", style=project.style, visual_style=project.visual_style, identity_locked_at=datetime.now(UTC), identity_lock_version=1)
@@ -134,7 +134,7 @@ async def main() -> None:
 
         char_file = await put_file("f-char", "林晚.png", "e2e/images/char.png", PNG, "image/png", "image")
         char2_file = await put_file("f-char2", "周沉.png", "e2e/images/char2.png", PNG, "image/png", "image")
-        scene_file = await put_file("f-scene", "值班室.png", "e2e/images/scene.png", PNG, "image/png", "image")
+        scene_file = await put_file("f-scene", "办公室.png", "e2e/images/scene.png", PNG, "image/png", "image")
         prop_file = await put_file("f-prop", "钥匙.png", "e2e/images/prop.png", PNG, "image/png", "image")
         prop = Prop(id="prop-e2e", name="钥匙", description="", style=project.style, visual_style=project.visual_style)
         prop_version = AssetVersion(id="av-prop", project_id=project.id, asset_type="prop", asset_id=prop.id, version_no=1, version_kind="base", variant_type="base", name="钥匙基础", status="active")
@@ -160,7 +160,7 @@ async def main() -> None:
             db.add(FileUsage(file_id=item.id, project_id=project.id, chapter_id=chapter.id, shot_id=None, usage_kind="generated_video", source_ref=f"e2e:{index}"))
 
         script_doc = ScriptDocument(id="sd-e2e", project_id=project.id, chapter_id=chapter.id, doc_type="episode", title="第1集：夜班")
-        script_ver = ScriptDocumentVersion(id="sv-e2e", document_id=script_doc.id, version_no=1, file_id=None, file_name="第1集.md", file_type="md", content_hash="e2e", raw_text="夜班值班室，林晚与周沉发现一把钥匙。", text_length=20, status="active", parse_status="parsed")
+        script_ver = ScriptDocumentVersion(id="sv-e2e", document_id=script_doc.id, version_no=1, file_id=None, file_name="第1集.md", file_type="md", content_hash="e2e", raw_text="现代办公室，林晚与周沉发现一把钥匙。", text_length=20, status="active", parse_status="parsed")
         script_doc.current_version_id = script_ver.id
         script_doc.active_version_id = script_ver.id
         db.add_all([script_doc, script_ver])
@@ -169,7 +169,7 @@ async def main() -> None:
             sid = f"s-e2e-{index}"
             adopted = video_ids[index - 1] if index <= 4 else None
             db.add(Shot(id=sid, chapter_id=chapter.id, scene_group_id=g1.id if index <= 6 else g2.id, index=index, title=f"镜头 {index}", status="ready", skip_extraction=True, generated_video_file_id=adopted))
-            db.add(ShotDetail(id=sid, camera_shot="MS", angle="EYE_LEVEL", movement="STATIC", duration=5, video_prompt_draft="@林晚 与 @周沉 在值班室对视。"))
+            db.add(ShotDetail(id=sid, camera_shot="MS", angle="EYE_LEVEL", movement="STATIC", duration=5, video_prompt_draft="@林晚 与 @周沉 在现代办公室对视。"))
         await db.flush()
         for index in range(1, 13):
             sid = f"s-e2e-{index}"

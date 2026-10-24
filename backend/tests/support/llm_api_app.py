@@ -10,6 +10,8 @@ from fastapi.responses import JSONResponse
 
 from app.api.v1.routes import llm
 from app.bootstrap import bootstrap_all_registries
+from app.dependencies import WorkspaceContext, get_workspace_context
+from app.models.types import WorkspaceRole
 from app.config import settings
 from app.schemas.common import ApiResponse
 
@@ -62,6 +64,13 @@ def build_llm_only_app() -> FastAPI:
         lifespan=_lifespan,
         docs_url=None,
         redoc_url=None,
+    )
+    # LLM-only 响应壳测试不启动真实登录/工作区表：显式注入一个 owner 上下文，
+    # 让新增的 require_admin 守卫仍被执行，但测试聚焦响应信封而不是认证。
+    application.dependency_overrides[get_workspace_context] = lambda: WorkspaceContext(
+        workspace_id="ws-test",
+        user_id=1,
+        role=WorkspaceRole.owner,
     )
     application.add_exception_handler(RequestValidationError, validation_exception_handler)
     application.add_exception_handler(HTTPException, http_exception_handler)
