@@ -23,6 +23,7 @@ from app.models.task_links import GenerationTaskLink
 from app.models.types import FileUsageKind
 from app.services.common.errors import entity_not_found
 from app.services.studio.audio_tasks import load_audio_provider_config, resolve_audio_model
+from app.services.studio.generation_quota import reserve_for_task, settle_task
 from app.services.studio.project_generation_config import resolve_project_id_for_shot
 from app.services.studio.file_usages import upsert_file_usage
 from app.services.studio.image_task_runner import _CreateOnlyTask

@@ -66,14 +66,16 @@ function NavItem({
       onClick={onNavigate}
       className={cn(
         'group flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm transition-colors',
-        collapsed && 'justify-center px-0',
+        collapsed ? 'justify-center px-0' : 'justify-center md:justify-start',
         active
           ? 'bg-primary/10 font-medium text-primary'
           : 'text-muted-foreground hover:bg-accent hover:text-foreground',
       )}
     >
       <Icon className={cn('h-4 w-4 shrink-0', active && 'text-primary')} />
-      {collapsed ? null : <span className="truncate">{t(item.labelKey)}</span>}
+      {collapsed ? null : (
+        <span className="hidden truncate md:inline">{t(item.labelKey)}</span>
+      )}
     </NavLink>
   )
 
@@ -169,15 +171,21 @@ export default function AppShell() {
     <div className="flex h-screen w-full overflow-hidden bg-background">
       <aside
         className={cn(
-          'flex shrink-0 flex-col border-r border-border bg-card transition-[width] duration-200',
-          collapsed ? 'w-[68px]' : 'w-[232px]',
+          // 小屏固定为图标栏：390px 手机若保留 232px 侧栏，正文只剩 150px，无法使用。
+          'flex shrink-0 flex-col overflow-hidden border-r border-border bg-card transition-[width] duration-200',
+          collapsed ? 'w-[68px]' : 'w-[68px] md:w-[232px]',
         )}
       >
-        <div className={cn('flex h-14 items-center gap-2.5 px-4', collapsed && 'justify-center px-0')}>
+        <div
+          className={cn(
+            'flex h-14 items-center gap-2.5 px-4',
+            collapsed ? 'justify-center px-0' : 'justify-center px-0 md:justify-start md:px-4',
+          )}
+        >
           <Link to="/projects" className="flex min-w-0 items-center gap-2.5">
             <img src="/logo.png" alt="DyeingTime" className="h-7 w-7 shrink-0" />
             {collapsed ? null : (
-              <div className="min-w-0">
+              <div className="hidden min-w-0 md:block">
                 <div className="truncate text-sm font-semibold leading-tight">{t('title')}</div>
                 <div className="truncate text-[11px] leading-tight text-muted-foreground">
                   {t('subtitle')}
@@ -228,15 +236,21 @@ export default function AppShell() {
                         onClick={() => toggleGroup(entry.key)}
                         className={cn(
                           'flex h-9 w-full items-center gap-2.5 rounded-md bg-transparent px-2.5 text-sm transition-colors',
+                          'justify-center md:justify-start',
                           groupActive
                             ? 'text-primary'
                             : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                         )}
                       >
                         <GroupIcon className="h-4 w-4 shrink-0" />
-                        <span className="flex-1 truncate text-left">{t(entry.labelKey)}</span>
+                        <span className="hidden flex-1 truncate text-left md:block">
+                          {t(entry.labelKey)}
+                        </span>
                         <ChevronRight
-                          className={cn('h-3.5 w-3.5 transition-transform', open && 'rotate-90')}
+                          className={cn(
+                            'hidden h-3.5 w-3.5 transition-transform md:block',
+                            open && 'rotate-90',
+                          )}
                         />
                       </button>
                       {open ? (

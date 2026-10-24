@@ -15,6 +15,7 @@ import os
 import shutil
 import subprocess
 import sys
+from typing import Any
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
@@ -33,6 +34,34 @@ def load_env(path: Path) -> dict[str, str]:
         key, value = line.split("=", 1)
         values[key.strip()] = value
     return values
+
+
+def _upload_offsite(path: Path, values: dict[str, str]) -> str | None:
+    """把备份上传到对象存储，避免备份只存在同一台 EC2。
+
+    为什么必须做：数据库备份若与本机在同一块 EBS 上，磁盘损坏/误删实例时
+    备份会一起丢失。复用现有 R2 桶的成本可忽略，因此作为默认行为；
+    未配置 S3 时静默跳过，不阻断本地备份。
+    """
+    bucket = (values.get("S3_BUCKET_NAME") or "").strip()
+    if not bucket:
+        return None
+    import boto3
+    from botocore.client import Config as BotoConfig
+
+    client = boto3.client(
+        "s3",
+        endpoint_url=values.get("S3_ENDPOINT_URL") or None,
+        region_name=values.get("S3_REGION_NAME") or "auto",
+        aws_access_key_id=values.get("S3_ACCESS_KEY_ID"),
+        aws_secret_access_key=values.get("S3_SECRET_ACCESS_KEY"),
+        config=BotoConfig(
+            s3={"addressing_style": values.get("S3_ADDRESSING_STYLE", "path")}
+        ),
+    )
+    key = f"backups/db/{path.name}"
+    client.upload_file(str(path), bucket, key, ExtraArgs={"ContentType": "application/gzip"})
+    return f"s3://{bucket}/{key}"
 
 
 def main() -> int:
@@ -95,6 +124,9 @@ def main() -> int:
     os.chmod(final, 0o600)
     digest = hashlib.sha256(final.read_bytes()).hexdigest()
     (BACKUP_DIR / "SHA256SUMS").open("a").write(f"{digest}  {final.name}\n")
+    offsite = _upload_offsite(final, values)
+    if offsite:
+        print(f"offsite={offsite}")
     env_backup = BACKUP_DIR / f"backend-env-{stamp}.env"
     shutil.copyfile(ENV_FILE, env_backup)
     os.chmod(env_backup, 0o600)

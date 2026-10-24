@@ -90,13 +90,6 @@ fi
 
 # ---------- 3. 资源 ----------
 [[ $QUIET -eq 0 ]] && echo "[资源]"
-disk_pct=$(df / | awk 'NR==2 {gsub("%","",$5); print $5}')
-if [[ -n "$disk_pct" && "$disk_pct" -ge "$DISK_WARN_PCT" ]]; then
-    warn "磁盘使用 ${disk_pct}%（阈值 ${DISK_WARN_PCT}%）"
-else
-    ok "磁盘使用 ${disk_pct}%"
-fi
-
 mem_pct=$(free | awk 'NR==2 {printf "%d", ($3/$2)*100}')
 if [[ -n "$mem_pct" && "$mem_pct" -ge "$MEM_WARN_PCT" ]]; then
     warn "内存使用 ${mem_pct}%（阈值 ${MEM_WARN_PCT}%）"
@@ -111,6 +104,25 @@ if [[ -n "$go_pid" ]]; then
 else
     fail "找不到 Go 进程"
 fi
+
+# ---------- 3.1 容量分级 ----------
+# 75% 预警、85% 高优先级、90% 直接失败：磁盘写满会同时打垮 MySQL 与 R2 回存。
+disk_pct=$(df --output=pcent / | tail -1 | tr -dc '0-9')
+if (( disk_pct >= 90 )); then
+    fail "磁盘使用 ${disk_pct}%（>=90%，高优先级）"
+elif (( disk_pct >= 85 )); then
+    warn "磁盘使用 ${disk_pct}%（>=85%，高优先级）"
+elif (( disk_pct >= 75 )); then
+    warn "磁盘使用 ${disk_pct}%（>=75%，预警）"
+else
+    ok "磁盘使用 ${disk_pct}%"
+fi
+
+for dir in /srv/dyeingtime/releases /srv/dyeingtime-backups /var/log; do
+    if [[ -d "$dir" ]]; then
+        ok "$dir $(du -sh "$dir" 2>/dev/null | cut -f1)"
+    fi
+done
 
 # ---------- 3.1 备份时效 ----------
 latest_backup=$(ls -1t /srv/dyeingtime-backups/dyeingtime-*.sql.gz 2>/dev/null | head -1 || true)

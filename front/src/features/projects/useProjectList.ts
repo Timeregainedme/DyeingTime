@@ -33,7 +33,8 @@ function newProjectId(): string {
  * 后端仍是分页接口，这里一次性拉 100 条：当前团队的项目量远小于这个量级，
  * 做客户端搜索比每次输入都请求一次更快；超过后再补服务端搜索。
  */
-export function useProjectList() {
+export function useProjectList(options: { autoLoad?: boolean } = {}) {
+  const autoLoad = options.autoLoad ?? true
   const [projects, setProjects] = useState<ProjectView[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -60,8 +61,8 @@ export function useProjectList() {
   }, [])
 
   useEffect(() => {
-    void reload()
-  }, [reload])
+    if (autoLoad) void reload()
+  }, [autoLoad, reload])
 
   /** 创建项目：成功后直接把新项目插入列表头部，避免整页重新拉取。 */
   const createProject = useCallback(async (values: ProjectFormValues): Promise<ProjectView> => {

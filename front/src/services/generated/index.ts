@@ -17,6 +17,7 @@ export type { ApiResponse_CharacterAliasRead_ } from './models/ApiResponse_Chara
 export type { ApiResponse_CharacterPortraitAnalysisResult_ } from './models/ApiResponse_CharacterPortraitAnalysisResult_';
 export type { ApiResponse_ClipsExportPrecheckRead_ } from './models/ApiResponse_ClipsExportPrecheckRead_';
 export type { ApiResponse_CostumeInfoAnalysisResult_ } from './models/ApiResponse_CostumeInfoAnalysisResult_';
+export type { ApiResponse_DashboardRead_ } from './models/ApiResponse_DashboardRead_';
 export type { ApiResponse_dict_ } from './models/ApiResponse_dict_';
 export type { ApiResponse_dict_str__Any__ } from './models/ApiResponse_dict_str__Any__';
 export type { ApiResponse_EntityMergePairResult_ } from './models/ApiResponse_EntityMergePairResult_';
@@ -183,6 +184,12 @@ export type { CostumeInfoAnalysisResult } from './models/CostumeInfoAnalysisResu
 export type { CostumeTimeline } from './models/CostumeTimeline';
 export type { CostumeTimelineEntry } from './models/CostumeTimelineEntry';
 export type { CreateDerivedVersionRequest } from './models/CreateDerivedVersionRequest';
+export type { DashboardChapterRead } from './models/DashboardChapterRead';
+export type { DashboardProjectRead } from './models/DashboardProjectRead';
+export type { DashboardRead } from './models/DashboardRead';
+export type { DashboardReviewRead } from './models/DashboardReviewRead';
+export type { DashboardStatsRead } from './models/DashboardStatsRead';
+export type { DashboardTaskRead } from './models/DashboardTaskRead';
 export type { DialogueLineMode } from './models/DialogueLineMode';
 export type { EffectiveGenerationModelRead } from './models/EffectiveGenerationModelRead';
 export type { EntityEntry } from './models/EntityEntry';
@@ -451,6 +458,7 @@ export { StudioAssetImpactService } from './services/StudioAssetImpactService';
 export { StudioAssetProfilesService } from './services/StudioAssetProfilesService';
 export { StudioAudioTasksService } from './services/StudioAudioTasksService';
 export { StudioChaptersService } from './services/StudioChaptersService';
+export { StudioDashboardService } from './services/StudioDashboardService';
 export { StudioEntitiesService } from './services/StudioEntitiesService';
 export { StudioFilesService } from './services/StudioFilesService';
 export { StudioGenerationQuotaService } from './services/StudioGenerationQuotaService';
