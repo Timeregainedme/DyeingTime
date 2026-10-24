@@ -4,7 +4,7 @@ description: "P8 交付前状态：功能、Mock、迁移、浏览器、安全�
 weight: 10
 ---
 
-> 状态：**受控内部试运行候选，不是生产就绪**。L3 真实供应商与 L4 人工质量尚未执行。
+> 状态：**P10-A 已部署为 Production Internal 内部 Beta**。最新部署与剩余阻塞见 [P10-A 公司内部 Beta 上线](/docs/plans/p10-a-internal-beta/)。
 
 ## 1. P0–P8 完成情况
 

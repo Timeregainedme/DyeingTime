@@ -1,10 +1,10 @@
 ---
 title: "生产环境当前状态"
-description: "记录生产机的服务拓扑、已执行迁移、已切流路径与回滚方式，供运维与故障排查时快速定位。"
+description: "Production Internal 的服务拓扑、发布目录、迁移、权限、额度、备份、回滚与已知风险。"
 weight: 21
 ---
 
-> 本文是**运维快照**，随部署更新。架构原理见
+> 运维快照，随部署更新。架构原理见
 > [Go 控制面](/docs/architecture/go-control-plane/) 与
 > [多租户与工作区隔离](/docs/architecture/workspace-multitenancy/)。
 
@@ -12,203 +12,125 @@ weight: 21
 
 | 服务 | systemd unit | 端口 | 说明 |
 |---|---|---|---|
-| Nginx | `nginx` | 80 / 443 / 9443 | 静态资源 + API 分流 |
-| Python API | `dyeingtime-api` | 127.0.0.1:8000 | FastAPI，厚业务与写操作 |
-| Python Worker | `dyeingtime-celery` | — | Celery，生成任务执行 |
-| Go 控制面 | `dyeingtime-go` | 127.0.0.1:8001 | 已接管的高频只读接口 |
+| Nginx | `nginx` | 80 / 443 / 9443 | SPA + API 反向代理 + HTTPS |
+| Production API | `dyeingtime-api` | 127.0.0.1:8002 | FastAPI |
+| Staging API | `dyeingtime-staging-api` | 127.0.0.1:8021 | 独立测试库；仅本机 7802 UI |
+| Celery default | `dyeingtime-celery` | — | 默认队列，并发 1 |
+| Celery image | `dyeingtime-celery-image` | — | image 队列，并发 2 |
+| Celery video | `dyeingtime-celery-video` | — | video 队列，并发 1 |
+| Go control plane | `dyeingtime-go` | 127.0.0.1:8001 | 仅 `/health` 与 `/api/v1/ready` |
+| MySQL backup | `dyeingtime-backup.timer` | — | 每日 19:00 UTC |
 
-数据库 MySQL 本机 `127.0.0.1:3306`，Redis 本机，对象存储 Cloudflare R2。
+## 发布目录
 
-Go 二进制在 `/srv/dyeingtime-go/api`（**仓库外**，不污染 git 工作区）。
-Python 代码与 `.env` 在 `/srv/dyeingtime/backend`。
+```text
+/srv/dyeingtime/releases/v2-internal-beta.1   # 当前 release
+/srv/dyeingtime/current -> releases/v2-internal-beta.1
+/srv/dyeingtime/previous -> /srv/dyeingtime    # 旧 main，用于回滚
+```
+
+运行代码、venv、front dist 都从 `current` 读取。`/srv/dyeingtime` 不再直接对外服务，只用于回滚。
 
 ## 配置来源
 
-- Python 与 Go 共用 `/srv/dyeingtime/backend/.env`（Go 由 systemd `EnvironmentFile` 注入）
-- 关键变量：`DATABASE_URL`、`JWT_SECRET`、`SECRETS_KEY`、`S3_*`
-- **`SECRETS_KEY` 轮换会导致既有 provider API Key 无法解密**，改动前须重新录入
-
-## 已执行的数据迁移
-
-| 文件 | 内容 | 状态 |
+| 文件 | 用途 | 权限 |
 |---|---|---|
-| `sql/022-add-workspaces.sql` | workspaces / workspace_members / projects.workspace_id | ✅ |
-| `sql/023-add-workspace-to-tasks.sql` | generation_tasks.workspace_id | ✅ |
-| `sql/024-add-audit-logs.sql` | audit_logs | ✅ |
-| `sql/025-add-project-video-resolution.sql` | projects.default_video_resolution | ✅ |
-| `sql/026-add-project-styles.sql` | project_styles（风格目录） | ✅ |
+| `/etc/dyeingtime/backend.env` | Production API / Worker | `640 root:ubuntu` |
+| `/etc/dyeingtime/staging.env` | Staging API | `640 root:ubuntu` |
 
-三份脚本均幂等，可重复执行。**字符集必须是 `utf8mb4_unicode_ci`**：
-存量表用的是这个，MySQL 8/9 建库默认是 `0900_ai_ci`，混用会让外键报 3780。
+关键变量：`DATABASE_URL`、`JWT_SECRET`、`SECRETS_KEY`、`S3_*`、`GENERATION_TEST_QUOTA_*`。
 
-回填结果：默认工作区 `ws-default`，存量用户 2 人全部加入，存量项目全部挂载。
+**`SECRETS_KEY` 轮换会导致既有 provider API Key 无法解密**；改动前必须重新录入供应商密钥。
 
-## 已切流路径（Nginx → Go）
+## 数据库与迁移
 
-| 路径 | 备注 |
-|---|---|
-| `/api/v1/auth/me` | 精确匹配 |
-| `/api/v1/studio/files` | 精确匹配 |
-| `/api/v1/studio/files/{id}/download` | 正则，302 到 R2 |
-| `/api/v1/studio/projects` | 精确 |
-| `/api/v1/studio/projects/style-options` | 精确 |
-| `/api/v1/studio/projects/{id}` | 正则 |
-| `/api/v1/studio/chapters` | 精确 |
-| `/api/v1/studio/chapters/{id}` | 正则 |
-| `/api/v1/film/tasks` | 精确 |
-| `/api/v1/film/tasks/{id}/status` | 正则 |
-| `/api/v1/film/tasks/{id}/result` | 正则 |
+- Production 数据库：本机 MySQL `dyeingtime`。
+- Staging 数据库：`dyeingtime_staging`，独立 Redis DB `2`。
+- 已执行迁移：034–050（项目生成配置、风格锁定、剧本、资产版本、场次/分镜、参考绑定、额度、批次、审核、音色样本、request_key、生产预算）。
+- 迁移前备份：`/srv/dyeingtime-backups/`。
+- 迁移后执行 `init_db` 补齐 ORM 表。
+- 恢复演练：备份导入独立库后，用户/项目/镜头/文件计数一致。
 
-其余路径仍由 Python 处理。**写操作（POST/PATCH/DELETE）全部在 Python**。
+迁移是加列/加表为主；**代码回滚不等于数据库回滚**。不可逆变更前必须备份并走恢复演练。
 
-## 回滚方式
+## Nginx 分流
 
-### 回滚单条路径
+P10 起所有业务 API 统一走 Python `8002`：
 
-```bash
-sudo cp /etc/nginx/sites-enabled/dyeingtime /root/nginx-backup-$(date +%s)
-sudo vim /etc/nginx/sites-enabled/dyeingtime   # 注释对应 location 块
-sudo nginx -t && sudo systemctl reload nginx
-```
+- `/api/v1/*` → Python
+- `/health` → Go（进程存活）
+- `/api/v1/ready` → Go（DB ready）
+- `/api/v1/health` → Python
+- `/static/*` → `/srv/dyeingtime/current/front/dist/static/`
+- `/env.js` → Nginx 动态生成，注入 `BACKEND_URL=""`、`GENERATION_QUOTA_SCOPE="production-internal"`
 
-无需停 Go 进程，不影响其他路径。**已实测**：注释后请求回到 Python，
-以 Go 日志行数不增长为证。
+旧 Go 只读切流已收回。原因：精确/正则 location 会把 POST/PATCH/DELETE 也转给 Go，项目创建返回 503。Go 进程保留，仅用于探针。
 
-### 回滚全部切流
+## 权限与安全
 
-```bash
-sudo python3 - <<'EOF'
-from pathlib import Path
-p = Path("/etc/nginx/sites-enabled/dyeingtime")
-s = p.read_text()
-start = s.index("    # ---- Go 控制面已接管路径")
-end = s.index("    location /api/v1/ {")
-p.write_text(s[:start] + s[end:])
-EOF
-sudo nginx -t && sudo systemctl reload nginx
-```
+- 公开注册关闭；Google 登录由 `GOOGLE_ALLOWED_EMAILS` 控制。
+- 业务 API 全部要求登录；项目/章节/镜头/文件/任务走 workspace scoping。
+- viewer 只读；editor 可写；模型供应商/模型/全局设置写接口要求 workspace admin。
+- 文件下载 API 要求登录和工作区归属；匿名 401、跨工作区 404。
+- QA 账号已停用，测试项目已删除。
+- `.env` 权限 600 / 640，未提交 Git；历史跟踪文件中未发现真实 API Key。
 
-### 回滚 Go 代码
+**剩余安全阻塞**：Cloudflare R2 媒体仍通过 `pub-*.r2.dev` 公共读 URL 提供；API 下载鉴权不能阻止持有直链的人访问对象。需 Cloudflare 账户级 Token 关闭公共访问并切换签名 URL/应用代理。
 
-保留上一版二进制即可：
+## 额度与并发
+
+- Production scope：`production-internal`
+  - 图片 100
+  - 视频 20
+  - 音频 5000 字
+- `v2-acceptance` 测试额度与生产独立，不继承 8 次测试额度。
+- 生产项目 `video_concurrency = 1`。
+- 生产部署本身未发起付费生成。
+
+## 备份与恢复
 
 ```bash
-sudo systemctl stop dyeingtime-go
-sudo cp /srv/dyeingtime-go/api.prev /srv/dyeingtime-go/api
-sudo systemctl start dyeingtime-go
+# 手动备份
+sudo python3 /usr/local/sbin/dyeingtime-backup-db.py
+
+# 恢复（必须先停 API/Worker，并确认 --yes）
+sudo systemctl stop dyeingtime-api dyeingtime-celery dyeingtime-celery-image dyeingtime-celery-video
+sudo python3 /srv/dyeingtime/current/deploy/scripts/restore_db.py \
+  /srv/dyeingtime-backups/dyeingtime-YYYYMMDDTHHMMSSZ.sql.gz --yes
+sudo systemctl start dyeingtime-api dyeingtime-celery dyeingtime-celery-image dyeingtime-celery-video
 ```
 
-## 验证命令
+备份目录 `/srv/dyeingtime-backups/`，保留 14 天；SHA256 和对应环境文件一并保存。
+
+## 发布与回滚
 
 ```bash
-# 服务状态
-systemctl is-active nginx dyeingtime-api dyeingtime-celery dyeingtime-go
+# 发布
+sudo /srv/dyeingtime/releases/v2-internal-beta.1/deploy/scripts/deploy_release.sh \
+  /srv/dyeingtime/releases/v2-internal-beta.1
 
-# Go 侧
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8001/api/v1/ready   # 200（含 DB ping）
-
-# Python 侧
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8000/health         # 200
-
-# 经 Nginx（需 token）
-TOKEN=$(cd /srv/dyeingtime/backend && .venv/bin/python -c "...")
-curl -s -o /dev/null -w '%{http_code}\n' \
-  --resolve tim.run.place:443:127.0.0.1 \
-  -H "Authorization: Bearer $TOKEN" https://tim.run.place/api/v1/studio/projects
+# 回滚
+sudo /srv/dyeingtime/releases/v2-internal-beta.1/deploy/scripts/rollback_release.sh
 ```
 
-## 部署 Go 新版本
-
-交叉编译后上传（服务器不装 Go 工具链）：
-
-```bash
-cd backend/go
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /tmp/dyeingtime-api ./cmd/api
-scp /tmp/dyeingtime-api <server>:/tmp/dyeingtime-api
-ssh <server> 'sudo systemctl stop dyeingtime-go && \
-  sudo cp /srv/dyeingtime-go/api /srv/dyeingtime-go/api.prev && \
-  sudo mv /tmp/dyeingtime-api /srv/dyeingtime-go/api && \
-  sudo chmod +x /srv/dyeingtime-go/api && \
-  sudo systemctl start dyeingtime-go'
-```
-
-## 片段打包导出
-
-`GET /api/v1/studio/timeline/projects/{project_id}/clips-archive` 返回 zip：
-把项目下每个已生成视频的片段原样打包，未生成的片段写进包内 `MANIFEST-未打包片段.txt`。
-
-- 与「导出成片」互补：成片用 ffmpeg 串成一个 mp4，要求全部片段都有视频；
-  打包允许部分缺失，用于先把素材交出去。
-- 在内存里构建 zip（中央目录在末尾，真正流式需先算偏移，几十个片段场景不划算）。
-- 单个片段读对象存储失败只跳过并记入 MANIFEST，不整包失败。
-
-## 部署前端
-
-前端是纯静态产物，部署 = 替换 `/srv/dyeingtime/front/dist`，不需要重启任何服务。
-
-```bash
-cd front
-pnpm exec tsc --noEmit && pnpm test && pnpm test:e2e   # 本地验证
-pnpm exec vite build
-
-# 服务器侧先留存上一版，便于回滚
-ssh <server> 'mv /srv/dyeingtime/front/dist /srv/dyeingtime/front/dist.old-$(date +%Y%m%d-%H%M%S)'
-rsync -az ./dist/ <server>:/srv/dyeingtime/front/dist/
-```
-
-要点：
-
-- **不要 reload nginx**：root 目录替换即时生效。
-- `/env.js` 由 nginx 的 `location = /env.js` 直接返回内容，**不读 dist 里的文件**，
-  因此换 dist 不会把 `BACKEND_URL` 变回 `localhost:8000`。
-- `/index.html` 是 `no-store`，用户刷新即拿到新 bundle；旧 hash 的 chunk 会 404，
-  这是刻意取舍（不保留历史版本）。需要平滑过渡时保留 `dist.old-*` 并回滚。
-- 静态资源在 `dist/static/`（`assetsDir` 特意改名，避免与 `/assets` 路由冲突）。
-
-验证：
-
-```bash
-curl -s -o /dev/null -w '%{http_code}\n' https://tim.run.place/          # 200
-curl -s https://tim.run.place/env.js | grep BACKEND_URL                  # ""
-```
-
-回滚：
-
-```bash
-ssh <server> 'cd /srv/dyeingtime/front && rm -rf dist && mv dist.old-<时间戳> dist'
-```
+发布脚本会先备份数据库，拒绝在有运行中视频任务时发布；切换 `current` 后重启 API/Worker，最后复制 Nginx 配置并校验外部探针。
 
 ## 巡检
 
-`deploy/scripts/health-check.sh` 部署在 `/srv/dyeingtime-ops/health-check.sh`，
-由 `dyeingtime-healthcheck.timer` 每 5 分钟跑一次。
-
 ```bash
-sudo /srv/dyeingtime-ops/health-check.sh          # 人看：完整摘要
-sudo /srv/dyeingtime-ops/health-check.sh --quiet  # 机器看：仅异常时输出
-sudo journalctl -u dyeingtime-healthcheck -n 20   # 看历史结果
+sudo /usr/local/sbin/dyeingtime-health-check.sh
+sudo /usr/local/sbin/dyeingtime-health-check.sh --quiet
 ```
 
-检查项与判定：
-
-| 类别 | 内容 |
-|---|---|
-| 服务 | 4 个 systemd unit 是否 active |
-| 探针 | `/health` 状态码 + **内容形态**（防回退 HTML）、`/api/v1/ready` 是否 `database:ok`、Python 8000 |
-| 资源 | 磁盘 ≥85% 告警、内存 ≥90% 告警、Go RSS |
-| 错误率 | 最近 1000 条访问日志的 5xx 数量、Go panic、Python ERROR/Traceback |
-
-**为什么探针要校验内容形态**：`/health` 曾经落进 SPA fallback 返回 200 + HTML，
-只查状态码会永远报「健康」。脚本对这种情况单独报
-`/health 返回了 HTML（探针配置回退到 SPA fallback）`。
-
-异常演练已验证：停掉 Go 后脚本报 4 项 FAIL、退出码 1，恢复后回到 OK。
+检查服务/探针/磁盘/内存/5xx/备份时效。当前磁盘约 87%，属于已知容量告警。
 
 ## 已知风险
 
 | 风险 | 说明 |
 |---|---|
-| 时区依赖 | Python 的 `datetime.timestamp()` 按进程本地时区解释；当前 TZ=UTC 才与 Go 的 `t.Unix()` 等价。**换非 UTC 时区需两侧同时改** |
-| 平台配置无权限分级 | `prompts` / `llm providers` 任何 editor 都可修改。团队内部使用是设计取舍，对外多租户前必须收敛 |
-| 写路径未切 | 若将来要切，需要先设计「镜像写影子库 + 结果比对」，不能直接镜像到同一张表 |
-| Go 侧无审计 | 审计中间件只在 Python。切写路径前需给 Go 补 |
+| R2 公共媒体 | 直链可被持有 URL 的人访问；需关闭 R2 公共访问并改签名 URL |
+| 磁盘 87% | 备份、release、日志持续增长；媒体在 R2，但本机仍需扩容或清理 |
+| 单机 | MySQL/Redis/API/Worker 同机，无高可用 |
+| Go 切流已收回 | 仅保留 health/ready；恢复切流前必须解决写方法 503 与审计 |
+| 平台管理员 | 目前使用 workspace admin/owner，不是独立平台角色 |
+| 生产真实生成 | 尚未做生产付费验收；视频质量由用户 L4 判断 |

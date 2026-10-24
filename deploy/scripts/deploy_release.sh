@@ -51,8 +51,13 @@ echo "[5/8] ensure ORM tables"
 python3 "$ROOT_DIR/deploy/scripts/with_env.py" "$ENV_FILE" "$RELEASE_DIR/backend/.venv/bin/python" "$RELEASE_DIR/backend/init_db.py"
 
 echo "[6/8] install units + switch release symlink"
-cp "$ROOT_DIR/deploy/systemd/"*.service /etc/systemd/system/
+cp "$ROOT_DIR/deploy/systemd/"*.service "$ROOT_DIR/deploy/systemd/"*.timer /etc/systemd/system/
+cp "$ROOT_DIR/deploy/scripts/backup_db.py" /usr/local/sbin/dyeingtime-backup-db.py
+chmod 700 /usr/local/sbin/dyeingtime-backup-db.py
+cp "$ROOT_DIR/deploy/scripts/health-check.sh" /usr/local/sbin/dyeingtime-health-check.sh
+chmod 700 /usr/local/sbin/dyeingtime-health-check.sh
 systemctl daemon-reload
+systemctl enable --now dyeingtime-backup.timer dyeingtime-staging-api.service
 if [[ -L "$CURRENT_LINK" ]]; then
   readlink -f "$CURRENT_LINK" > /tmp/dyeingtime-previous-release
   ln -sfn "$(readlink -f "$CURRENT_LINK")" "$PREVIOUS_LINK"
@@ -68,6 +73,8 @@ systemctl restart dyeingtime-api dyeingtime-celery dyeingtime-celery-image dyein
 echo "[8/8] switch nginx + verify"
 cp "$ROOT_DIR/deploy/nginx/sites-enabled/dyeingtime" /etc/nginx/sites-enabled/dyeingtime
 cp "$ROOT_DIR/deploy/nginx/snippets/dyeingtime-proxy.conf" /etc/nginx/snippets/dyeingtime-proxy.conf
+cp "$ROOT_DIR/deploy/nginx/staging.conf" /etc/nginx/sites-available/dyeingtime-staging
+ln -sfn /etc/nginx/sites-available/dyeingtime-staging /etc/nginx/sites-enabled/dyeingtime-staging
 nginx -t
 systemctl reload nginx
 for i in $(seq 1 30); do
