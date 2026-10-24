@@ -4,7 +4,7 @@
 >
 > 生产：`https://tim.run.place/`
 >
-> 代码基线：`60c5a11`（与 `v2-internal-beta.2` 标签同一 Commit）
+> 代码基线：`60c5a11`（`v2-internal-beta.2` 标签指向该 Commit）；验收文档提交在其后。
 
 ## 1. 总体状态
 
