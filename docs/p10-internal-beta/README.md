@@ -173,6 +173,8 @@ Python /health 200
 
 - Celery ping：`default@dyeingtime / image@dyeingtime / video@dyeingtime` 均 pong。
 - QA 项目已删除；QA 账号已停用。
+- 生产 ZIP 打包接口实测：`clips-archive` → 200，内容为可解压 ZIP，含 7 个真实 MP4 片段。
+- 项目 `production-readiness` → 200，返回文本模型等检查结果。
 
 ## 11. 已知问题
 
