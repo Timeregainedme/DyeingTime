@@ -86,6 +86,7 @@ def main() -> int:
                 tmp.unlink(missing_ok=True)
                 return proc.returncode
     tmp.replace(final)
+    os.chmod(final, 0o600)
     digest = hashlib.sha256(final.read_bytes()).hexdigest()
     (BACKUP_DIR / "SHA256SUMS").open("a").write(f"{digest}  {final.name}\n")
     env_backup = BACKUP_DIR / f"backend-env-{stamp}.env"
