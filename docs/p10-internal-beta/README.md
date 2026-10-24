@@ -182,3 +182,17 @@ Python /health 200
 4. Go 控制面仅用于探针，业务 API 全部 Python；未来若恢复 Go 切流，必须先解决写方法 503 与审计。
 5. 生产真实生成尚未做付费验收；L4 视频质量仍由用户判断。
 6. 旧 `/srv/dyeingtime` 回滚版本的依赖已移除 `front/node_modules`，但前端 dist 保留；后端 venv 保留。
+
+## 12. 发布标识
+
+- Release tag：`v2-internal-beta.1`
+- Tag commit：`8585d99`
+- 分支：`refactor/v2-worktree-foundation`
+- CI：
+  - V2 Browser E2E `40068052012` success
+  - V2 Real Backend Browser E2E `40068051925` success
+- 工作区：clean
+
+## 13. 最终上线状态
+
+**Production Internal 已上线（内部 Beta），业务页面和 API 可访问；媒体对象存储私有化未完成，是剩余安全阻塞项。**
