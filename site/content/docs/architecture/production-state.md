@@ -18,15 +18,15 @@ weight: 21
 | Celery default | `dyeingtime-celery` | — | 默认队列，并发 1 |
 | Celery image | `dyeingtime-celery-image` | — | image 队列，并发 2 |
 | Celery video | `dyeingtime-celery-video` | — | video 队列，并发 1 |
-| Go control plane | `dyeingtime-go` | 127.0.0.1:8001 | 仅 `/health` 与 `/api/v1/ready` |
+| Go control plane | `dyeingtime-go` | 127.0.0.1:8001 | 仅 `/health` 与 `/api/v1/ready`；读 `/etc/dyeingtime/backend.env` |
 | MySQL backup | `dyeingtime-backup.timer` | — | 每日 19:00 UTC |
 
 ## 发布目录
 
 ```text
-/srv/dyeingtime/releases/v2-internal-beta.2   # 当前 release（60c5a11）
-/srv/dyeingtime/current -> releases/v2-internal-beta.2
-/srv/dyeingtime/previous -> releases/v2-internal-beta.1   # 上一个已验证 release
+/srv/dyeingtime/releases/v2-internal-beta.3   # 当前 release（01b5564）
+/srv/dyeingtime/current -> releases/v2-internal-beta.3
+/srv/dyeingtime/previous -> releases/v2-internal-beta.2   # 上一个已验证 release
 ```
 
 运行代码、venv、front dist 都从 `current` 读取。`/srv/dyeingtime` 不再直接对外服务，只用于回滚。
@@ -44,6 +44,8 @@ weight: 21
 
 ## 数据库与迁移
 
+- 根 EBS 已扩至 50 GiB（客户机可见 48G ext4，使用率约 32%）；AWS `DescribeVolumes` 仍无权限，云侧卷类型/快照需控制台复核。
+- RustFS 已迁至根盘 `/data/rustfs0`（约 180K，仅 healthcheck），生产媒体实际走 R2。
 - Production 数据库：本机 MySQL `dyeingtime`。
 - Staging 数据库：`dyeingtime_staging`，独立 Redis DB `2`。
 - 已执行迁移：034–050（项目生成配置、风格锁定、剧本、资产版本、场次/分镜、参考绑定、额度、批次、审核、音色样本、request_key、生产预算）。
@@ -133,9 +135,10 @@ sudo /usr/local/sbin/dyeingtime-health-check.sh --quiet
 | 风险 | 说明 |
 |---|---|
 | R2 公共媒体 | 直链可被持有 URL 的人访问；需关闭 R2 公共访问并改签名 URL |
-| 磁盘 82% / 仍为 20 GiB | 清理缓存后从 87% 降至 82%；AWS 扩容因实例角色无 EC2 权限而阻塞，目标 50 GiB |
+| 根盘 32% / 50 GiB | 扩容已完成；AWS API 仍无 DescribeVolumes 权限，云侧卷信息需控制台复核 |
 | 单机 | MySQL/Redis/API/Worker 同机，无高可用 |
 | Go 切流已收回 | 仅保留 health/ready；恢复切流前必须解决写方法 503 与审计 |
 | 平台管理员 | 目前使用 workspace admin/owner，不是独立平台角色 |
 | 生产真实生成 | 图片/TTS 已在隔离验收库真实验证，生产未付费调用；视频质量由用户 L4 判断 |
-| 文本模型解析 | 生产 `script_parse_runs` 为 0；真实解析仍需单独授权预算 |
+| 文本模型解析 | 隔离验收已用免费 `beam-free` 完成真实解析；生产 `script_parse_runs` 仍为 0 |
+| 分镜规划质量 | 免费模型场次切分不合格，需更强模型或提示词改进 |

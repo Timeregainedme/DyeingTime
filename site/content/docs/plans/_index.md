@@ -36,3 +36,5 @@ description: "记录当前正在推进的开发计划、改造方案与阶段性
 - [P10-A 公司内部 Beta 上线](/docs/plans/p10-a-internal-beta/)
 
 - [P10-B 内部 Beta 2 与真实验收](/docs/plans/p10-b-internal-beta2/)
+
+- [P10-C 全功能验收](/docs/plans/p10-c-acceptance/)
