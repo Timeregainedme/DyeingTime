@@ -253,6 +253,23 @@ async def _resolve_task_projects(
     return result
 
 
+def empty_dashboard(*, can_edit: bool) -> DashboardRead:
+    """空工作区的零值快照。
+
+    单独抽函数是为了让「没有任何项目」也走同一份必填字段集合；
+    之前直接 `DashboardStatsRead()` 会在 schema 改成必填后返回 400。
+    """
+    return DashboardRead(
+        can_edit=can_edit,
+        stats=DashboardStatsRead(
+            project_count=0,
+            pending_review_shots=0,
+            running_tasks=0,
+            adopted_videos=0,
+        ),
+    )
+
+
 async def build_dashboard(db: AsyncSession, *, ctx: WorkspaceContext) -> DashboardRead:
     """构建工作台首页快照（单次请求、单一时刻、工作区隔离）。"""
     workspace_id = ctx.workspace_id
@@ -266,7 +283,7 @@ async def build_dashboard(db: AsyncSession, *, ctx: WorkspaceContext) -> Dashboa
     ).scalars().all()
     can_edit = ctx.role.value in {"editor", "admin", "owner"}
     if not projects:
-        return DashboardRead(stats=DashboardStatsRead(), can_edit=can_edit)
+        return empty_dashboard(can_edit=can_edit)
 
     project_ids = [project.id for project in projects]
     project_names = {project.id: project.name for project in projects}
@@ -466,4 +483,4 @@ def _as_datetime(value: Any) -> datetime | None:
     return value if isinstance(value, datetime) else None
 
 
-__all__ = ["build_dashboard", "is_pending_review"]
+__all__ = ["build_dashboard", "empty_dashboard", "is_pending_review"]

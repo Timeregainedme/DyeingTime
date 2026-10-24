@@ -21,7 +21,7 @@ from app.schemas.studio.dashboard import (
     DashboardRead,
     DashboardStatsRead,
 )
-from app.services.studio.dashboard import is_pending_review
+from app.services.studio.dashboard import empty_dashboard, is_pending_review
 
 
 class _DummyDB:
@@ -123,3 +123,14 @@ def test_audio_runner_binds_quota_helpers() -> None:
 
     assert callable(audio_task_runner.reserve_for_task)
     assert callable(audio_task_runner.settle_task)
+
+
+def test_empty_dashboard_has_all_required_fields() -> None:
+    """空工作区必须返回完整零值，而不是缺字段的 400。"""
+    data = empty_dashboard(can_edit=False)
+    assert data.stats.project_count == 0
+    assert data.stats.pending_review_shots == 0
+    assert data.stats.running_tasks == 0
+    assert data.stats.adopted_videos == 0
+    assert data.can_edit is False
+    assert data.projects == [] and data.recent_tasks == [] and data.pending_reviews == []
