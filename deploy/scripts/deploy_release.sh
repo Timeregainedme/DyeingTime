@@ -54,10 +54,12 @@ echo "[6/8] install units + switch release symlink"
 cp "$ROOT_DIR/deploy/systemd/"*.service "$ROOT_DIR/deploy/systemd/"*.timer /etc/systemd/system/
 cp "$ROOT_DIR/deploy/scripts/backup_db.py" /usr/local/sbin/dyeingtime-backup-db.py
 chmod 700 /usr/local/sbin/dyeingtime-backup-db.py
+cp "$ROOT_DIR/deploy/scripts/backup_media.py" /usr/local/sbin/dyeingtime-backup-media.py
+chmod 700 /usr/local/sbin/dyeingtime-backup-media.py
 cp "$ROOT_DIR/deploy/scripts/health-check.sh" /usr/local/sbin/dyeingtime-health-check.sh
 chmod 700 /usr/local/sbin/dyeingtime-health-check.sh
 systemctl daemon-reload
-systemctl enable --now dyeingtime-backup.timer dyeingtime-staging-api.service
+systemctl enable --now dyeingtime-backup.timer dyeingtime-media-backup.timer dyeingtime-staging-api.service
 if [[ -L "$CURRENT_LINK" ]]; then
   readlink -f "$CURRENT_LINK" > /tmp/dyeingtime-previous-release
   ln -sfn "$(readlink -f "$CURRENT_LINK")" "$PREVIOUS_LINK"

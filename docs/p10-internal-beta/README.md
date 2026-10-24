@@ -125,11 +125,12 @@ Production Internal 独立额度：
 
 ## 8. 备份与恢复
 
-- 每日备份：`dyeingtime-backup.timer` → `dyeingtime-backup.service`。
-- 备份目录：`/srv/dyeingtime-backups/`，保留 14 天。
+- 数据库每日备份：`dyeingtime-backup.timer` → `dyeingtime-backup.service`，保留 14 天。
+- R2 媒体每周备份：`dyeingtime-media-backup.timer` → `dyeingtime-media-backup.service`，保留 28 天。
+- 备份目录：`/srv/dyeingtime-backups/`；最新媒体归档 32MB / 34 objects。
 - 最新备份带 SHA256；环境文件另行备份为 600。
 - 恢复命令见 `deploy/scripts/restore_db.py`，必须显式 `--yes`。
-- 备份恢复演练已通过（计数一致）。
+- 数据库恢复演练已通过（计数一致）；媒体归档已 `tar -tzf` 校验。
 
 ## 9. 发布与回滚
 

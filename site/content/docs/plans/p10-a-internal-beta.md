@@ -68,7 +68,8 @@ Production Internal 独立额度：
 
 ## 6. 备份与巡检
 
-- `dyeingtime-backup.timer` 每日 19:00 UTC 备份，保留 14 天。
+- `dyeingtime-backup.timer` 每日 19:00 UTC 备份数据库，保留 14 天。
+- `dyeingtime-media-backup.timer` 每周日 20:00 UTC 归档 R2 媒体，保留 28 天。
 - `deploy/scripts/health-check.sh` 检查服务、探针、磁盘、内存、5xx、备份时效。
 - Celery default/image/video 三个 worker 均 ping 成功。
 

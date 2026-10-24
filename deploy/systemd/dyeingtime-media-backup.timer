@@ -1,0 +1,8 @@
+[Unit]
+Description=Weekly DyeingTime R2 media archive
+[Timer]
+OnCalendar=Sun *-*-* 20:00:00 UTC
+Persistent=true
+RandomizedDelaySec=600
+[Install]
+WantedBy=timers.target
