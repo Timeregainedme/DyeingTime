@@ -111,7 +111,7 @@ export function ProjectListPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const canEdit = data?.can_edit ?? false
-  const dashboardProjects = data?.projects ?? []
+  const dashboardProjects = useMemo(() => data?.projects ?? [], [data])
   const viewProjects = useMemo(() => dashboardProjects.map(toProjectView), [dashboardProjects])
 
   const visibleProjects = useMemo(() => {
