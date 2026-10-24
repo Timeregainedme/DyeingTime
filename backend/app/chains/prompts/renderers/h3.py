@@ -334,6 +334,16 @@ def _dialogue_fragment(ir: IRPrompt, line, *, use_labels: bool = True) -> str:
     voice_text = str(getattr(line, "voice_description", "") or "").strip().rstrip("。.!！")
     voice = f", using this voice profile: {voice_text}," if voice_text else ""
     mode = str(line.line_mode or "DIALOGUE").strip().upper()
+    if mode == "SCREEN_TEXT":
+        # 短信/字幕/屏幕文字：只能作为画面可见文字，不得写成“某人说”，不得生成人声。
+        return (
+            f"The screen displays <d>[{language}] {line.text}</d> as visible text only; "
+            "nobody speaks it and no voice is produced."
+        )
+    if mode == "ACTION":
+        return ""
+    if mode == "NARRATION":
+        mode = "VOICE_OVER"
     if mode == "VOICE_OVER":
         return (
             f"{who}{audio}{voice} says in an off-screen voiceover, "

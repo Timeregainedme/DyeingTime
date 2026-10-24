@@ -1069,3 +1069,24 @@ def test_ref2va_fallback_keeps_chinese_only_inside_dialogue_and_adds_no_narratio
     soundscape = text.split("overall_soundscape:", 1)[1].split("non_diegetic_music:", 1)[0]
     assert "你好，我叫林晚" not in soundscape
     assert "你好，我叫林晚" not in text.split("non_diegetic_music:", 1)[1]
+
+
+def test_screen_text_is_not_rendered_as_spoken_dialogue() -> None:
+    """短信/屏幕文字必须作为可见文字，不能写成“某人说”或生成人声。"""
+    from types import SimpleNamespace
+
+    from app.chains.prompts.renderers.h3 import _dialogue_fragment
+
+    line = SimpleNamespace(
+        language="Chinese",
+        speaker_id=None,
+        speaker_name=None,
+        audio_label=None,
+        voice_description="",
+        line_mode="SCREEN_TEXT",
+        text="检测原始数据已备份，等你决定。",
+    )
+    fragment = _dialogue_fragment(SimpleNamespace(subjects=[]), line, use_labels=False)
+    assert "says" not in fragment
+    assert "nobody speaks it" in fragment
+    assert "检测原始数据已备份" in fragment
