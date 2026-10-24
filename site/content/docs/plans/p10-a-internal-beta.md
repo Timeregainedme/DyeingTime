@@ -50,6 +50,7 @@ P10 已实际测试回滚：旧 release 在 8002 启动后健康恢复。回滚�
 - owner 创建项目、章节、镜头 → 成功。
 - 跨工作区项目 → 404。
 - 文件下载匿名 → 401；同工作区 viewer → 302；其他工作区 → 404。
+- 上传上限 100MB；不再主动设置 public-read ACL。
 - LLM Provider/Model/全局设置写接口要求 workspace admin。
 - QA 账号已停用并删除测试项目。
 

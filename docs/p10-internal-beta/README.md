@@ -96,6 +96,7 @@ Staging 配置：`/etc/dyeingtime/staging.env`；生产配置：`/etc/dyeingtime
 - `admin/owner` 创建项目、Chapter、Shot → 成功。
 - 跨工作区访问项目 → 404。
 - 文件下载匿名 → 401；工作区 viewer → 302；其他工作区 → 404。
+- 单文件上传上限 100MB；上传不再主动设置 `public-read` ACL。
 - 模型供应商/模型/全局设置的写接口已加 `require_admin`。
 - QA 测试账号 `qa-p10-admin` / `qa-p10-employee` 已停用。
 - `.env` 权限 600；`/etc/dyeingtime/*.env` 640 root:ubuntu。
