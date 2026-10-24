@@ -4,7 +4,9 @@ description: "Production Internal 部署拓扑、迁移、权限、费用、备�
 weight: 3
 ---
 
-> 状态：**Production Internal 已启动并可访问：`https://tim.run.place/`。**
+> 状态：**P10-A 已完成，后续版本见 [P10-B 内部 Beta 2](/docs/plans/p10-b-internal-beta2/)。**
+>
+> Production Internal 已启动并可访问：`https://tim.run.place/`。
 >
 > 内部 Beta 可用，但对象存储媒体私有访问尚未完成，不能宣称安全基线全部达标。
 
