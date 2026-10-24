@@ -502,3 +502,84 @@ async def test_persist_generated_audio_returns_none_without_url() -> None:
     )
 
     assert file_obj is None
+
+
+@pytest.mark.asyncio
+async def test_runner_failure_settles_quota_and_marks_failed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """TTS 执行失败时必须结算额度并把任务标记 failed。
+
+    回归背景：P10-B 真实验收发现 `reserve_for_task` / `settle_task` 未导入，
+    失败路径会在结算前再次 NameError，任务永久停在 running 且预留额度不释放。
+    本用例用内存 SQLite 跑真实 TaskStore，只替换供应商调用与额度函数。
+    """
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+    from app.core.db import Base
+    from app.models.task import GenerationTask
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", future=True)
+    maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    async with maker() as db:
+        db.add(
+            GenerationTask(
+                id="task-tts-fail",
+                workspace_id="ws-test",
+                mode="async_polling",
+                task_kind="audio_generation",
+                status="pending",
+                progress=0,
+                payload={},
+            )
+        )
+        await db.commit()
+
+    calls: dict[str, int] = {"reserve": 0, "settle": 0}
+
+    async def _fake_reserve(*_args, **_kwargs) -> None:
+        calls["reserve"] += 1
+
+    async def _fake_settle(*_args, **_kwargs) -> None:
+        calls["settle"] += 1
+
+    class _FailingTask:
+        def __init__(self, *, provider_config, input_) -> None:  # noqa: ANN001
+            self.provider_config = provider_config
+            self.input_ = input_
+
+        async def run(self) -> None:
+            raise RuntimeError("provider boom")
+
+        async def get_result(self):  # noqa: ANN201
+            return None
+
+        async def status(self) -> dict:
+            return {}
+
+    monkeypatch.setattr(runner, "async_session_maker", maker)
+    monkeypatch.setattr(runner, "AudioGenerationTask", _FailingTask)
+    monkeypatch.setattr(runner, "reserve_for_task", _fake_reserve)
+    monkeypatch.setattr(runner, "settle_task", _fake_settle)
+
+    await runner.run_audio_generation_task(
+        "task-tts-fail",
+        {
+            "provider": "compshare_model_api",
+            "api_key": "test-key",
+            "base_url": "https://example.invalid",
+            "relation_type": "standalone",
+            "relation_entity_id": "",
+            "input": {"model": "IndexTTS-2.5", "text": "测试"},
+        },
+    )
+
+    async with maker() as db:
+        task = await db.get(GenerationTask, "task-tts-fail")
+        assert task is not None
+        assert str(task.status) == "failed"
+        assert "provider boom" in (task.error or "")
+
+    assert calls == {"reserve": 1, "settle": 1}
+    await engine.dispose()

@@ -18,7 +18,7 @@
 | P10-B6 全功能盘点 | **完成**：见第 7 节 |
 | P10-B7 可靠性 | **完成**：回滚目标修正、迁移追踪、异地 DB 备份、凭据轮换 |
 | P10-B8 Staging 验收 | **完成** |
-| P10-B9 回归 | **完成**：后端 688 passed、前端 53 passed、CI 双 E2E 通过 |
+| P10-B9 回归 | **完成**：后端 689 passed、前端 53 passed、CI 双 E2E 通过 |
 | P10-B10 Beta 2 发布 | **完成**：`v2-internal-beta.2` 已部署并验证 |
 
 ## 2. AWS 扩容（阻塞）
@@ -344,7 +344,7 @@ beta.1 的 venv 与 front dist 均在，回滚不依赖开发工作区。发布�
 
 | 项 | 结果 |
 | --- | --- |
-| 后端 | **688 passed, 2 deselected** |
+| 后端 | **689 passed, 2 deselected** |
 | TypeScript | 通过 |
 | Build | 通过 |
 | Vitest | **53 passed** |
