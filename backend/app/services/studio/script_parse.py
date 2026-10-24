@@ -276,7 +276,8 @@ async def create_parse_run(
             relation_entity_id=version.id,
         )
     )
-    await db.flush()
+    # 先提交再入队，避免 worker 先于事务提交读取任务导致静默丢失。
+    await db.commit()
 
     from app.tasks.execute_task import enqueue_task_execution
 

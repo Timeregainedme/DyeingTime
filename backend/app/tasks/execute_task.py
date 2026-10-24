@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import logging
+import time
 
 from celery.result import AsyncResult
 
@@ -85,12 +86,28 @@ def revoke_task_execution(task_id: str, *, terminate: bool = True, signal: str =
     return True
 
 
+def _load_task_kind(task_id: str, *, attempts: int = 10, delay_s: float = 0.3) -> str | None:
+    """读取任务类型；任务行暂时不可见时短暂重试。
+
+    为什么需要重试：部分业务在事务提交前就调用了 enqueue，worker 可能抢先消费。
+    不重试会让 `row is None` 直接 return，Celery 仍显示成功，而任务永久 pending。
+    重新提交点已经改为 commit→enqueue；这里作为跨模块兜底，持续时间不超过 3 秒。
+    """
+    for attempt in range(attempts):
+        with sync_session_maker() as db:
+            row = db.get(GenerationTask, task_id)
+            if row is not None:
+                return (row.task_kind or "").strip() or str((row.payload or {}).get("task_kind") or "").strip()
+        if attempt < attempts - 1:
+            time.sleep(delay_s)
+    return None
+
+
 @celery_app.task(name="task.execute")
 def run_task_celery(task_id: str) -> None:
-    with sync_session_maker() as db:
-        row = db.get(GenerationTask, task_id)
-        if row is None:
-            return
-        task_kind = (row.task_kind or "").strip() or str((row.payload or {}).get("task_kind") or "").strip()
+    task_kind = _load_task_kind(task_id)
+    if not task_kind:
+        logger.error("task not found after retries: task_id=%s", task_id)
+        return
     executor = task_executor_registry.resolve(task_kind)
     executor.run(task_id)

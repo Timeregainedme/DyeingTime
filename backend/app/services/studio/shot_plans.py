@@ -280,6 +280,10 @@ async def create_shot_plan(
         )
     )
     await db.flush()
+    # 先提交再入队：worker 是独立进程，若在事务提交前消费到任务，
+    # 会查不到 task/draft 而静默成功，任务永久停在 pending。
+    await db.commit()
+
     from app.tasks.execute_task import enqueue_task_execution
 
     enqueue_task_execution(task.id)
@@ -694,6 +698,10 @@ async def confirm_draft(
         detail.atmosphere = payload.atmosphere
         detail.video_prompt_draft = payload.video_prompt
         db.add(detail)
+        # 先落 Shot/Detail，再写依赖 shot_id 的关联行。
+        # MySQL 会立即校验外键，而 ORM 没有为这些关系声明 relationship，
+        # 不 flush 时可能先插 ShotAssetVersion，触发 1452。
+        await db.flush()
 
         for index, character_ref in enumerate(payload.characters):
             db.add(
@@ -731,6 +739,10 @@ async def confirm_draft(
                     )
                 )
         if payload.scene is not None:
+            scene_version_id = payload.scene.asset_version_id
+            if not scene_version_id:
+                scene_asset = await db.get(Scene, payload.scene.asset_id)
+                scene_version_id = scene_asset.current_version_id if scene_asset else None
             db.add(
                 ProjectSceneLink(
                     project_id=project.id,
@@ -743,13 +755,17 @@ async def confirm_draft(
                     shot_id=shot_id,
                     asset_type="scene",
                     asset_id=payload.scene.asset_id,
-                    asset_version_id=payload.scene.asset_version_id,
+                    asset_version_id=scene_version_id,
                     role="scene",
                     source="plan",
                     created_at=now,
                 )
             )
         for index, prop in enumerate(payload.props):
+            prop_version_id = prop.asset_version_id
+            if not prop_version_id:
+                prop_asset = await db.get(Prop, prop.asset_id)
+                prop_version_id = prop_asset.current_version_id if prop_asset else None
             db.add(
                 ProjectPropLink(project_id=project.id, shot_id=shot_id, prop_id=prop.asset_id)
             )
@@ -758,7 +774,7 @@ async def confirm_draft(
                     shot_id=shot_id,
                     asset_type="prop",
                     asset_id=prop.asset_id,
-                    asset_version_id=prop.asset_version_id,
+                    asset_version_id=prop_version_id,
                     role="prop",
                     slot=index,
                     source="plan",
@@ -766,6 +782,10 @@ async def confirm_draft(
                 )
             )
         if payload.costume is not None:
+            costume_version_id = payload.costume.asset_version_id
+            if not costume_version_id:
+                costume_asset = await db.get(Costume, payload.costume.asset_id)
+                costume_version_id = costume_asset.current_version_id if costume_asset else None
             db.add(
                 ProjectCostumeLink(
                     project_id=project.id,
@@ -778,7 +798,7 @@ async def confirm_draft(
                     shot_id=shot_id,
                     asset_type="costume",
                     asset_id=payload.costume.asset_id,
-                    asset_version_id=payload.costume.asset_version_id,
+                    asset_version_id=costume_version_id,
                     role="costume",
                     source="plan",
                     created_at=now,

@@ -455,3 +455,33 @@ async def test_project_level_asset_query_filters_without_cross_project_leak() ->
         assert char_total == 1 and chars[0]["id"] == character.id
         assert scene_total == 1 and scenes[0]["id"] == scene.id
     await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_adopted_front_candidate_wins_over_old_image_slot() -> None:
+    """采纳的正面候选必须成为资产缩略图。
+
+    回归背景：`_thumbnail_file_id` 用小写 "front" 与数据库大写 "FRONT" 比较，
+    场景已有旧 image 槽位时会永远显示旧图，采纳新图后档案看起来「没变化」。
+    """
+    from app.models.studio_asset_versions import AssetImageCandidate
+    from app.services.studio.asset_profiles import _thumbnail_file_id
+
+    db, engine = await _build_session()
+    async with db:
+        candidate = AssetImageCandidate(
+            project_id="p1",
+            asset_type="scene",
+            asset_id="scene-1",
+            candidate_batch_id="batch",
+            view_angle="FRONT",
+            quality_level="low",
+            file_id="new-file",
+            status="adopted",
+            is_adopted=True,
+        )
+        file_id = await _thumbnail_file_id(
+            db, asset_type="scene", asset_id="scene-1", candidates=[candidate]
+        )
+        assert file_id == "new-file"
+    await engine.dispose()

@@ -287,6 +287,17 @@ def _resolve_planned_shot(
     costume_map = {_norm(item.name): item for item in costumes}
     issues: list[dict[str, str]] = []
 
+    # P10-C：默认值会让「模型漏输出场次」看起来像第 1 场。
+    # 用 model_fields_set 区分「显式写了 1」和「根本没写」，后者必须人工确认。
+    if "scene_group_index" not in planned.model_fields_set:
+        issues.append(
+            _issue(
+                "scene_group_missing",
+                "模型未输出场次序号，已按第 1 场处理；请人工确认场景切换",
+                "blocking",
+            )
+        )
+
     group = groups[planned.scene_group_index - 1] if 1 <= planned.scene_group_index <= len(groups) else None
     if group is None:
         issues.append(
@@ -482,6 +493,7 @@ def _coverage(
     rows: list[tuple[dict[str, Any], list[dict[str, str]], str]],
     target_duration: int,
     failed_chunks: list[int],
+    groups: list[SceneGroup] | None = None,
 ) -> dict[str, Any]:
     durations = [int(item[0].get("duration") or 0) for item in rows]
     ranges = [
@@ -520,6 +532,13 @@ def _coverage(
         coverage_warnings.append(
             f"镜头总时长 {sum(durations)}s 与目标 {target_duration}s 差距较大。"
         )
+    if groups:
+        used = {str(item[0].get("scene_group_id") or "") for item in rows}
+        missing = [group.title or group.location or group.id for group in groups if group.id not in used]
+        if missing:
+            coverage_warnings.append(
+                "以下场次没有任何镜头覆盖：" + "、".join(missing) + "。请人工补拆后再确认。"
+            )
     return {
         "script_length": len(script),
         "covered_chars": covered,
@@ -649,6 +668,7 @@ async def run_shot_plan_task(task_id: str, run_args: dict) -> None:
             await _persist_candidates(session, draft=draft, rows=collected)
             coverage = _coverage(
                 script=version.raw_text,
+                groups=groups,
                 rows=collected,
                 target_duration=draft.target_duration,
                 failed_chunks=failed_chunks,

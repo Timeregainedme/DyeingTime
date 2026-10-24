@@ -1,0 +1,24 @@
+[Unit]
+Description=DyeingTime Go Control Plane
+After=network.target mysql.service redis-server.service
+Wants=network-online.target
+Requires=mysql.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+# 与 Python 共用同一份生产环境文件：避免 Go 继续读取旧 release 的 .env，
+# 在数据库密码轮换后因旧 DSN 连接池回收而永久 503。
+WorkingDirectory=/srv/dyeingtime/current/backend
+EnvironmentFile=/etc/dyeingtime/backend.env
+Environment=GO_API_ADDR=127.0.0.1:8001
+Environment=APP_ENV=prod
+ExecStart=/srv/dyeingtime-go/api
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

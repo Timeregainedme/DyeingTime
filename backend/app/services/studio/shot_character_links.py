@@ -72,6 +72,9 @@ async def upsert(
     if existing_same_index is not None:
         previous_character = await db.get(Character, existing_same_index.character_id)
         await db.execute(delete(ShotCharacterLink).where(ShotCharacterLink.id == existing_same_index.id))
+        # MySQL 的 INSERT 会先于同批次 DELETE 执行；不显式 flush 会撞上
+        # uq_shot_character_links_shot_index（SQLite 测试无法暴露）。
+        await db.flush()
         if previous_character is not None and getattr(previous_character, "name", None):
             await mark_pending_by_name(
                 db,

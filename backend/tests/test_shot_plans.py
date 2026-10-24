@@ -374,3 +374,28 @@ async def test_existing_shots_require_append_and_video_not_deleted(monkeypatch) 
         old = await db.get(Shot, "old-shot")
         assert old is not None and old.generated_video_file_id == "old-video"
     await engine.dispose()
+
+
+def test_coverage_warns_when_scene_group_has_no_shot() -> None:
+    """场景覆盖检查：多个正式场次时，任何一个没有镜头都必须显式提示。"""
+    from app.services.studio.shot_plan_runner import _coverage
+
+    groups = [
+        SceneGroup(id="g1", project_id="p", chapter_id="c", index=1, title="办公室"),
+        SceneGroup(id="g2", project_id="p", chapter_id="c", index=2, title="地下车库"),
+    ]
+    rows = [
+        (
+            {"duration": 5, "scene_group_id": "g1", "source_start_char": 0, "source_end_char": 10},
+            [],
+            "k1",
+        )
+    ]
+    coverage = _coverage(
+        script="x" * 20,
+        rows=rows,
+        target_duration=5,
+        failed_chunks=[],
+        groups=groups,
+    )
+    assert any("地下车库" in item for item in coverage["warnings"])

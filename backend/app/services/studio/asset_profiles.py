@@ -61,8 +61,14 @@ def _candidate_read(
 async def _thumbnail_file_id(
     db: AsyncSession, *, asset_type: str, asset_id: str, candidates: list[AssetImageCandidate]
 ) -> str | None:
+    # 数据库里的视角枚举统一存大写（FRONT/LEFT/...），这里必须同口径比较。
+    # 之前写死小写 "front"，导致采纳后资产档案仍显示旧的 image 槽位。
     for candidate in candidates:
-        if candidate.is_adopted and candidate.view_angle == "front" and candidate.file_id:
+        if (
+            candidate.is_adopted
+            and (candidate.view_angle or "").upper() == "FRONT"
+            and candidate.file_id
+        ):
             return candidate.file_id
     image_model, parent_field = _IMAGE_MODELS[asset_type]
     row = (
