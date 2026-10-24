@@ -1,0 +1,20 @@
+[Unit]
+Description=DyeingTime FastAPI staging API
+After=network.target redis-server.service mysql.service
+Requires=redis-server.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/srv/dyeingtime/current/backend
+EnvironmentFile=/etc/dyeingtime/staging.env
+Environment=PATH=/srv/dyeingtime/current/backend/.venv/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/srv/dyeingtime/current/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8021 --workers 1
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

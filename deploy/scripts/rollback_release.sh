@@ -10,7 +10,10 @@ PREV=$(readlink -f "$PREVIOUS_LINK")
 ln -sfn "$PREV" "$CURRENT_LINK"
 systemctl restart dyeingtime-api dyeingtime-celery dyeingtime-celery-image dyeingtime-celery-video dyeingtime-go
 systemctl reload nginx
-sleep 3
+for i in $(seq 1 30); do
+  if curl -fsS --max-time 3 http://127.0.0.1:8002/health >/dev/null; then break; fi
+  sleep 2
+done
 curl -fsS http://127.0.0.1:8002/health
 curl -fsS https://tim.run.place/health
 echo "rolled back to: $PREV"

@@ -1,0 +1,11 @@
+[Unit]
+Description=DyeingTime MySQL backup
+
+[Service]
+Type=oneshot
+Environment=DYEINGTIME_ENV_FILE=/etc/dyeingtime/backend.env
+Environment=DYEINGTIME_BACKUP_DIR=/srv/dyeingtime-backups
+ExecStart=/usr/local/sbin/dyeingtime-backup-db.py
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

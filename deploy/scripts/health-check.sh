@@ -40,7 +40,7 @@ warn() { WARNINGS+=("$1"); [[ $QUIET -eq 0 ]] && printf '  ! %s\n' "$1"; return 
 
 # ---------- 1. systemd 单元 ----------
 [[ $QUIET -eq 0 ]] && echo "[服务状态]"
-for unit in nginx dyeingtime-api dyeingtime-celery dyeingtime-celery-image dyeingtime-celery-video dyeingtime-go; do
+for unit in nginx dyeingtime-api dyeingtime-celery dyeingtime-celery-image dyeingtime-celery-video dyeingtime-go dyeingtime-backup.timer; do
     state=$(systemctl is-active "$unit" 2>/dev/null || true)
     if [[ "$state" == "active" ]]; then
         ok "$unit active"
@@ -110,6 +110,19 @@ if [[ -n "$go_pid" ]]; then
     ok "Go RSS ${go_rss_mb} MB"
 else
     fail "找不到 Go 进程"
+fi
+
+# ---------- 3.1 备份时效 ----------
+latest_backup=$(ls -1t /srv/dyeingtime-backups/dyeingtime-*.sql.gz 2>/dev/null | head -1 || true)
+if [[ -n "$latest_backup" ]]; then
+    age_h=$(( ( $(date +%s) - $(stat -c %Y "$latest_backup") ) / 3600 ))
+    if (( age_h > 36 )); then
+        warn "最新数据库备份已 ${age_h} 小时未更新：$latest_backup"
+    else
+        ok "最新数据库备份 ${age_h} 小时前"
+    fi
+else
+    fail "未找到 /srv/dyeingtime-backups/dyeingtime-*.sql.gz"
 fi
 
 # ---------- 4. 错误率 ----------
