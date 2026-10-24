@@ -22,6 +22,9 @@ from app.schemas.studio import FileDetailRead, FileRead, FileUpdate, FileUsageRe
 from app.services.common import create_and_refresh, entity_not_found, flush_and_refresh, get_or_404, patch_model
 from app.services.studio.file_usages import upsert_file_usage
 
+# 单文件上传上限：内部 Beta 允许 100MB。读取后立即校验，避免无界内存占用。
+MAX_UPLOAD_BYTES = 100 * 1024 * 1024
+
 FILE_ORDER_FIELDS = {"name", "created_at", "updated_at"}
 
 
@@ -171,13 +174,18 @@ async def upload_file(
     file_type = _detect_file_type(file.filename)
     display_name = _build_display_name(file.filename, name)
     content = await file.read()
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"文件超过 {MAX_UPLOAD_BYTES // (1024 * 1024)}MB 上限",
+        )
 
     key = f"files/{file.filename}"
     info = await storage.upload_file(
         key=key,
         data=content,
         content_type=file.content_type,
-        extra_args={"ACL": "public-read"},
+        # 不主动设置 public-read；公开/私有由 bucket 策略决定，避免把私有桶误设为公共。
     )
 
     file_item = await create_and_refresh(
