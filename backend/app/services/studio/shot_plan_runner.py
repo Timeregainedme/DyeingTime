@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import uuid
 from typing import Any
@@ -244,7 +245,7 @@ def _dialogue_line(
     )
     issues: list[dict[str, str]] = []
     mode = (planned.line_mode or "DIALOGUE").strip().upper()
-    if mode not in {"DIALOGUE", "VOICE_OVER", "OFF_SCREEN", "PHONE"}:
+    if mode not in {"DIALOGUE", "NARRATION", "SCREEN_TEXT", "ACTION", "VOICE_OVER", "OFF_SCREEN", "PHONE"}:
         mode = "DIALOGUE"
     if mode == "DIALOGUE" and character is None:
         issues.append(
@@ -276,6 +277,7 @@ def _resolve_planned_shot(
     props: list[Prop],
     costumes: list[Costume],
     project: Project,
+    confirmed_dialogues: list[dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, str]], int | None, int | None]:
     character_map = {_norm(item.name): item for item in characters}
     alias_map: dict[str, Character] = {}
@@ -391,12 +393,61 @@ def _resolve_planned_shot(
             issues.append(_issue("invalid_camera_language", warning, "warning"))
 
     dialogues: list[PlanDialogueLine] = []
+    confirmed = list(confirmed_dialogues or [])
     for planned_line in planned.dialogues:
         line, line_issues = _dialogue_line(
             planned_line, character_map=character_map, alias_map=alias_map
         )
+        # 口语对白必须能追溯到“已确认对白”；短信/旁白不得冒充 DIALOGUE。
+        if (planned_line.line_mode or "DIALOGUE").upper() == "DIALOGUE" and confirmed:
+            idx = planned_line.source_dialogue_index
+            if idx is None or idx < 1 or idx > len(confirmed):
+                line_issues.append(
+                    _issue(
+                        "dialogue_source_missing",
+                        f"对白「{planned_line.text[:24]}」缺少有效的 source_dialogue_index",
+                        "blocking",
+                    )
+                )
+            else:
+                source = confirmed[idx - 1]
+                source_mode = str(source.get("line_mode") or "DIALOGUE").upper()
+                if source_mode != "DIALOGUE":
+                    line_issues.append(
+                        _issue(
+                            "non_dialogue_as_speech",
+                            f"第 {idx} 条已确认内容类型为 {source_mode}，不能作为人物口语",
+                            "blocking",
+                        )
+                    )
+                source_speaker = str(source.get("speaker_name") or "").strip()
+                if source_speaker and planned_line.speaker_name and source_speaker != planned_line.speaker_name:
+                    line_issues.append(
+                        _issue(
+                            "speaker_mismatch",
+                            f"对白「{planned_line.text[:24]}」说话人与原文不一致",
+                            "blocking",
+                        )
+                    )
+                source_text = str(source.get("text") or "").strip()
+                if source_text and source_text != planned_line.text.strip():
+                    line_issues.append(
+                        _issue(
+                            "dialogue_text_mismatch",
+                            f"对白文本与已确认第 {idx} 条不一致",
+                            "blocking",
+                        )
+                    )
         dialogues.append(line)
         issues.extend(line_issues)
+
+    title = (planned.title or "").strip()
+    if re.fullmatch(r"镜头\s*\d+", title):
+        issues.append(_issue("weak_title", "镜头标题只有序号，缺少画面信息", "blocking"))
+    if len((planned.visual_description or "").strip()) < 20:
+        issues.append(_issue("weak_description", "画面描述过短，缺少主体/动作/环境", "blocking"))
+    if len((planned.video_prompt_draft or "").strip()) < 20:
+        issues.append(_issue("weak_video_prompt", "视频 Prompt 过短，无法用于生成", "blocking"))
 
     quote = (planned.source_quote or planned.script_excerpt or "").strip()
     local = chunk.text.find(quote) if quote else -1
@@ -532,12 +583,14 @@ def _coverage(
         coverage_warnings.append(
             f"镜头总时长 {sum(durations)}s 与目标 {target_duration}s 差距较大。"
         )
+    missing_scene_groups: list[str] = []
     if groups:
         used = {str(item[0].get("scene_group_id") or "") for item in rows}
-        missing = [group.title or group.location or group.id for group in groups if group.id not in used]
-        if missing:
+        missing_scene_groups = [group.id for group in groups if group.id not in used]
+        missing_names = [group.title or group.location or group.id for group in groups if group.id not in used]
+        if missing_names:
             coverage_warnings.append(
-                "以下场次没有任何镜头覆盖：" + "、".join(missing) + "。请人工补拆后再确认。"
+                "以下场次没有任何镜头覆盖：" + "、".join(missing_names) + "。请人工补拆后再确认。"
             )
     return {
         "script_length": len(script),
@@ -551,8 +604,26 @@ def _coverage(
         "blocking_issue_count": blocking,
         "warning_count": warnings,
         "failed_chunks": failed_chunks,
+        "missing_scene_groups": missing_scene_groups,
         "warnings": coverage_warnings,
     }
+
+
+def _plan_precheck(result: ShotPlanResult, groups: list[SceneGroup]) -> list[str]:
+    """在落候选前做一次轻量预检，返回用于定向修复的中文反馈。"""
+    feedback: list[str] = []
+    used = {shot.scene_group_index for shot in result.shots}
+    missing = [item for position, item in enumerate(groups, start=1) if position not in used]
+    if missing:
+        feedback.append(
+            "以下场次没有任何镜头，必须补拆："
+            + "、".join(f"{item.index}={item.title or item.location}" for item in missing)
+        )
+    titles = [shot.title.strip() for shot in result.shots if shot.title.strip()]
+    duplicates = sorted({title for title in titles if titles.count(title) > 1})
+    if duplicates:
+        feedback.append("镜头标题重复，必须改为可区分的画面标题：" + "、".join(duplicates))
+    return feedback
 
 
 async def run_shot_plan_task(task_id: str, run_args: dict) -> None:
@@ -585,6 +656,13 @@ async def run_shot_plan_task(task_id: str, run_args: dict) -> None:
                 raise RuntimeError("剧集还没有正式场次，请先创建/导入场次")
 
             world_text = await _active_world_text(session, project_id=project.id)
+            confirmed = dict(parse_run.confirmed_result or {}) if parse_run is not None else {}
+            confirmed_dialogues = list(confirmed.get("dialogues") or [])
+            scene_beats = list(confirmed.get("scene_beats") or [])
+            shot_budget = max(1, round(draft.target_duration / 5))
+            repair_feedback = ""
+            max_repairs = max(0, int(os.getenv("SHOT_PLAN_MAX_REPAIRS", "0")))
+            repairs_used = 0
             chat_model, model, provider = await build_text_llm(
                 session, model_id=draft.model_id, thinking=False
             )
@@ -606,26 +684,61 @@ async def run_shot_plan_task(task_id: str, run_args: dict) -> None:
             seen_quotes: set[str] = set()
             for chunk in chunks:
                 try:
-                    result: ShotPlanResult = await agent.aplan(
-                        project_name=project.name,
-                        chapter_title=chapter.title,
-                        target_duration=str(draft.target_duration),
-                        pace=draft.pace,
-                        scene_groups_json=_json([_group_brief(item) for item in groups]),
-                        characters_json=_json(
-                            [_character_brief(item) for item in context["characters"]]
-                        ),
-                        assets_json=_json(
-                            {
-                                "scenes": _asset_brief(context["scenes"]),
-                                "props": _asset_brief(context["props"]),
-                                "costumes": _asset_brief(context["costumes"]),
-                            }
-                        ),
-                        worldbuilding_text=world_text,
-                        script_text=chunk.text,
-                        previous_context=previous_context,
-                    )
+                    async def _call_plan(feedback: str) -> ShotPlanResult:
+                        return await agent.aplan(
+                            project_name=project.name,
+                            chapter_title=chapter.title,
+                            target_duration=str(draft.target_duration),
+                            shot_budget=shot_budget,
+                            pace=draft.pace,
+                            scene_groups_json=_json([_group_brief(item) for item in groups]),
+                            scene_beats_json=_json(scene_beats),
+                            dialogues_json=_json(
+                                [
+                                    {
+                                        "index": index,
+                                        "text": item.get("text", ""),
+                                        "speaker_name": item.get("speaker_name"),
+                                        "line_mode": item.get("line_mode", "DIALOGUE"),
+                                        "emotion": item.get("emotion", ""),
+                                    }
+                                    for index, item in enumerate(confirmed_dialogues, start=1)
+                                ]
+                            ),
+                            characters_json=_json(
+                                [_character_brief(item) for item in context["characters"]]
+                            ),
+                            assets_json=_json(
+                                {
+                                    "scenes": _asset_brief(context["scenes"]),
+                                    "props": _asset_brief(context["props"]),
+                                    "costumes": _asset_brief(context["costumes"]),
+                                }
+                            ),
+                            worldbuilding_text=world_text,
+                            script_text=chunk.text,
+                            previous_context=previous_context,
+                            repair_feedback=feedback,
+                        )
+
+                    repair_log: list[str] = []
+                    try:
+                        result: ShotPlanResult = await _call_plan("")
+                    except Exception as exc:  # noqa: BLE001 - Schema/JSON 失败可定向修复一次
+                        if repairs_used >= max_repairs:
+                            raise
+                        repairs_used += 1
+                        repair_log.append(f"schema: {exc}")
+                        result = await _call_plan(
+                            "上次输出未通过结构校验：" + str(exc)[:1200] + "。请严格补齐所有必填字段。"
+                        )
+                    precheck = _plan_precheck(result, groups)
+                    if precheck and repairs_used < max_repairs:
+                        repairs_used += 1
+                        repair_log.append("coverage: " + " | ".join(precheck))
+                        result = await _call_plan("；".join(precheck))
+                    if repair_log:
+                        draft.coverage = {**(draft.coverage or {}), "repair_log": repair_log, "repairs_used": repairs_used}
                     for planned in result.shots:
                         payload, issues, _start, _end = _resolve_planned_shot(
                             planned,
@@ -636,6 +749,7 @@ async def run_shot_plan_task(task_id: str, run_args: dict) -> None:
                             props=context["props"],
                             costumes=context["costumes"],
                             project=project,
+                            confirmed_dialogues=confirmed_dialogues,
                         )
                         if planned.scene_group_index and 1 <= planned.scene_group_index <= len(groups):
                             payload["scene_group_id"] = groups[planned.scene_group_index - 1].id
@@ -663,6 +777,21 @@ async def run_shot_plan_task(task_id: str, run_args: dict) -> None:
 
             if not collected:
                 raise RuntimeError(draft.error or "AI 没有返回任何镜头候选")
+            # 标题必须可区分；重复标题会让审核页无法定位，直接作为 blocking。
+            title_counts: dict[str, int] = {}
+            for payload, _issues, _key in collected:
+                key = _norm(str(payload.get("title") or ""))
+                title_counts[key] = title_counts.get(key, 0) + 1
+            for payload, issues, _key in collected:
+                key = _norm(str(payload.get("title") or ""))
+                if key and title_counts.get(key, 0) > 1:
+                    issues.append(
+                        _issue(
+                            "duplicate_title",
+                            f"镜头标题重复：「{payload.get('title')}」",
+                            "blocking",
+                        )
+                    )
             for order, (payload, _issues, _key) in enumerate(collected, start=1):
                 payload["order"] = order
             await _persist_candidates(session, draft=draft, rows=collected)

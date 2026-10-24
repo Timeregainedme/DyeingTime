@@ -215,6 +215,10 @@ def _build_chat_openai_model(
     if extra_headers:
         kwargs["default_headers"] = {**(kwargs.get("default_headers") or {}), **extra_headers}
 
+    from app.services.llm.usage_callback import UsageLoggingCallback
+
+    kwargs["callbacks"] = [*(kwargs.get("callbacks") or []), UsageLoggingCallback()]
+
     # 思考开关按供应商下发（阿里百炼 enable_thinking / DeepSeek thinking），未登记供应商不下发。
     thinking_body = thinking_extra_body_for_provider_name(provider.name, enabled=thinking)
     if thinking_body:

@@ -6,11 +6,20 @@ AI 输出只是候选，不等于已确认事实。字段保持 name-based（不
 
 from __future__ import annotations
 
-from typing import Literal
+import re
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-DialogueMode = Literal["DIALOGUE", "VOICE_OVER", "OFF_SCREEN", "PHONE"]
+DialogueMode = Literal[
+    "DIALOGUE",
+    "VOICE_OVER",
+    "OFF_SCREEN",
+    "PHONE",
+    "NARRATION",
+    "SCREEN_TEXT",
+    "ACTION",
+]
 
 
 class ParseEvidence(BaseModel):
@@ -38,6 +47,23 @@ class ParsedCharacter(BaseModel):
     voice_description: str = ""
     episodes: list[int] = Field(default_factory=list)
     matched_character_id: str | None = None
+
+    @field_validator("episodes", mode="before")
+    @classmethod
+    def _coerce_episodes(cls, value: Any) -> list[int]:
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            value = [value]
+        result: list[int] = []
+        for item in value:
+            if isinstance(item, int):
+                result.append(item)
+            elif isinstance(item, str):
+                match = re.search(r"\d+", item)
+                if match:
+                    result.append(int(match.group()))
+        return result
     evidence: list[ParseEvidence] = Field(default_factory=list)
     issues: list[str] = Field(default_factory=list)
 
@@ -122,6 +148,27 @@ class ParsedDialogue(BaseModel):
     emotion: str = ""
     line_mode: DialogueMode = "DIALOGUE"
     story_range: str = ""
+
+    @field_validator("line_mode", mode="before")
+    @classmethod
+    def _coerce_line_mode(cls, value: Any) -> str:
+        """把模型常见的同义写法归一到受控枚举，避免整份解析因一个词失败。"""
+        raw = str(value or "DIALOGUE").strip().upper()
+        mapping = {
+            "SMS": "SCREEN_TEXT",
+            "MESSAGE": "SCREEN_TEXT",
+            "TEXT": "SCREEN_TEXT",
+            "SUBTITLE": "SCREEN_TEXT",
+            "ON_SCREEN": "SCREEN_TEXT",
+            "NARRATOR": "NARRATION",
+            "VOICE_OVER": "VOICE_OVER",
+            "OFF_SCREEN": "OFF_SCREEN",
+            "PHONE": "PHONE",
+            "ACTION": "ACTION",
+        }
+        return mapping.get(raw, raw if raw in {
+            "DIALOGUE", "VOICE_OVER", "OFF_SCREEN", "PHONE", "NARRATION", "SCREEN_TEXT", "ACTION"
+        } else "DIALOGUE")
     speaker_unresolved: bool = False
     evidence: list[ParseEvidence] = Field(default_factory=list)
     issues: list[str] = Field(default_factory=list)

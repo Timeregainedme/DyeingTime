@@ -642,6 +642,18 @@ async def confirm_draft(
     ]
     if not active_candidates:
         raise ValueError("没有可应用的镜头候选")
+    groups = (
+        await db.execute(
+            select(SceneGroup).where(SceneGroup.chapter_id == draft.chapter_id).order_by(SceneGroup.index.asc())
+        )
+    ).scalars().all()
+    used_group_ids = {str(item.scene_group_id) for item in active_candidates if item.scene_group_id}
+    missing_groups = [item for item in groups if item.id not in used_group_ids]
+    if missing_groups:
+        raise ValueError(
+            "以下场次没有镜头，不能确认："
+            + "、".join(item.title or item.location or item.id for item in missing_groups)
+        )
 
     project = await db.get(Project, draft.project_id)
     chapter = await db.get(Chapter, draft.chapter_id)

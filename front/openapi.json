@@ -23329,7 +23329,10 @@
           "DIALOGUE",
           "VOICE_OVER",
           "OFF_SCREEN",
-          "PHONE"
+          "PHONE",
+          "NARRATION",
+          "SCREEN_TEXT",
+          "ACTION"
         ],
         "title": "DialogueLineMode",
         "description": "对白模式（与 `app.schemas.skills.common.DialogueLineMode` 对齐，存英文 code）。"

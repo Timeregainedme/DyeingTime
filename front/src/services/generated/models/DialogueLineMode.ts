@@ -5,4 +5,4 @@
 /**
  * 对白模式（与 `app.schemas.skills.common.DialogueLineMode` 对齐，存英文 code）。
  */
-export type DialogueLineMode = 'DIALOGUE' | 'VOICE_OVER' | 'OFF_SCREEN' | 'PHONE';
+export type DialogueLineMode = 'DIALOGUE' | 'VOICE_OVER' | 'OFF_SCREEN' | 'PHONE' | 'NARRATION' | 'SCREEN_TEXT' | 'ACTION';

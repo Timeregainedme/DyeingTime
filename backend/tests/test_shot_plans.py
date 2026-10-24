@@ -208,6 +208,8 @@ def _fake_result(duration: int = 5) -> ShotPlanResult:
                 angle="EYE_LEVEL",
                 movement="STATIC",
                 action_beats=["沈知微推门", "江屿抬头"],
+                visual_description="沈知微推门进入办公室，江屿从电脑前抬头，侧逆光。",
+                video_prompt_draft="中景，沈知微推门进入办公室，江屿抬头看向她，侧逆光。",
                 character_names=["沈知微", "沈总"],
                 scene_name="办公室",
                 prop_names=["笔记本电脑"],
@@ -245,7 +247,7 @@ async def test_mock_plan_runner_and_confirm_creates_shots(monkeypatch) -> None:
     await run_shot_plan_task("plan-task", {"draft_id": "plan-draft"})
     async with maker() as db:
         draft = await get_draft(db, draft_id="plan-draft")
-        assert draft.status == "review_required"
+        assert draft.status == "review_required", draft.error
         assert len(draft.candidates) == 1
         candidate = draft.candidates[0]
         assert candidate.payload["characters"][0]["character_id"] == "plan-char"
@@ -272,7 +274,7 @@ async def test_mock_plan_runner_and_confirm_creates_shots(monkeypatch) -> None:
         detail = await db.get(ShotDetail, shot.id)
         assert detail is not None
         assert detail.duration == 5
-        assert detail.video_prompt_draft == ""
+        assert detail.video_prompt_draft.startswith("中景")
         assert (
             await db.execute(
                 select(ShotCharacterLink).where(ShotCharacterLink.shot_id == shot.id)

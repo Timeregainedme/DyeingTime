@@ -190,6 +190,9 @@ class DialogueLineMode(str, Enum):
     voice_over = "VOICE_OVER"  # 旁白
     off_screen = "OFF_SCREEN"  # 画外音
     phone = "PHONE"  # 电话声
+    narration = "NARRATION"  # 旁白
+    screen_text = "SCREEN_TEXT"  # 短信/字幕/屏幕文字（不可交给 TTS）
+    action = "ACTION"  # 动作提示（不可交给 TTS）
 
 
 class VFXType(str, Enum):

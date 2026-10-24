@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from langchain_core.prompts import PromptTemplate
@@ -127,7 +128,15 @@ class EpisodeScriptParserAgent(AgentBase[ScriptParseResult]):
                     break
         if not isinstance(data, dict):
             raise ValueError("剧本解析结果不是 JSON 对象")
-        return self.output_model.model_validate(data)
+        try:
+            return self.output_model.model_validate(data)
+        except Exception as exc:  # noqa: BLE001 - 记录结构错误以便定位模型输出问题
+            logging.getLogger(__name__).error(
+                "script_parse schema validation failed: %s; raw_preview=%s",
+                exc,
+                raw[:800],
+            )
+            raise
 
     async def aparse(self, **kwargs: Any) -> ScriptParseResult:
         return await self.aextract(**kwargs)

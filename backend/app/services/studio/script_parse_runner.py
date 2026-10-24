@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -514,8 +515,12 @@ async def run_script_parse_task(task_id: str, run_args: dict) -> None:
                         existing_costumes_json=_json(_entity_brief(costumes)),
                     )
                     accumulator.merge_result(parsed, chunk)
-                except Exception:  # noqa: BLE001 - 单块失败继续，最终显式暴露
+                except Exception as exc:  # noqa: BLE001 - 单块失败继续，最终显式暴露
+                    logging.getLogger(__name__).warning(
+                        "script_parse chunk %s failed: %s", chunk.index, exc, exc_info=True
+                    )
                     failed_chunks.append(chunk.index)
+                    run.error = f"第 {chunk.index} 块解析失败：{exc}"
                 run.progress = min(90, 5 + int((chunk.index / max(1, len(chunks))) * 85))
                 await store.set_progress(task_id, run.progress)
                 await session.commit()
